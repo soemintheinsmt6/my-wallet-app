@@ -9,6 +9,8 @@ struct AppRootView: View {
         Group {
             if let dependencies = bootstrap.dependencies {
                 TabView {
+                    RecordsView(viewModel: dependencies.recordsViewModel)
+                        .tabItem { Label("Records", systemImage: "list.bullet.rectangle") }
                     AccountsView(viewModel: dependencies.accountsViewModel)
                         .tabItem { Label("Accounts", systemImage: "wallet.bifold") }
                     CategoriesView(viewModel: dependencies.categoriesViewModel)

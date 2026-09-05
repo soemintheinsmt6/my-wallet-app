@@ -41,6 +41,10 @@ extension WalletStore {
         let context = ModelContext(modelContainer)
         context.autosaveEnabled = false
         let records = try context.fetch(FetchDescriptor<TagRecord>(predicate: #Predicate { $0.id == id }))
+        // Detach the label without removing the financial records or changing their amounts.
+        for transaction in try context.fetch(FetchDescriptor<TransactionRecord>()) where transaction.tagIDs.contains(id) {
+            transaction.tagIDs.removeAll { $0 == id }
+        }
         // Repeated deletion is safe if another window/device already removed the label.
         for record in records { context.delete(record) }
         if context.hasChanges { try context.save() }

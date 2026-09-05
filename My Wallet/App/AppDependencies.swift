@@ -7,6 +7,7 @@ struct AppDependencies {
     let accountsViewModel: AccountsViewModel
     let categoriesViewModel: CategoriesViewModel
     let tagsViewModel: TagsViewModel
+    let recordsViewModel: RecordsViewModel
 
     static func make() async throws -> AppDependencies {
         let repository = try await SwiftDataWalletRepository.make(
@@ -15,7 +16,8 @@ struct AppDependencies {
         return AppDependencies(
             accountsViewModel: AccountsViewModel(useCases: AccountUseCases(repository: repository)),
             categoriesViewModel: CategoriesViewModel(useCases: CategoryUseCases(repository: repository)),
-            tagsViewModel: TagsViewModel(useCases: TagUseCases(repository: repository))
+            tagsViewModel: TagsViewModel(useCases: TagUseCases(repository: repository)),
+            recordsViewModel: RecordsViewModel(useCases: RecordUseCases(repository: repository), accounts: AccountUseCases(repository: repository), categories: CategoryUseCases(repository: repository), tags: TagUseCases(repository: repository))
         )
     }
 }

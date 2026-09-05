@@ -103,7 +103,7 @@ struct TagTests {
         }
 
         func openContainer() throws -> ModelContainer {
-            let schema = Schema([Item.self, AccountRecord.self, CategoryRecord.self, TagRecord.self])
+            let schema = Schema([Item.self, AccountRecord.self, CategoryRecord.self, TagRecord.self, TransactionRecord.self])
             return try ModelContainer(for: schema, configurations: [ModelConfiguration(schema: schema, url: url, cloudKitDatabase: .none)])
         }
 

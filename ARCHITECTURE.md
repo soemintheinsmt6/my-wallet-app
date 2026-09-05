@@ -57,7 +57,7 @@ The legacy `Item` and timestamp feature remain for compatibility. Tests cover ad
 
 ## Derived Behavior
 
-`balanceNotifications` includes accounts strictly outside enabled limits. `accountsIncludedInStats` omits excluded accounts without disabling alerts. No statistics calculations, currency conversion, transaction ledger or background balance-alert delivery exists yet.
+`balanceNotifications` includes accounts strictly outside enabled limits. `accountsIncludedInStats` omits excluded accounts without disabling alerts. No statistics dashboard, automatic currency conversion or background balance-alert delivery exists yet.
 
 ## Category Hierarchy and Seeding
 
@@ -71,7 +71,7 @@ Seed natures now use category-specific suggestions. Earlier None values are upgr
 
 Offline devices can independently create physical seed replicas. Fetches group by logical ID and select the latest `updatedAt`, breaking ties by `replicaID`; untouched seeds use the Unix epoch. Updates apply to all locally known replicas. This prevents duplicate visible seed categories and protects edits from later default imports, without deleting synced records. This is not server-side uniqueness: simultaneous custom-name creation can still conflict across devices, and concurrent edits use timestamps rather than field-level merging. Device verification is pending.
 
-The app shares `CategoriesViewModel` through `AppDependencies` and presents Accounts/Categories tabs. Category observation uses the existing repository invalidation stream. A read can perform initial seed writes; subsequent reads do not rewrite existing seeds.
+The app shares `CategoriesViewModel` through `AppDependencies`. Category observation uses the existing repository invalidation stream. A read can perform initial seed writes; subsequent reads do not rewrite existing seeds.
 
 ## Stable Category Colors
 
@@ -83,9 +83,17 @@ The app shares `CategoriesViewModel` through `AppDependencies` and presents Acco
 
 `WalletTag` is a Sendable value with UUID identity, name and `TagColor`. The UI calls it a Label. `TagUseCases` handles trimmed name validation and delegates to `TagRepository`. `WalletStore+Tags` performs create, update and delete in isolated contexts and checks duplicate names inside its serialized operations. Edits preserve identity; repeated deletion is safe. `TagRecord` is an additive CloudKit-compatible model without unique constraints.
 
-`TagsViewModel` observes the existing invalidation stream and is shared through `AppDependencies`. `TagsView` appears in a third app tab; saves and deletions refresh the list. Name uniqueness ignores case/accents locally; simultaneous same-name creation on separate offline devices is not globally prevented.
+`TagsViewModel` observes the existing invalidation stream and is shared through `AppDependencies`. `TagsView` appears in the Labels tab; saves and deletions refresh the list. Name uniqueness ignores case/accents locally; simultaneous same-name creation on separate offline devices is not globally prevented.
 
-There is no record/tag association yet. When record entry is added, reference stable tag IDs and define deletion to detach labels without deleting financial records. Add relationship migration and association tests then; the present delete operation only removes label models. Do not treat the legacy timestamp sample as a transaction ledger.
+Records reference label UUIDs. Deletion removes the selected ID from locally known records and deletes the label in one save, retaining financial records. Concurrent offline assignments/deletions require device verification; missing label IDs are not displayed.
+
+## Record Ledger
+
+`RecordEditorView → RecordsViewModel → RecordUseCases → RecordRepository → WalletStore` validates and saves `TransactionRecord`. Domain drafts contain exact Decimal amounts, account/category UUIDs, label IDs, timestamp, optional details and photo data. Transfers validate distinct existing accounts; cross-currency transfers require a received amount. A stable editor UUID makes repeated creation requests locally idempotent.
+
+Account reads derive balances from stored base balances plus ledger deltas. Editing an account's displayed balance subtracts its existing ledger delta before storing the new base. Record creation saves one ledger item rather than independently updating synchronized account counters. This does not establish conflict-free concurrent manual balance edits; CloudKit convergence remains unverified.
+
+PhotosPicker data is downsampled off the main actor and re-encoded without copying source metadata. SwiftData external storage holds the JPEG. List values carry only `hasPhoto`; detail views fetch attachment bytes lazily. Most-used category rankings derive from exact category IDs and record kind, then frequency and recency. The app exposes Records, Accounts, Categories and Labels tabs. Records are currently create/read only.
 
 ## Adding a Feature
 

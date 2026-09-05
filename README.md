@@ -19,9 +19,10 @@ Update this table whenever a feature is completed.
 | Starter categories | Complete locally | 10 categories and 50 editable subcategories; repeat seeding preserves edits; cross-device validation pending |
 | Category icons and suggested natures | Complete | Relevant icons for all 60 starter items; editable nature defaults with existing user choices preserved |
 | Category and nature colors | Complete | Fixed category palette for UI/future charts; separate colored nature badges; colors cannot be edited |
-| Labels / tags | Management complete | Create/edit a name and color; confirmed deletion; stable IDs for future record references |
+| Labels / tags | Complete | Create/edit name and color; assign multiple labels to records; confirmed deletion detaches labels |
+| Record creation | Complete locally | Expense, income and transfer; category/subcategory, most-used shortcuts, date/time, labels and optional details/photo |
 | iCloud synchronization | Configured; device verification pending | Private CloudKit container and platform entitlements |
-| Statistics dashboard, transactions, account deletion | Not implemented | Future work |
+| Statistics dashboard, record editing/deletion, account deletion | Not implemented | Future work |
 
 ## Getting Started
 
@@ -30,9 +31,10 @@ Use Xcode with the project's 26.5 platform SDKs. The most recent build validatio
 1. Open `My Wallet.xcodeproj`.
 2. Select the `My Wallet` scheme and your destination.
 3. Configure signing and iCloud as described below, then Run.
-4. Choose **Create Account**, fill in the fields, and save. Tap an account to edit it.
+4. Open **Accounts**, choose **Create Account**, fill in the fields, and save. Tap an account to edit it.
 5. Open **Categories** to manage starter categories. Open a category, choose **Edit Category**, tap a subcategory to edit, or choose **Create Subcategory**. Use the Categories toolbar plus button to create another parent category.
 6. Open **Labels** and choose **Create Label**. Tap a label to edit its name/color or delete it. Swipe or open the context menu to delete from the list; deletion requires confirmation.
+7. Open **Records** and choose **Add Record** or the plus button. Select Expense, Income or Transfer, enter an amount and complete General. More Details contains optional fields. Tap a saved record to view it.
 
 The app targets iOS, macOS and visionOS 26.5. Package minimums are iOS 17, macOS 14 and visionOS 1. iOS Simulator and macOS builds have been verified; visionOS has not.
 
@@ -70,7 +72,7 @@ Categories and subcategories each have a name and nature: **None**, **Must**, **
 
 Every starter subcategory also has a matching icon. Seed icons follow stable IDs, so renaming an item preserves its icon. Custom subcategories fall back to their seeded parent's icon, and other custom items use a tag icon.
 
-Missing starter IDs are seeded when categories load. Untouched earlier seeds receive the new nature defaults; edited seeds, including explicit None choices, retain their settings. Renaming a starter keeps its ID. Locally simulated duplicate seed replicas resolve to one visible category, preferring the latest edit over seed defaults. Real-device iCloud convergence remains unverified. Category deletion, moving subcategories and transaction entry are not implemented yet.
+Missing starter IDs are seeded when categories load. Untouched earlier seeds receive the new nature defaults; edited seeds, including explicit None choices, retain their settings. Renaming a starter keeps its ID. Locally simulated duplicate seed replicas resolve to one visible category, preferring the latest edit over seed defaults. Real-device iCloud convergence remains unverified. Category deletion and moving subcategories are not implemented yet.
 
 ## Category Colors
 
@@ -103,7 +105,27 @@ Category/subcategory edit sheets use the title **Edit**, a leading Name label wi
 
 Labels have a trimmed name (1–80 characters) and one of ten colors: Blue, Teal, Green, Yellow, Orange, Red, Pink, Purple, Indigo or Gray. Names must be unique locally, ignoring case and accents. Labels are listed alphabetically and persist through SwiftData. Deleting a label removes it permanently; other labels, accounts and categories remain intact.
 
-Record entry and attaching labels to records are not implemented yet. `WalletTag.id` provides stable identity for that future feature; renaming or recoloring a label preserves its ID. There are no pre-seeded labels. The CloudKit-compatible model is configured for the same private container, but live label sync needs device verification.
+Records reference stable `WalletTag.id` values; renaming/recoloring preserves assignments. Deleting a label detaches it from records without deleting records or changing balances. There are no pre-seeded labels. Live label sync needs device verification.
+
+## Records
+
+Date & Time shows plain trailing text (such as Today, 6:18 PM), without gray capsules. Tap the row to open the native date/time picker popover. Changes apply immediately; tap outside to dismiss. There is no Done button.
+
+The compact entry header uses a smaller currency pill and a 60-point scaled amount with reduced spacing. The bottom Save area is shorter; tapping blank space or section headers dismisses the keyboard, and scrolling supports interactive dismissal.
+
+Amounts display locale-aware digit separators without rounding the input. New drafts restore the account and payment type from the last successfully saved record on this device (transfers remember the From account). Cancelled drafts do not change these defaults; unavailable accounts remain unselected. Account rows always use a fixed blue wallet icon.
+
+Record-entry rows use aligned 36-point icon slots, 18-point symbols and a compact 10-point icon/text gap. Account icons use fixed white wallet symbols on blue tiles, matching category container dimensions. The amount remains editable and autofocused with its cursor hidden.
+
+The amount field focuses when Add Record first opens. Currency stays hidden until an account is selected. Account, transfer destination and payment type use leading labels with trailing chevrons and push selection lists; choosing an item returns to the draft. Category icons reuse the category list's white-on-color tiles.
+
+The Add Record title is inline. The reference-inspired layout uses a left currency badge, large right-aligned amount, full-width icon-led rows and a fixed bottom Save button. Expenses show a red minus, income a green plus, and transfers no prefix; prefixes are visual only, while saved amounts remain positive. Save stays disabled until required input is valid.
+
+Choose Expense, Income or Transfer and enter a positive amount. General contains account, category or subcategory, date/time and multiple labels. Transfers use distinct From/To accounts and allow no category; expense/income require one. Most-used shortcuts rank up to six categories/subcategories by saved usage for the selected record type, with recent use breaking ties. They appear after records exist.
+
+More Details supports note, payee, payment type and one photo from the photo library. Photos are downsampled to at most 1,600 pixels, re-encoded as JPEG and limited to 5 MB. Saved attachments load when viewing details. Camera capture is not included.
+
+Expenses subtract from balances, income adds, and transfers debit/credit their selected accounts. Different-currency transfers require an explicit received amount; no exchange rate is fetched. Account balances derive from the stored starting/adjustment balance plus records. Manually editing a balance preserves existing records. All saved records affect balances immediately, including future-dated entries; scheduling, record editing/deletion and live iCloud verification remain pending.
 
 ## iCloud Setup
 
