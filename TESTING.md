@@ -48,6 +48,8 @@ Name tests after observable behavior, such as `editsPersistAllSettingsAndPreserv
 
 ## Recorded Validation
 
+Source refactor validation on 2026-09-05: **43 tests across eight suites passed with `--no-parallel`**, and unsigned iOS Simulator/macOS builds passed. Existing migration, persistence and record tests cover the reorganized sources. Domain/Feature contain no SwiftData or WalletData imports. Public modules and persisted model definitions remain unchanged; visual/device regression checks are still manual.
+
 Amount-grouping validation on 2026-09-05: **43 tests across eight suites passed serially**, and the unsigned iOS Simulator build passed. New tests cover US/German/Indian separators, fractional zeros, incomplete decimals and full supported precision. Manually verify account/payment defaults after saving, cancelling and relaunching; these device preferences are not covered by the formatting tests.
 
 Latest record validation on 2026-09-05: **41 tests across seven suites passed with `--no-parallel`**, and unsigned iOS Simulator/macOS builds passed. Live iCloud record/photo sync, visual/device checks and accessibility remain pending.

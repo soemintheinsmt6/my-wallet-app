@@ -15,6 +15,10 @@ The local package is defined in `Packages/WalletKit/Package.swift`. It has three
 
 Source paths above are relative to `Packages/WalletKit/` except the app path.
 
+Domain and Feature sources are grouped into `Accounts/`, `Categories/`, `Records/`, `Tags/` and `Legacy/`. Data uses `Models/` for persisted types and `Persistence/` for container/repository/actor code. These folders are organization within the same three SwiftPM targets, not additional modules; imports and public contracts remain unchanged.
+
+`RecordEditorView` owns draft state, focus, navigation and saving. Its named amount/general/details sections compose `RecordAmountField`, `RecordDateTimeField` and `RecordFormRow`; the date component owns only its popover state. `RecordUseCases` has its own domain file. Account persistence lives in `WalletStore+Accounts`, alongside category/tag/record actor extensions. Preserve model names and stored fields when moving files; this refactor introduces no schema migration.
+
 ```text
 App → WalletFeature → WalletDomain
 App → WalletData    → WalletDomain

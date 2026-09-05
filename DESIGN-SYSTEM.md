@@ -52,6 +52,8 @@ Each tab has its own navigation stack. `CategoriesView` displays root names and 
 
 ## Record Components
 
+Record UI sources live in `Sources/WalletFeature/Records/`. `RecordAmountField` owns amount presentation, `RecordDateTimeField` owns the date popover, and `RecordFormRow` centralizes row geometry. `RecordEditorView` keeps draft/focus/navigation state and composes these controls; reuse the extracted components instead of copying their layout.
+
 Date & Time uses primary-colored, trailing, locale-aware date/time text with relative day labels and no capsule background. The row opens a native graphical date/time picker in a popover without Done; changes update the draft immediately and tapping outside dismisses it.
 
 The amount header uses a 60-point Dynamic Type-scaled font, 12-point stack spacing and 4-point vertical amount padding. Currency is a subheadline pill with 12 × 6-point padding. Save uses a 28-point minimum label height plus native button insets and a 10-point vertical footer margin. Blank-background/section-header taps clear focus for all entry text fields without adding a tap gesture to interactive controls.

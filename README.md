@@ -26,6 +26,8 @@ Update this table whenever a feature is completed.
 
 ## Getting Started
 
+Package sources are grouped by feature inside the existing Domain and Feature modules (`Accounts/`, `Categories/`, `Records/`, `Tags/`, `Legacy/`). Data sources separate `Models/` from `Persistence/`. Record amount, date/time and row components are extracted without changing the entry workflow or storage schema.
+
 Use Xcode with the project's 26.5 platform SDKs. The most recent build validation used Xcode 26.6 and Swift 6.3.3. Package tools require Swift 6.0 or newer.
 
 1. Open `My Wallet.xcodeproj`.
