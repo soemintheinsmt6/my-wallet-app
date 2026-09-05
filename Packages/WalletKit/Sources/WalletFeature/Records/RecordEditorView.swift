@@ -14,8 +14,8 @@ struct RecordEditorView: View {
     @State private var photoItem: PhotosPickerItem?
     @State private var isLoadingPhoto = false
     @State private var errorMessage: String?
-    @AppStorage("records.lastUsedAccountID") private var lastUsedAccountID = ""
-    @AppStorage("records.lastUsedPaymentType") private var lastUsedPaymentType = PaymentType.unspecified.rawValue
+    @AppStorage(WalletPreferenceKeys.lastUsedAccountID) private var lastUsedAccountID = ""
+    @AppStorage(WalletPreferenceKeys.lastUsedPaymentType) private var lastUsedPaymentType = PaymentType.unspecified.rawValue
     @FocusState private var focusedField: InputField?
     private enum InputField: Hashable { case amount, receivedAmount, note, payee }
     @State private var didFocusAmount = false

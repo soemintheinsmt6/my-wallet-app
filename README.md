@@ -9,6 +9,8 @@ Update this table whenever a feature is completed.
 | Feature | Status | Current behavior |
 | --- | --- | --- |
 | Modular architecture | Complete | Domain, data and presentation modules with app-owned dependency injection |
+| Appearance | Complete locally | Settings offers System, Light and Dark; choice persists on this device and applies across app windows |
+| Temporary data reset | Debug builds only | Confirmed deletion of wallet data; retains theme, clears last-used entry defaults and dismisses open drafts |
 | Account creation and editing | Complete | Name, current balance, type, color and saved settings |
 | Account types | Complete | Cash, Checking Account, Credit Card, Savings Account, Investments, Loans & Mortgage, Other |
 | Currency selection | Complete | Search by name/code during creation; immutable after saving |
@@ -128,6 +130,14 @@ Choose Expense, Income or Transfer and enter a positive amount. General contains
 More Details supports note, payee, payment type and one photo from the photo library. Photos are downsampled to at most 1,600 pixels, re-encoded as JPEG and limited to 5 MB. Saved attachments load when viewing details. Camera capture is not included.
 
 Expenses subtract from balances, income adds, and transfers debit/credit their selected accounts. Different-currency transfers require an explicit received amount; no exchange rate is fetched. Account balances derive from the stored starting/adjustment balance plus records. Manually editing a balance preserves existing records. All saved records affect balances immediately, including future-dated entries; scheduling, record editing/deletion and live iCloud verification remain pending.
+
+## Settings
+
+Open **Settings → Appearance** to choose System, Light or Dark. System follows the device appearance; the choice is saved locally, not synced through iCloud.
+
+Debug builds also show **Temporary Development Tools → Reset Wallet Data**. Confirmation deletes accounts, records (including photos), labels, category edits/custom categories and legacy entries. Last-used account/payment defaults are cleared, while the theme is kept. Open drafts/navigation are discarded in all app windows after success. Starter categories are seeded again on the next category load.
+
+Reset is irreversible in the app and may propagate deletions through iCloud. It is not a local-cache-only wipe, secure erasure or a purge of data that has not yet synced; later remote imports may reappear. The reset button is absent from release builds. No personal wallet data was deleted during implementation.
 
 ## iCloud Setup
 

@@ -46,7 +46,7 @@ Currency is interactive only on creation. Below/above toggles reveal their corre
 
 ## Category Components
 
-The app has Records, Accounts, Categories and Labels tabs. Label rows use 36-point solid-color tiles with 18-point white tag symbols, a name and trailing chevron; row content stays at least 44 points tall. The shared label editor uses a leading Name label, trailing-aligned text field, and the same ten-color grid pattern as accounts. Titles are Create Label and Edit. A destructive Delete Label action requires confirmation; deletion is also available through swipe/context actions. Preserve the draft and show inline errors when saving or deletion fails. The macOS label editor minimum is 440 × 460 points.
+The app has Records, Accounts, Categories, Labels and Settings tabs. Label rows use 36-point solid-color tiles with 18-point white tag symbols, a name and trailing chevron; row content stays at least 44 points tall. The shared label editor uses a leading Name label, trailing-aligned text field, and the same ten-color grid pattern as accounts. Titles are Create Label and Edit. A destructive Delete Label action requires confirmation; deletion is also available through swipe/context actions. Preserve the draft and show inline errors when saving or deletion fails. The macOS label editor minimum is 440 × 460 points.
 
 Each tab has its own navigation stack. `CategoriesView` displays root names and relevant SF Symbols without subcategory counts or nature chips. `WalletCategory+Presentation` maps all 60 starter IDs to icons, preserving icons after renaming. Custom children fall back to their seeded parent's icon; other custom items use a tag. `CategoryDetailView` shows its card below the navigation title without a large header icon. Category and subcategory names share a horizontal row with their nature chips. Subcategory rows retain icons, use a trailing chevron and open the editor. Edit Category and Create Subcategory remain explicit actions.
 
@@ -99,6 +99,12 @@ Mappings live in `AccountType+Presentation.swift`.
 Disable form editing, cancellation and interactive dismissal while saving. Preserve drafts after validation/storage errors. Use concise recovery messages. Account-list loading errors use an alert; save errors appear inline.
 
 Display balances with the account currency and up to eight fractional digits. Input accepts the local decimal separator without grouping. Explain currency immutability and notification behavior in form footers. In-app balance notices use `bell.badge` and text identifying the breached limit.
+
+## Settings
+
+Settings is the fifth tab, with a native System/Light/Dark segmented selector. Theme is applied at the app root so sheets and all tabs share the same choice. Use semantic colors for surfaces and text.
+
+Debug-only Temporary Development Tools contains a destructive Reset Wallet Data action and an explicit warning about iCloud propagation. Require confirmation, disable the tab interface during reset, show progress/errors, and discard open drafts after success. No reset action is visible in release builds.
 
 ## Accessibility and Review
 

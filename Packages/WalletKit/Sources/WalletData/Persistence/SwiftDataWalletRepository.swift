@@ -5,7 +5,7 @@ import SwiftData
 import WalletDomain
 
 @MainActor
-public final class SwiftDataWalletRepository: WalletRepository, AccountRepository, CategoryRepository, TagRepository, RecordRepository {
+public final class SwiftDataWalletRepository: WalletRepository, AccountRepository, CategoryRepository, TagRepository, RecordRepository, WalletResetRepository {
     private let store: WalletStore
     private var subscriptions = Set<AnyCancellable>()
     private var observers: [UUID: AsyncStream<Void>.Continuation] = [:]
@@ -29,6 +29,11 @@ public final class SwiftDataWalletRepository: WalletRepository, AccountRepositor
     }
 
     public func fetchEntries() async throws -> [WalletEntry] { try await store.fetchEntries() }
+
+    public func resetWalletData() async throws {
+        try await store.resetWalletData()
+        notifyChanges()
+    }
 
     public func fetchAccounts() async throws -> [Account] { try await store.fetchAccounts() }
 

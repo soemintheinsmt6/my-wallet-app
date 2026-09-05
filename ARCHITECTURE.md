@@ -97,7 +97,15 @@ Records reference label UUIDs. Deletion removes the selected ID from locally kno
 
 Account reads derive balances from stored base balances plus ledger deltas. Editing an account's displayed balance subtracts its existing ledger delta before storing the new base. Record creation saves one ledger item rather than independently updating synchronized account counters. This does not establish conflict-free concurrent manual balance edits; CloudKit convergence remains unverified.
 
-PhotosPicker data is downsampled off the main actor and re-encoded without copying source metadata. SwiftData external storage holds the JPEG. List values carry only `hasPhoto`; detail views fetch attachment bytes lazily. Most-used category rankings derive from exact category IDs and record kind, then frequency and recency. The app exposes Records, Accounts, Categories and Labels tabs. Records are currently create/read only.
+PhotosPicker data is downsampled off the main actor and re-encoded without copying source metadata. SwiftData external storage holds the JPEG. List values carry only `hasPhoto`; detail views fetch attachment bytes lazily. Most-used category rankings derive from exact category IDs and record kind, then frequency and recency. The app exposes Records, Accounts, Categories, Labels and Settings tabs. Records are currently create/read only.
+
+## Settings and Maintenance
+
+New settings code uses responsibility subfolders: Domain `Settings/Repositories` and `Settings/UseCases`; Feature `Settings/Models`, `Settings/ViewModels` and `Settings/Views`; Data `Persistence/Settings`. Shared preference keys live in `Shared/Preferences`. Continue creating relevant subdirectories as features grow instead of flattening them.
+
+`AppAppearance` maps System to no SwiftUI color-scheme override. The app root observes the same local preference as Settings and applies the selected appearance. `SettingsViewModel` calls `ResetWalletUseCase` through `WalletResetRepository`. The store deletes fetched model instances in one isolated-context save, then the repository publishes invalidation. This uses ordinary CloudKit deletion rather than removing database files.
+
+After success, only last-used record preferences are removed; a shared reset generation recreates tab/navigation state across windows. Failure retains preferences and navigation and exposes an error. The destructive control is compiled only in debug builds. Category seeding remains unchanged, and remote imports/concurrent offline writes require live-device verification.
 
 ## Adding a Feature
 
