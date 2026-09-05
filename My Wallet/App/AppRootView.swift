@@ -8,7 +8,12 @@ struct AppRootView: View {
     var body: some View {
         Group {
             if let dependencies = bootstrap.dependencies {
-                AccountsView(viewModel: dependencies.accountsViewModel)
+                TabView {
+                    AccountsView(viewModel: dependencies.accountsViewModel)
+                        .tabItem { Label("Accounts", systemImage: "wallet.bifold") }
+                    CategoriesView(viewModel: dependencies.categoriesViewModel)
+                        .tabItem { Label("Categories", systemImage: "folder") }
+                }
             } else if let startupError = bootstrap.errorMessage {
                 ContentUnavailableView {
                     Label("Unable to Open Wallet", systemImage: "exclamationmark.triangle")

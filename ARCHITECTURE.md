@@ -59,6 +59,26 @@ The legacy `Item` and timestamp feature remain for compatibility. Tests cover ad
 
 `balanceNotifications` includes accounts strictly outside enabled limits. `accountsIncludedInStats` omits excluded accounts without disabling alerts. No statistics calculations, currency conversion, transaction ledger or background balance-alert delivery exists yet.
 
+## Category Hierarchy and Seeding
+
+`WalletCategory` represents a root (`parentID == nil`) or a direct child identified by a root UUID. `CategoryUseCases` validates names, while `WalletStore+Categories` validates parent existence, rejects third-level nesting and enforces sibling-name uniqueness inside serialized persistence operations. Renaming never changes IDs or parent links. Category nature is independent at each level.
+
+`CategorySeeds` defines 10 roots and 50 children with deterministic IDs. IDs currently encode group/child positions: preserve existing positions and IDs when evolving the seed catalog; append new entries rather than reordering old ones. Fetching categories inserts only missing IDs, saves them together, and preserves previously edited fields.
+
+`CategoryRecord` uses CloudKit-compatible defaults and an optional parent UUID instead of a SwiftData relationship. No cascading delete exists. Root and child imports may arrive separately; children appear under their parent once it is available.
+
+Seed natures now use category-specific suggestions. Earlier None values are upgraded only when `updatedAt` is still the Unix epoch, indicating an untouched seed. Any prior user save preserves its nature, even None. Icons remain presentation metadata keyed by stable seed IDs; no icon schema migration is needed, and renames do not change the assigned symbol.
+
+Offline devices can independently create physical seed replicas. Fetches group by logical ID and select the latest `updatedAt`, breaking ties by `replicaID`; untouched seeds use the Unix epoch. Updates apply to all locally known replicas. This prevents duplicate visible seed categories and protects edits from later default imports, without deleting synced records. This is not server-side uniqueness: simultaneous custom-name creation can still conflict across devices, and concurrent edits use timestamps rather than field-level merging. Device verification is pending.
+
+The app shares `CategoriesViewModel` through `AppDependencies` and presents Accounts/Categories tabs. Category observation uses the existing repository invalidation stream. A read can perform initial seed writes; subsequent reads do not rewrite existing seeds.
+
+## Stable Category Colors
+
+`WalletCategory.colorToken` derives a read-only `CategoryColor` from the root UUID. Seed roots map to explicit palette entries, while custom roots use deterministic FNV-1a hashing. Child categories use their parent UUID, matching root colors even when the root record has not yet synced. No stored color field, schema migration or mutable color API is introduced.
+
+`CategoryColor.color` in WalletFeature exposes the sRGB conversion for UI and future charts. Changing a name or nature cannot change the token. Nature badge colors are separate presentation metadata. Preserve the palette values, ordering and hash algorithm when evolving the app to avoid changing historical chart colors.
+
 ## Adding a Feature
 
 Define domain values and contracts, implement storage adapters, add presentation in a suitable feature target, and wire dependencies in the app. Add behavioral tests and migration coverage where needed. Update [README feature status](README.md#feature-status) and affected guides in the same change.

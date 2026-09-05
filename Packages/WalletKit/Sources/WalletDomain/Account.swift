@@ -31,7 +31,7 @@ public struct Account: Identifiable, Equatable, Sendable {
 }
 
 public enum AccountColor: String, CaseIterable, Codable, Sendable, Identifiable {
-    case blue, teal, green, orange, red, pink, purple, gray
+    case blue, teal, green, yellow, orange, red, pink, purple, indigo, gray
     public var id: String { rawValue }
 }
 

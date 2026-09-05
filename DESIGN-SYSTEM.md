@@ -10,7 +10,7 @@ Use system controls and text styles for new screens. Keep account-specific color
 
 ## Color and Typography
 
-`AccountColor+Presentation.swift` maps eight stored choices to SwiftUI colors: blue, teal, green, orange, red, pink, purple and gray. Account icons use the chosen color over a 10%-opacity background. Color choices include a name and selection checkmark.
+`AccountColor+Presentation.swift` maps ten stored choices to SwiftUI colors: blue, teal, green, yellow, orange, red, pink, purple, indigo and gray. Account icons use white symbols on solid backgrounds in the chosen color, matching category icons. Color choices include a name and selection checkmark. The read-only category editor swatch is labeled Color.
 
 Use primary text for names/content, secondary text for supporting information, tint for actions and red text for form errors. Do not communicate selection, errors or account type using color alone.
 
@@ -43,6 +43,20 @@ Treat these as existing values, not a mandatory global scale. Reuse them for rel
 - `ProgressView`: loading and saving feedback.
 
 Currency is interactive only on creation. Below/above toggles reveal their corresponding limit inputs. The Actions section currently contains only Exclude from stats.
+
+## Category Components
+
+The app uses Accounts and Categories tabs, each with its own navigation stack. `CategoriesView` displays root names and relevant SF Symbols without subcategory counts or nature chips. `WalletCategory+Presentation` maps all 60 starter IDs to icons, preserving icons after renaming. Custom children fall back to their seeded parent's icon; other custom items use a tag. `CategoryDetailView` shows its card below the navigation title without a large header icon. Category and subcategory names share a horizontal row with their nature chips. Subcategory rows retain icons, use a trailing chevron and open the editor. Edit Category and Create Subcategory remain explicit actions.
+
+`CategoryEditorView` shares a grouped form for create/edit at both levels. Edit sheets use the title Edit; create sheets retain Create Category/Create Subcategory. The editor has no icon/name preview. Name uses a leading label and a trailing-aligned text field. The parent is read-only for subcategories. A native picker offers None, Must, Need and Want without a separate badge below it. Seeds have suggested natures listed in README; custom items start at None. Use the established saving state and inline-error patterns, preserving the draft after validation/storage failures. The macOS editor minimum is 440 × 360 points.
+
+## Category Color Tokens
+
+Category identity colors and nature colors are independent. `CategoryColor` in WalletDomain defines fixed sRGB hex values (palette listed in README); `CategoryColor+Presentation` converts them to SwiftUI `Color`. Use `category.colorToken.color` for icons, future chart marks and chart legends. Do not derive category colors from nature, edited names, list order or Swift's randomized `Hasher`.
+
+Starter roots each have a distinct fixed color. Children share their root color. Custom roots use deterministic UUID hashing into the fixed palette; repeated colors are possible, so future charts must include names and legends. These tokens are read-only and remain stable across renames, nature edits, launches and devices. Account color selection remains a separate editable feature.
+
+`CategoryIcon` uses a white symbol on a solid category-color background, with a 36-point square, 18-point symbol and 10-point radius. Category and subcategory row content stays at least 44 points tall for tapping. The brighter palette follows the supplied reference, with Food & Drinks green and Life & Entertainment red. `CategoryNatureBadge` uses a dot-free solid capsule with white text: gray for None, green for Must, blue for Need, red for Want. Badges include a VoiceOver nature label and appear beside names in category details and subcategory rows, but not in the editor or main category list. Keep these semantic labels visible; color alone is insufficient.
 
 ## Account Icons
 

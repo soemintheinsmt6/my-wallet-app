@@ -35,9 +35,9 @@ public struct AccountsView: View {
                             HStack(spacing: 14) {
                                 Image(systemName: account.type.symbol)
                                     .font(.title3)
-                                    .foregroundStyle(account.settings.color.tint)
+                                    .foregroundStyle(.white)
                                     .frame(width: 44, height: 44)
-                                    .background(account.settings.color.tint.opacity(0.1), in: RoundedRectangle(cornerRadius: 12))
+                                    .background(account.settings.color.tint, in: RoundedRectangle(cornerRadius: 12))
                                 VStack(alignment: .leading, spacing: 4) {
                                     Text(account.name).font(.headline)
                                     Text(account.type.title).font(.subheadline).foregroundStyle(.secondary)
