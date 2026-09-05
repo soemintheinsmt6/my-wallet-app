@@ -13,6 +13,8 @@ struct AppRootView: View {
                         .tabItem { Label("Accounts", systemImage: "wallet.bifold") }
                     CategoriesView(viewModel: dependencies.categoriesViewModel)
                         .tabItem { Label("Categories", systemImage: "folder") }
+                    TagsView(viewModel: dependencies.tagsViewModel)
+                        .tabItem { Label("Labels", systemImage: "tag") }
                 }
             } else if let startupError = bootstrap.errorMessage {
                 ContentUnavailableView {

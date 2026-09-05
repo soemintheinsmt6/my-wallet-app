@@ -8,7 +8,7 @@ public enum WalletStorageConfiguration: Sendable {
 
 public enum WalletPersistence {
     public static func makeContainer(configuration: WalletStorageConfiguration) throws -> ModelContainer {
-        let schema = Schema([Item.self, AccountRecord.self, CategoryRecord.self])
+        let schema = Schema([Item.self, AccountRecord.self, CategoryRecord.self, TagRecord.self])
         let modelConfiguration: ModelConfiguration
         switch configuration {
         case .cloud(let identifier):

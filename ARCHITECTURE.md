@@ -79,6 +79,14 @@ The app shares `CategoriesViewModel` through `AppDependencies` and presents Acco
 
 `CategoryColor.color` in WalletFeature exposes the sRGB conversion for UI and future charts. Changing a name or nature cannot change the token. Nature badge colors are separate presentation metadata. Preserve the palette values, ordering and hash algorithm when evolving the app to avoid changing historical chart colors.
 
+## Labels / Tags
+
+`WalletTag` is a Sendable value with UUID identity, name and `TagColor`. The UI calls it a Label. `TagUseCases` handles trimmed name validation and delegates to `TagRepository`. `WalletStore+Tags` performs create, update and delete in isolated contexts and checks duplicate names inside its serialized operations. Edits preserve identity; repeated deletion is safe. `TagRecord` is an additive CloudKit-compatible model without unique constraints.
+
+`TagsViewModel` observes the existing invalidation stream and is shared through `AppDependencies`. `TagsView` appears in a third app tab; saves and deletions refresh the list. Name uniqueness ignores case/accents locally; simultaneous same-name creation on separate offline devices is not globally prevented.
+
+There is no record/tag association yet. When record entry is added, reference stable tag IDs and define deletion to detach labels without deleting financial records. Add relationship migration and association tests then; the present delete operation only removes label models. Do not treat the legacy timestamp sample as a transaction ledger.
+
 ## Adding a Feature
 
 Define domain values and contracts, implement storage adapters, add presentation in a suitable feature target, and wire dependencies in the app. Add behavioral tests and migration coverage where needed. Update [README feature status](README.md#feature-status) and affected guides in the same change.

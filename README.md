@@ -19,6 +19,7 @@ Update this table whenever a feature is completed.
 | Starter categories | Complete locally | 10 categories and 50 editable subcategories; repeat seeding preserves edits; cross-device validation pending |
 | Category icons and suggested natures | Complete | Relevant icons for all 60 starter items; editable nature defaults with existing user choices preserved |
 | Category and nature colors | Complete | Fixed category palette for UI/future charts; separate colored nature badges; colors cannot be edited |
+| Labels / tags | Management complete | Create/edit a name and color; confirmed deletion; stable IDs for future record references |
 | iCloud synchronization | Configured; device verification pending | Private CloudKit container and platform entitlements |
 | Statistics dashboard, transactions, account deletion | Not implemented | Future work |
 
@@ -31,6 +32,7 @@ Use Xcode with the project's 26.5 platform SDKs. The most recent build validatio
 3. Configure signing and iCloud as described below, then Run.
 4. Choose **Create Account**, fill in the fields, and save. Tap an account to edit it.
 5. Open **Categories** to manage starter categories. Open a category, choose **Edit Category**, tap a subcategory to edit, or choose **Create Subcategory**. Use the Categories toolbar plus button to create another parent category.
+6. Open **Labels** and choose **Create Label**. Tap a label to edit its name/color or delete it. Swipe or open the context menu to delete from the list; deletion requires confirmation.
 
 The app targets iOS, macOS and visionOS 26.5. Package minimums are iOS 17, macOS 14 and visionOS 1. iOS Simulator and macOS builds have been verified; visionOS has not.
 
@@ -96,6 +98,12 @@ The main category list shows only icons and names, without subcategory counts or
 Category and subcategory icons use 36-point backgrounds with 18-point symbols, with row content at least 44 points tall for comfortable tapping.
 
 Category/subcategory edit sheets use the title **Edit**, a leading Name label with a trailing-aligned text field, and the nature selector without an extra chip. The editor has no icon/name preview.
+
+## Labels / Tags
+
+Labels have a trimmed name (1–80 characters) and one of ten colors: Blue, Teal, Green, Yellow, Orange, Red, Pink, Purple, Indigo or Gray. Names must be unique locally, ignoring case and accents. Labels are listed alphabetically and persist through SwiftData. Deleting a label removes it permanently; other labels, accounts and categories remain intact.
+
+Record entry and attaching labels to records are not implemented yet. `WalletTag.id` provides stable identity for that future feature; renaming or recoloring a label preserves its ID. There are no pre-seeded labels. The CloudKit-compatible model is configured for the same private container, but live label sync needs device verification.
 
 ## iCloud Setup
 

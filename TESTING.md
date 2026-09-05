@@ -39,12 +39,15 @@ Tests live in `Packages/WalletKit/Tests/WalletKitTests/` and use Swift Testing (
 | `AccountMigrationTests` | Previous account schema upgrades with identity preserved and defaults applied |
 | `CategoryTests` | Seed counts/idempotence, edited seed preservation, custom hierarchy, sibling uniqueness, invalid parents/names, replica resolution, published state, failures and account-preserving schema upgrades |
 | `CategoryColorTests` | Fixed palette, independence from names/natures and deterministic custom/root-child color mapping |
+| `TagTests` | Ten colors, name validation/uniqueness, stable edit identity, selective/idempotent deletion, notifications, view-model failure state and migration/reopening |
 
 Use in-memory stores for isolated behavior, repository doubles for failures, and unique temporary directories for disk/migration tests. Preserve snapshots of previous schemas when adding upgrade tests. Never point tests at a personal wallet database or live CloudKit container.
 
 Name tests after observable behavior, such as `editsPersistAllSettingsAndPreserveCurrencyAndIdentity`. Add meaningful regression coverage for changed behavior; no numeric coverage threshold is configured.
 
 ## Recorded Validation
+
+Latest label-management validation on 2026-09-05: **34 tests across six suites passed with `--no-parallel`**, and unsigned iOS Simulator/macOS builds passed. Label tests cover creation, editing, selective deletion, name validation, observer invalidation, save/delete failures, and additive migration preserving existing accounts/categories. Live iCloud label sync and visual/device checks remain pending; record/tag assignment is not implemented.
 
 On 2026-09-05, after account create/edit settings were implemented:
 
@@ -80,6 +83,14 @@ Latest validation on 2026-09-05 after category icons/default natures: **26 tests
 5. Cancel an edit and confirm no change; exercise loading/save failures, keyboard navigation, VoiceOver and larger text.
 6. Verify existing account fields after installing the category schema over a previous app build.
 7. Verify nature badges show None in gray, Must in green, Need in blue and Want in red, with labels. Rename a category and change its nature; confirm its category color stays fixed and no color editor appears. Confirm children share their parent's category color. Review both light/dark appearances and chart-label contrast when charts are added.
+
+## Manual Label Checklist
+
+1. Create a label using each color; confirm name/color after relaunch. Edit both fields and verify changes.
+2. Try blank/overlong names and case/accent variants of existing names. Confirm validation preserves input.
+3. Cancel a delete confirmation and verify the label remains. Confirm deletion and verify only the selected label disappears, including after relaunch.
+4. Exercise deletion from the editor, swipe actions and context menu; check keyboard/VoiceOver access and larger text.
+5. On signed devices, verify label creation, name/color edits and deletion sync through the configured container. Live tag sync is not covered by local tests.
 
 ## iCloud Verification
 
