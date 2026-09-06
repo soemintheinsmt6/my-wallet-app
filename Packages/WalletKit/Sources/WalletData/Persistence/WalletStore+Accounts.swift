@@ -31,6 +31,39 @@ extension WalletStore {
         }
     }
 
+    func accountDeletionImpact(id: UUID) throws -> AccountDeletionImpact {
+        guard let account = try fetchAccounts().first(where: { $0.id == id }) else {
+            throw AccountValidationError.accountNotFound
+        }
+        let context = ModelContext(modelContainer)
+        let records = try context.fetch(FetchDescriptor<TransactionRecord>()).filter {
+            $0.accountID == id || $0.destinationAccountID == id
+        }
+        return AccountDeletionImpact(account: account, recordCount: records.count,
+                                     transferCount: records.filter { $0.kindValue == RecordKind.transfer.rawValue }.count)
+    }
+
+    func deleteAccount(id: UUID, strategy: AccountDeletionStrategy) throws {
+        try Task.checkCancellation()
+        let context = ModelContext(modelContainer)
+        context.autosaveEnabled = false
+        for record in try context.fetch(FetchDescriptor<TransactionRecord>()) where record.accountID == id || record.destinationAccountID == id {
+            switch strategy {
+            case .deleteRecords:
+                record.photoData = nil
+                context.delete(record)
+            case .keepRecords:
+                // Retain the surviving transfer leg, currency snapshots, and attachment.
+                if record.accountID == id { record.accountID = nil }
+                if record.destinationAccountID == id { record.destinationAccountID = nil }
+            }
+        }
+        for account in try context.fetch(FetchDescriptor<AccountRecord>(predicate: #Predicate { $0.id == id })) {
+            context.delete(account)
+        }
+        try context.save()
+    }
+
     func createAccount(_ account: Account) throws {
         try Task.checkCancellation()
         let context = ModelContext(modelContainer)

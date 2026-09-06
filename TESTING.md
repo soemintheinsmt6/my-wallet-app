@@ -78,7 +78,7 @@ Latest validation on 2026-09-05 after category icons/default natures: **26 tests
 2. Reopen the app and confirm saved values. Edit every mutable field; confirm currency remains read-only and Cancel discards edits.
 3. Try blank/overlong names, malformed decimals and reversed limits. Confirm failures retain form input.
 4. Enable both limits. Check below, exactly at, within and above the range; notices appear only outside enabled limits.
-5. Toggle exclusion; confirm the account stays visible and alerts remain active. There is no statistics dashboard to verify yet.
+5. Toggle exclusion; confirm the account stays visible and alerts remain active. Confirm excluded accounts are omitted from Statistics.
 6. Check loading, empty, saving and error states; test larger text, VoiceOver, light/dark appearance and macOS window resizing.
 7. Exercise multiple windows and confirm their lists refresh after changes.
 
@@ -133,3 +133,18 @@ For categories, seed independently on two offline devices, rename a starter on o
 ## Completing a Feature
 
 Run checks appropriate to the changed behavior, report actual results and remaining gaps, and update [README.md](README.md) in the same change. Documentation-only changes require content/link checks; app tests need not be rerun unless executable behavior changed.
+
+## Phase 1 Core Gaps Validation (2026-09-06)
+
+All **65 tests across 12 suites passed** using `swift test --package-path Packages/WalletKit --no-parallel`. New lifecycle tests cover kind/account changes, same- and cross-currency transfer reversal, photo replacement/removal, failed edits/deletes, observer invalidation, view-model refresh, account cascade/unlink strategies on either transfer side, category reassignment/name collisions, Uncategorized fallbacks and last-category protection. Category migration tests verify the optional deletion timestamp default, persistence after reopening and resistance to older seed replicas. Statistics tests verify currency separation, exclusions, period boundaries, combined filters, child-category inclusion, zero periods and reconstructed history.
+
+Unsigned iOS Simulator and macOS builds both passed for this change. Visual/accessibility checks and CloudKit schema deployment/device sync remain manual; these local tests do not establish cross-device convergence.
+
+### Manual Core Features Checklist
+
+1. Open a saved record and edit every field. Verify its existing photo loads before Save enables; cancel once, then save replacements/removal. Verify list, detail and account balances refresh.
+2. Switch expense/income/transfer and swap source/destination accounts, including currencies. Verify sent/received amounts and account balances. Try deleting from detail, swipe and context actions; cancel once before confirming.
+3. Delete an account through its swipe/context action. Review record count, transfer count and current balance. Exercise both Keep Records and Delete Records with incoming/outgoing transfers, and verify surviving accounts and photos.
+4. Delete a category with children. Exercise reassignment and cascade, duplicate destination names, Uncategorized records and refusal to remove the final category. Relaunch and confirm deleted starters stay deleted.
+5. Inspect Statistics for each period, custom range and currency; combine account/category/label filters. Verify exclusions, transfer treatment, donut legends, zero activity, trend granularity, historical balance explanation and top categories.
+6. Review iPhone/iPad/macOS layouts, larger text, VoiceOver, light/dark mode and all six tabs (including compact tab overflow). Run signed-device tests for category tombstones, record/photo changes and account deletions after deploying the additive CloudKit schema.

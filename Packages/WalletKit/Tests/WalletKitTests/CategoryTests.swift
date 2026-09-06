@@ -153,6 +153,14 @@ struct CategoryTests {
         #expect(!viewModel.isLoading)
     }
 
+    @Test func failedDeletionReleasesCategorySavingState() async throws {
+        let viewModel = CategoriesViewModel(useCases: CategoryUseCases(repository: FailingCategoryRepository()))
+        await #expect(throws: FailingCategoryRepository.Failure.self) {
+            try await viewModel.delete(id: UUID(), strategy: .deleteSubcategories)
+        }
+        #expect(!viewModel.isSaving)
+    }
+
     @Test func failedSaveRestoresViewModelStateAndReportsLoadFailure() async {
         let viewModel = CategoriesViewModel(useCases: CategoryUseCases(repository: FailingCategoryRepository()))
         await viewModel.reload()
@@ -207,6 +215,7 @@ struct CategoryTests {
 
 @MainActor
 private final class FailingCategoryRepository: CategoryRepository {
+    func deleteCategory(id: UUID, strategy: CategoryDeletionStrategy) async throws { throw Failure() }
     struct Failure: Error {}
     func fetchCategories() async throws -> [WalletCategory] { throw Failure() }
     func createCategory(name: String, nature: CategoryNature, parentID: UUID?) async throws { throw Failure() }

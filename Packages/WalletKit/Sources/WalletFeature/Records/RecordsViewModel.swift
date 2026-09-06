@@ -53,11 +53,20 @@ public final class RecordsViewModel: ObservableObject {
         } catch { if version == generation { errorMessage = error.localizedDescription } }
     }
 
-    public func save(id: UUID, draft: RecordDraft) async throws {
+    public func save(id: UUID, draft: RecordDraft, editing: Bool = false) async throws {
         guard !isSaving else { throw RecordValidationError.saveInProgress }
         isSaving = true
         defer { isSaving = false }
-        try await useCases.create(id: id, draft: draft)
+        if editing { try await useCases.update(id: id, draft: draft) }
+        else { try await useCases.create(id: id, draft: draft) }
+        await reload()
+    }
+
+    public func delete(id: UUID) async throws {
+        guard !isSaving else { throw RecordValidationError.saveInProgress }
+        isSaving = true
+        defer { isSaving = false }
+        try await useCases.delete(id: id)
         await reload()
     }
 
@@ -65,7 +74,7 @@ public final class RecordsViewModel: ObservableObject {
     func account(_ id: UUID?) -> Account? { accounts.first { $0.id == id } }
     func category(_ id: UUID?) -> WalletCategory? { categories.first { $0.id == id } }
     func categoryTitle(_ id: UUID?) -> String {
-        guard let category = category(id) else { return "Choose category" }
+        guard let category = category(id) else { return "Uncategorized" }
         if let parent = self.category(category.parentID) { return "\(parent.name) / \(category.name)" }
         return category.name
     }

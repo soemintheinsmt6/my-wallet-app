@@ -61,7 +61,7 @@ The legacy `Item` and timestamp feature remain for compatibility. Tests cover ad
 
 ## Derived Behavior
 
-`balanceNotifications` includes accounts strictly outside enabled limits. `accountsIncludedInStats` omits excluded accounts without disabling alerts. No statistics dashboard, automatic currency conversion or background balance-alert delivery exists yet.
+`balanceNotifications` includes accounts strictly outside enabled limits. `accountsIncludedInStats` omits excluded accounts without disabling alerts. Statistics derives filtered, currency-separated totals and reconstructed balance history from domain values. Automatic currency conversion and background balance-alert delivery are not implemented.
 
 ## Category Hierarchy and Seeding
 
@@ -69,7 +69,7 @@ The legacy `Item` and timestamp feature remain for compatibility. Tests cover ad
 
 `CategorySeeds` defines 10 roots and 50 children with deterministic IDs. IDs currently encode group/child positions: preserve existing positions and IDs when evolving the seed catalog; append new entries rather than reordering old ones. Fetching categories inserts only missing IDs, saves them together, and preserves previously edited fields.
 
-`CategoryRecord` uses CloudKit-compatible defaults and an optional parent UUID instead of a SwiftData relationship. No cascading delete exists. Root and child imports may arrive separately; children appear under their parent once it is available.
+`CategoryRecord` uses CloudKit-compatible defaults and an optional parent UUID instead of a SwiftData relationship. An optional `deletionDate` tombstone hides deleted logical categories after replica resolution and prevents starter reseeding. Category deletion reassigns or tombstones children and clears locally known record references in one save. Root and child imports may arrive separately; children appear under their parent once it is available.
 
 Seed natures now use category-specific suggestions. Earlier None values are upgraded only when `updatedAt` is still the Unix epoch, indicating an untouched seed. Any prior user save preserves its nature, even None. Icons remain presentation metadata keyed by stable seed IDs; no icon schema migration is needed, and renames do not change the assigned symbol.
 
@@ -97,7 +97,7 @@ Records reference label UUIDs. Deletion removes the selected ID from locally kno
 
 Account reads derive balances from stored base balances plus ledger deltas. Editing an account's displayed balance subtracts its existing ledger delta before storing the new base. Record creation saves one ledger item rather than independently updating synchronized account counters. This does not establish conflict-free concurrent manual balance edits; CloudKit convergence remains unverified.
 
-PhotosPicker data is downsampled off the main actor and re-encoded without copying source metadata. SwiftData external storage holds the JPEG. List values carry only `hasPhoto`; detail views fetch attachment bytes lazily. Most-used category rankings derive from exact category IDs and record kind, then frequency and recency. The app exposes Records, Accounts, Categories, Labels and Settings tabs. Records are currently create/read only.
+PhotosPicker data is downsampled off the main actor and re-encoded without copying source metadata. SwiftData external storage holds the JPEG. List values carry only `hasPhoto`; detail views fetch attachment bytes lazily. Most-used category rankings derive from exact category IDs and record kind, then frequency and recency. The app exposes Records, Statistics, Accounts, Categories, Labels and Settings tabs. Records support create/read/update/delete. Updates apply all fields to the existing logical record in one context save; deleting a record removes photo data and the ledger effect.
 
 ## Settings and Maintenance
 
@@ -110,3 +110,11 @@ After success, only last-used record preferences are removed; a shared reset gen
 ## Adding a Feature
 
 Define domain values and contracts, implement storage adapters, add presentation in a suitable feature target, and wire dependencies in the app. Add behavioral tests and migration coverage where needed. Update [README feature status](README.md#feature-status) and affected guides in the same change.
+
+## Core Deletion and Statistics
+
+Account deletion either removes associated records/photos or clears only the deleted account link. Kept transfer records continue to affect surviving accounts. Cascade removal reverses the surviving side through the derived ledger. Domain impact summaries expose the current account balance and affected record/transfer counts before confirmation. All mutations publish repository invalidations after saving.
+
+`CategoryRecord.deletionDate` is an additive optional Date with a nil default. Older stores migrate with categories visible; migration/reopening regression tests cover this. Logical replica resolution occurs before filtering tombstones. No CloudKit container or entitlement changes are needed, but deploy the additive schema before production use and verify offline edits/deletions on devices. Concurrent offline edits remain timestamp-resolved, and references arriving after a deletion can be displayed as unavailable/Uncategorized.
+
+`WalletStatistics.calculate` is a pure domain calculation over records, accounts and categories. It excludes accounts marked `excludeFromStats`, groups activity by currency and category, includes children for root category filters, and excludes transfers from income/expense totals. Swift Charts is confined to WalletFeature. Balance history reconstructs current base balances plus dated ledger deltas; future records are removed from earlier history, while manual balance corrections remain retrospective. Category/label filters do not alter account balance history. Stats observes the shared RecordsViewModel invalidation stream.

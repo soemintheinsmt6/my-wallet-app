@@ -1,0 +1,428 @@
+# Feature Implementation Roadmap
+
+Future features planned for **My Wallet**, grouped by priority phase. Each feature includes its scope, the modules it touches, and any dependencies on other features or infrastructure.
+
+---
+
+## Phase 1 — Core Gaps
+
+These features close the gaps listed in the current Feature Status table and are prerequisites for a complete v1.0.
+
+---
+
+### 1.1 Record Editing
+
+> **Status:** Implemented locally; visual/device verification pending
+> **Modules:** `WalletDomain/Records`, `WalletData`, `WalletFeature/Records`
+
+Allow users to open a saved record, modify any field (amount, category, account, date, tags, note, payee, payment type, photo) and save the changes. Balance adjustments must be recalculated atomically: reverse the old record's effect, apply the new values. Changing the account or switching between expense/income/transfer must handle the debit/credit swap correctly.
+
+- [x] Add `updateRecord` to `RecordRepository` and `RecordUseCases`
+- [x] Reuse `RecordEditorView` in edit mode, pre-populated from the existing `WalletRecord`
+- [x] Atomic balance recalculation on account changes
+- [x] Validate that photo replacement and removal work correctly
+- [x] Unit tests for balance adjustment edge cases
+
+---
+
+### 1.2 Record Deletion
+
+> **Status:** Implemented locally; visual/device verification pending
+> **Modules:** `WalletDomain/Records`, `WalletData`, `WalletFeature/Records`
+
+Delete a single record with confirmation. Reverse its balance effect on the associated account(s). Support swipe-to-delete and context-menu delete from the records list, plus a delete button in the detail view.
+
+- [x] Add `deleteRecord` to `RecordRepository` and `RecordUseCases`
+- [x] Confirmation alert before deletion
+- [x] Balance reversal logic (expense adds back, income subtracts, transfer reverses both sides)
+- [x] Remove associated photo data from storage
+- [x] Unit tests for deletion and balance reversal
+
+---
+
+### 1.3 Account Deletion
+
+> **Status:** Implemented locally; visual/device verification pending
+> **Modules:** `WalletDomain/Accounts`, `WalletData`, `WalletFeature/Accounts`
+
+Delete an account with full disclosure of the consequences. Show the number of records that will be orphaned or deleted. Offer two strategies: delete all associated records, or keep records as archived/unlinked entries. Transfers involving the deleted account need explicit handling.
+
+- [x] Add `deleteAccount` to `AccountRepository` and `AccountUseCases`
+- [x] Impact summary before confirmation (record count, balance)
+- [x] Cascade or archive strategy selection
+- [x] Handle transfer records referencing the deleted account
+- [x] Unit tests for cascade and archive paths
+
+---
+
+### 1.4 Category Deletion
+
+> **Status:** Implemented locally; CloudKit device verification pending
+> **Modules:** `WalletDomain/Categories`, `WalletData`, `WalletFeature/Categories`
+
+Delete a root category or subcategory. Deleting a root category should offer to reassign its subcategories or delete them. Records using a deleted category/subcategory should fall back to an "Uncategorized" state rather than losing data.
+
+- [x] Add `deleteCategory` to `CategoryRepository` and `CategoryUseCases`
+- [x] Reassign-or-delete prompt for subcategories under a deleted parent
+- [x] Graceful fallback for records referencing deleted categories
+- [x] Prevent deletion of the last remaining category
+- [x] Unit tests for reassignment and orphaned-record handling
+
+---
+
+### 1.5 Statistics Dashboard
+
+> **Status:** Implemented locally; visual/device verification pending
+> **Modules:** `WalletDomain` (new `Statistics/`), `WalletFeature` (new `Statistics/`)
+
+A dedicated tab or section showing spending and income analytics. Reuse `category.colorToken.color` for chart marks as noted in the design system.
+
+- [x] Total income vs. total expenses for a selected period (week, month, year, custom)
+- [x] Expense breakdown by category — pie/donut chart with category colors
+- [x] Income breakdown by category
+- [x] Daily/weekly/monthly spending trend — bar or line chart
+- [x] Account balance history over time
+- [x] Top spending categories ranking
+- [x] Filter by account, category, tag, date range
+- [x] Respect `excludeFromStats` account setting
+- [x] Swift Charts integration
+
+---
+
+Implementation notes (2026-09-06): Phase 1 is implemented. Statistics keeps currencies separate; automatic conversion remains Phase 3.6. Balance history is reconstructed from current base balances and the ledger, so manual balance corrections apply retrospectively. Category deletion adds an optional `deletionDate` tombstone to preserve deleted starter IDs across reseeding. Archived account records retain currency snapshots and surviving transfer legs; editing an unlinked record requires selecting valid accounts again. Phases 2–5 remain planned.
+
+## Phase 2 — Financial Intelligence
+
+Features that help users understand and control their finances beyond basic tracking.
+
+---
+
+### 2.1 Budgets
+
+> **Modules:** `WalletDomain` (new `Budgets/`), `WalletData`, `WalletFeature` (new `Budgets/`)
+
+Set monthly or custom-period spending limits per category or overall. Track progress against the budget with visual indicators.
+
+- [ ] `Budget` entity: amount, period (monthly/weekly/custom), linked category or global
+- [ ] `BudgetRepository` and `BudgetUseCases`
+- [ ] Budget progress bar in the dashboard and category detail
+- [ ] Notifications when approaching or exceeding a budget limit
+- [ ] Rollover option for unused budget amounts
+- [ ] Budget vs. actual comparison view
+
+---
+
+### 2.2 Recurring Transactions
+
+> **Modules:** `WalletDomain/Records` (extend), `WalletData`, `WalletFeature/Records`
+
+Define transactions that repeat on a schedule. The app creates records automatically or prompts the user to confirm.
+
+- [ ] `RecurrenceRule` value type: frequency (daily/weekly/biweekly/monthly/yearly), end date or count
+- [ ] Attach recurrence to a `RecordDraft`
+- [ ] Background task or app-launch hook to generate due records
+- [ ] Upcoming recurring transactions list
+- [ ] Edit/pause/cancel a recurring series
+- [ ] Skip or modify individual occurrences
+
+---
+
+### 2.3 Financial Reports
+
+> **Modules:** `WalletFeature` (new `Reports/`)
+
+Generate downloadable or shareable reports summarizing financial activity.
+
+- [ ] Monthly/yearly summary report (income, expenses, net, top categories)
+- [ ] Category-level breakdown report
+- [ ] Account statement view with running balance
+- [ ] Export as PDF or share via system share sheet
+- [ ] Date range selection for custom reports
+
+---
+
+### 2.4 Bill Reminders
+
+> **Modules:** `WalletDomain` (new `Reminders/`), `WalletData`, `WalletFeature` (new `Reminders/`)
+
+Track upcoming bills and due dates with push notification reminders.
+
+- [ ] `BillReminder` entity: name, amount, due date, recurrence, linked category/account
+- [ ] Local notification scheduling (1 day before, on due date, configurable)
+- [ ] Mark as paid — optionally auto-create a record
+- [ ] Overdue bill highlighting
+- [ ] Calendar view of upcoming bills
+
+---
+
+## Phase 3 — User Experience Enhancements
+
+Polish and convenience features that make daily use smoother.
+
+---
+
+### 3.1 Search and Filtering
+
+> **Modules:** `WalletDomain/Records`, `WalletFeature/Records`
+
+Full-text search across records with advanced filtering.
+
+- [ ] Search by note, payee, amount, category name, tag name
+- [ ] Filter by date range, record type, account, category, tag, payment type
+- [ ] Combine search with filters
+- [ ] Recent searches history
+- [ ] Results sorted by relevance or date
+
+---
+
+### 3.2 Home Screen Widgets
+
+> **Modules:** New widget extension target
+
+Glanceable financial summaries on the home screen.
+
+- [ ] Total balance across accounts widget (small/medium)
+- [ ] Monthly spending summary widget
+- [ ] Recent transactions widget (medium/large)
+- [ ] Budget progress widget
+- [ ] Quick-add record intent (interactive widget on iOS 17+)
+
+---
+
+### 3.3 Biometric / Passcode Lock
+
+> **Modules:** `WalletFeature/Settings`, App entry point
+
+Protect sensitive financial data with Face ID, Touch ID, or a custom passcode.
+
+- [ ] App lock toggle in Settings
+- [ ] Face ID / Touch ID authentication via `LocalAuthentication`
+- [ ] Fallback passcode (4-digit or 6-digit)
+- [ ] Auto-lock on app background or after timeout
+- [ ] Grace period setting (immediately, after 1 min, after 5 min)
+
+---
+
+### 3.4 Data Export / Import
+
+> **Modules:** `WalletDomain` (new `DataExchange/`), `WalletFeature/Settings`
+
+Let users export their data for backup or migration, and import from external sources.
+
+- [ ] Export all records as CSV with headers (date, type, amount, category, account, tags, note, payee)
+- [ ] Export as JSON for full fidelity (accounts, categories, tags, records)
+- [ ] Import from CSV with column mapping
+- [ ] Import preview and conflict resolution (duplicate detection)
+- [ ] Export/import from Settings screen
+
+---
+
+### 3.5 Onboarding Flow
+
+> **Modules:** `WalletFeature` (new `Onboarding/`)
+
+Guide new users through initial setup to reduce friction.
+
+- [ ] Welcome screen with app value proposition
+- [ ] Create first account step
+- [ ] Review starter categories step
+- [ ] Optional: set up a monthly budget
+- [ ] Skip option for experienced users
+- [ ] Show only on first launch (persisted flag)
+
+---
+
+### 3.6 Multi-Currency Support
+
+> **Modules:** `WalletDomain`, `WalletFeature/Shared`
+
+Enhanced multi-currency handling beyond the current per-account currency.
+
+- [ ] Primary/home currency setting
+- [ ] Automatic exchange rate fetching (ECB, Open Exchange Rates, or similar free API)
+- [ ] Converted totals in the dashboard using the home currency
+- [ ] Historical exchange rates for accurate past-record conversion
+- [ ] Manual rate override per record
+- [ ] Currency gain/loss tracking for transfers
+
+---
+
+## Phase 4 — Platform & Ecosystem
+
+Broader platform integration and ecosystem features.
+
+---
+
+### 4.1 Siri Shortcuts / App Intents
+
+> **Modules:** New `AppIntents` integration
+
+Voice-driven and automation-friendly record creation.
+
+- [ ] "Add expense" intent with amount, category, account parameters
+- [ ] "Show balance" intent for a specific account
+- [ ] "Monthly summary" intent
+- [ ] Spotlight indexing for accounts and categories
+- [ ] Shortcuts app integration for custom automations
+
+---
+
+### 4.2 Apple Watch Companion
+
+> **Modules:** New watchOS target, shared domain
+
+Quick record entry and balance checking from the wrist.
+
+- [ ] Complication showing total or account balance
+- [ ] Quick expense entry with recent categories
+- [ ] Today's spending summary
+- [ ] Sync via WatchConnectivity or shared CloudKit
+
+---
+
+### 4.3 iPad Optimizations
+
+> **Modules:** `WalletFeature` (adaptive layouts)
+
+Take advantage of larger screens with richer layouts.
+
+- [ ] Sidebar navigation with split view
+- [ ] Dashboard and statistics side-by-side
+- [ ] Keyboard shortcuts for common actions
+- [ ] Drag-and-drop for record categorization
+- [ ] Multi-window support with independent state
+
+---
+
+### 4.4 Notifications & Insights
+
+> **Modules:** `WalletDomain` (new `Insights/`), push notification infrastructure
+
+Proactive financial awareness through smart alerts.
+
+- [ ] Weekly spending summary notification
+- [ ] Unusual spending alerts (above average for a category)
+- [ ] Streak tracking (days of logging, days under budget)
+- [ ] Monthly comparison (spent more/less than last month)
+- [ ] Configurable notification preferences in Settings
+
+---
+
+### 4.5 Camera Receipt Capture
+
+> **Modules:** `WalletFeature/Records` (extend photo handling)
+
+Capture receipts directly from the camera and optionally extract data.
+
+- [ ] Camera capture integration (beyond current photo library)
+- [ ] Multi-page receipt scanning with VisionKit
+- [ ] Optional OCR for amount and date extraction (on-device via Vision)
+- [ ] Store receipt images alongside records
+- [ ] Receipt gallery view per record
+
+---
+
+## Phase 5 — Advanced & Long-Term
+
+Features for power users and long-term product differentiation.
+
+---
+
+### 5.1 Debt Tracking
+
+> **Modules:** `WalletDomain` (new `Debts/`), `WalletData`, `WalletFeature` (new `Debts/`)
+
+Track money owed to or by other people.
+
+- [ ] `Debt` entity: person, amount, direction (owe/owed), due date, linked records
+- [ ] Debt list with net balance per person
+- [ ] Settle debt — auto-create a transfer or expense record
+- [ ] Reminders for outstanding debts
+- [ ] History of partial payments
+
+---
+
+### 5.2 Savings Goals
+
+> **Modules:** `WalletDomain` (new `Goals/`), `WalletData`, `WalletFeature` (new `Goals/`)
+
+Set and track progress toward specific financial goals.
+
+- [ ] `SavingsGoal` entity: name, target amount, deadline, linked account
+- [ ] Visual progress indicator (bar or ring)
+- [ ] Contribution history
+- [ ] Projected completion date based on contribution rate
+- [ ] Goal achieved celebration animation
+
+---
+
+### 5.3 Shared Wallets / Expense Splitting
+
+> **Modules:** `WalletDomain` (extend), CloudKit sharing
+
+Collaborative expense tracking for households or trips.
+
+- [ ] Share a wallet/account with another iCloud user via `CKShare`
+- [ ] Split an expense equally or by custom amounts
+- [ ] Track who paid and who owes
+- [ ] Settlement suggestions
+- [ ] Shared budget tracking
+
+---
+
+### 5.4 Custom Dashboard
+
+> **Modules:** `WalletFeature` (new `Dashboard/`)
+
+A configurable home screen that surfaces the most relevant information.
+
+- [ ] Drag-and-drop widget arrangement
+- [ ] Customizable cards: balance, recent records, budget progress, spending chart, goals
+- [ ] Quick-action buttons (add expense, add income, add transfer)
+- [ ] Per-account or aggregate views
+- [ ] Time period selector (today, this week, this month)
+
+---
+
+### 5.5 Theming & Customization
+
+> **Modules:** `WalletFeature/Settings`, design system
+
+Go beyond light/dark with richer visual personalization.
+
+- [ ] Accent color picker (beyond system default)
+- [ ] App icon variants
+- [ ] Custom category icon selection (SF Symbols browser or custom images)
+- [ ] Compact vs. comfortable list density setting
+- [ ] Font size preference (independent of system Dynamic Type)
+
+---
+
+## Dependency Graph
+
+Features should generally be implemented in phase order. Key cross-phase dependencies:
+
+```
+Record Editing (1.1) ──► Recurring Transactions (2.2)
+Record Deletion (1.2) ──► Account Deletion (1.3)
+Statistics Dashboard (1.5) ──► Budgets (2.1)
+Statistics Dashboard (1.5) ──► Financial Reports (2.3)
+Statistics Dashboard (1.5) ──► Home Screen Widgets (3.2)
+Statistics Dashboard (1.5) ──► Custom Dashboard (5.4)
+Budgets (2.1) ──► Notifications & Insights (4.4)
+Multi-Currency Support (3.6) ──► Statistics Dashboard (1.5) [enhanced]
+Data Export (3.4) ──► Financial Reports (2.3) [PDF reuse]
+Biometric Lock (3.3) ──► Shared Wallets (5.3)
+```
+
+---
+
+## Contributing
+
+When picking up a feature:
+
+1. Create a branch named `feature/<short-name>` (e.g. `feature/record-editing`).
+2. Follow the module boundaries in [ARCHITECTURE.md](ARCHITECTURE.md) — domain first, then data, then feature.
+3. Add or extend unit tests per [TESTING.md](TESTING.md).
+4. Update [README.md](README.md) Feature Status on completion.
+5. Update [DESIGN-SYSTEM.md](DESIGN-SYSTEM.md) if new visual components are introduced.

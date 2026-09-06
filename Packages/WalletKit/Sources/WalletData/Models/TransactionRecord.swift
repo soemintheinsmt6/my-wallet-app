@@ -23,6 +23,10 @@ final class TransactionRecord {
 
     init(id: UUID, draft: RecordDraft, currencyCode: String, destinationCurrencyCode: String?) {
         self.id = id
+        apply(draft: draft, currencyCode: currencyCode, destinationCurrencyCode: destinationCurrencyCode)
+    }
+
+    func apply(draft: RecordDraft, currencyCode: String, destinationCurrencyCode: String?) {
         kindValue = draft.kind.rawValue
         accountID = draft.accountID
         destinationAccountID = draft.kind == .transfer ? draft.destinationAccountID : nil

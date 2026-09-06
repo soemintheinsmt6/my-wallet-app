@@ -6,6 +6,7 @@ public struct AccountsView: View {
     @Environment(\.scenePhase) private var scenePhase
     @State private var isCreatingAccount = false
     @State private var editingAccount: Account?
+    @State private var deletingAccount: Account?
 
     public init(viewModel: AccountsViewModel) { self.viewModel = viewModel }
 
@@ -56,6 +57,12 @@ public struct AccountsView: View {
                         }
                         .buttonStyle(.plain)
                         .accessibilityHint("Edit account")
+                        .swipeActions {
+                            Button("Delete", role: .destructive) { deletingAccount = account }
+                        }
+                        .contextMenu {
+                            Button("Delete Account", role: .destructive) { deletingAccount = account }
+                        }
                     }
                 }
             }
@@ -85,6 +92,7 @@ public struct AccountsView: View {
             }
             .refreshable { await viewModel.reload() }
             .sheet(isPresented: $isCreatingAccount) { AccountEditorView(viewModel: viewModel) }
+            .sheet(item: $deletingAccount) { AccountDeletionView(viewModel: viewModel, account: $0) }
             .sheet(item: $editingAccount) { AccountEditorView(viewModel: viewModel, account: $0) }
             .alert("Unable to Load Accounts", isPresented: Binding(
                 get: { viewModel.errorMessage != nil },

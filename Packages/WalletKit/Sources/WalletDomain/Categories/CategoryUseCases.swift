@@ -4,6 +4,7 @@ public enum CategoryValidationError: LocalizedError {
     case invalidName
     case duplicateName
     case invalidParent
+    case lastCategory
     case notFound
     case saveInProgress
 
@@ -12,6 +13,7 @@ public enum CategoryValidationError: LocalizedError {
         case .invalidName: "Enter a name with 1 to 80 characters."
         case .duplicateName: "A category with this name already exists at this level. Choose another name."
         case .invalidParent: "Choose an existing top-level category for this subcategory."
+        case .lastCategory: "Keep at least one category in your wallet."
         case .notFound: "This category is no longer available. Close the form and refresh."
         case .saveInProgress: "Another category is being saved. Please try again."
         }
@@ -36,6 +38,11 @@ public struct CategoryUseCases {
         let name = try validatedName(name)
         try Task.checkCancellation()
         try await repository.updateCategory(id: id, name: name, nature: nature)
+    }
+
+    public func delete(id: UUID, strategy: CategoryDeletionStrategy) async throws {
+        try Task.checkCancellation()
+        try await repository.deleteCategory(id: id, strategy: strategy)
     }
 
     public func changes() -> AsyncStream<Void> { repository.changes() }

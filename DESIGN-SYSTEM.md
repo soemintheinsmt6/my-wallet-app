@@ -46,7 +46,7 @@ Currency is interactive only on creation. Below/above toggles reveal their corre
 
 ## Category Components
 
-The app has Records, Accounts, Categories, Labels and Settings tabs. Label rows use 36-point solid-color tiles with 18-point white tag symbols, a name and trailing chevron; row content stays at least 44 points tall. The shared label editor uses a leading Name label, trailing-aligned text field, and the same ten-color grid pattern as accounts. Titles are Create Label and Edit. A destructive Delete Label action requires confirmation; deletion is also available through swipe/context actions. Preserve the draft and show inline errors when saving or deletion fails. The macOS label editor minimum is 440 × 460 points.
+The app has Records, Statistics, Accounts, Categories, Labels and Settings tabs. Label rows use 36-point solid-color tiles with 18-point white tag symbols, a name and trailing chevron; row content stays at least 44 points tall. The shared label editor uses a leading Name label, trailing-aligned text field, and the same ten-color grid pattern as accounts. Titles are Create Label and Edit. A destructive Delete Label action requires confirmation; deletion is also available through swipe/context actions. Preserve the draft and show inline errors when saving or deletion fails. The macOS label editor minimum is 440 × 460 points.
 
 Each tab has its own navigation stack. `CategoriesView` displays root names and relevant SF Symbols without subcategory counts or nature chips. `WalletCategory+Presentation` maps all 60 starter IDs to icons, preserving icons after renaming. Custom children fall back to their seeded parent's icon; other custom items use a tag. `CategoryDetailView` shows its card below the navigation title without a large header icon. Category and subcategory names share a horizontal row with their nature chips. Subcategory rows retain icons, use a trailing chevron and open the editor. Edit Category and Create Subcategory remain explicit actions.
 
@@ -68,7 +68,7 @@ Use an inline Add Record navigation title on mobile. A segmented selector sits a
 
 Record creation uses an Expense/Income/Transfer segmented selector and amount input. General groups account (From/To for transfers), category, most-used shortcuts, date/time and labels. More Details groups optional note, payee, payment type and library-photo attachment. Different-currency transfers reveal a received amount input.
 
-The searchable category sheet allows either a root or child selection and reuses fixed category colors/icons; most-used entries include parent context. Label selection supports multiple checkmarks. Photo loading shows progress and disables saving; previews offer replacement/removal. Record rows open read-only details. Retain textual type labels alongside red expense, green income and blue transfer indicators.
+The searchable category sheet allows either a root or child selection and reuses fixed category colors/icons; most-used entries include parent context. Label selection supports multiple checkmarks. Photo loading shows progress and disables saving; previews offer replacement/removal. Record rows open details with Edit and confirmed Delete actions. Edit reuses the record form and loads original photos before permitting saves. Retain textual type labels alongside red expense, green income and blue transfer indicators.
 
 `CategoryEditorView` shares a grouped form for create/edit at both levels. Edit sheets use the title Edit; create sheets retain Create Category/Create Subcategory. The editor has no icon/name preview. Name uses a leading label and a trailing-aligned text field. The parent is read-only for subcategories. A native picker offers None, Must, Need and Want without a separate badge below it. Seeds have suggested natures listed in README; custom items start at None. Use the established saving state and inline-error patterns, preserving the draft after validation/storage failures. The macOS editor minimum is 440 × 360 points.
 
@@ -102,7 +102,7 @@ Display balances with the account currency and up to eight fractional digits. In
 
 ## Settings
 
-Settings is the fifth tab, with a native System/Light/Dark segmented selector. Theme is applied at the app root so sheets and all tabs share the same choice. Use semantic colors for surfaces and text.
+Settings has its own tab, with a native System/Light/Dark segmented selector. Theme is applied at the app root so sheets and all tabs share the same choice. Use semantic colors for surfaces and text.
 
 Debug-only Temporary Development Tools contains a destructive Reset Wallet Data action and an explicit warning about iCloud propagation. Require confirmation, disable the tab interface during reset, show progress/errors, and discard open drafts after success. No reset action is visible in release builds.
 
@@ -111,3 +111,9 @@ Debug-only Temporary Development Tools contains a destructive Reset Wallet Data 
 Retain semantic text styles, readable labels, selected-state traits and explicit edit hints. Support keyboard interaction, larger text, light/dark appearance and adequate touch targets. Verify contrast for every swatch and avoid truncating essential amounts. These are review requirements; current automated tests do not establish accessibility or visual compliance.
 
 Update this guide when adding shared visual conventions, and update [README.md](README.md) when the related feature is completed.
+
+## Statistics and Destructive Actions
+
+Statistics uses native period and filter pickers, currency-formatted summary rows, labeled donut charts, a spending bar chart, a balance-history line chart and a top-category list. Chart marks and legends reuse category color tokens with a gray Uncategorized fallback; names and amounts accompany color. VoiceOver marks expose dates/categories and formatted amounts. Empty periods show explicit no-activity text. Totals remain separate by currency and the history explanation stays visible.
+
+Record deletion is available through detail toolbar, swipe and context actions with a confirmation explaining balance reversal and photo removal. Account deletion opens an impact sheet with record/transfer counts, balance, Keep/Delete Records strategy and a final destructive confirmation. Category deletion offers child reassignment or deletion and explains the Uncategorized fallback. Disable actions while saving and retain forms with inline errors on failure.

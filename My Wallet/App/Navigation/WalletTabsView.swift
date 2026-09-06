@@ -9,6 +9,8 @@ struct WalletTabsView: View {
         TabView {
             RecordsView(viewModel: dependencies.recordsViewModel)
                 .tabItem { Label("Records", systemImage: "list.bullet.rectangle") }
+            StatisticsView(viewModel: dependencies.recordsViewModel)
+                .tabItem { Label("Statistics", systemImage: "chart.pie") }
             AccountsView(viewModel: dependencies.accountsViewModel)
                 .tabItem { Label("Accounts", systemImage: "wallet.bifold") }
             CategoriesView(viewModel: dependencies.categoriesViewModel)

@@ -46,6 +46,16 @@ public final class SwiftDataWalletRepository: WalletRepository, AccountRepositor
         notifyChanges()
     }
 
+    public func updateRecord(id: UUID, draft: RecordDraft) async throws {
+        try await store.updateRecord(id: id, draft: draft)
+        notifyChanges()
+    }
+
+    public func deleteRecord(id: UUID) async throws {
+        try await store.deleteRecord(id: id)
+        notifyChanges()
+    }
+
     public func fetchTags() async throws -> [WalletTag] { try await store.fetchTags() }
 
     public func createTag(name: String, color: TagColor) async throws {
@@ -77,6 +87,20 @@ public final class SwiftDataWalletRepository: WalletRepository, AccountRepositor
 
     public func updateAccount(id: UUID, name: String, type: AccountType, settings: AccountSettings) async throws {
         try await store.updateAccount(id: id, name: name, type: type, settings: settings)
+        notifyChanges()
+    }
+
+    public func accountDeletionImpact(id: UUID) async throws -> AccountDeletionImpact {
+        try await store.accountDeletionImpact(id: id)
+    }
+
+    public func deleteAccount(id: UUID, strategy: AccountDeletionStrategy) async throws {
+        try await store.deleteAccount(id: id, strategy: strategy)
+        notifyChanges()
+    }
+
+    public func deleteCategory(id: UUID, strategy: CategoryDeletionStrategy) async throws {
+        try await store.deleteCategory(id: id, strategy: strategy)
         notifyChanges()
     }
 

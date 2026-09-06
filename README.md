@@ -24,7 +24,10 @@ Update this table whenever a feature is completed.
 | Labels / tags | Complete | Create/edit name and color; assign multiple labels to records; confirmed deletion detaches labels |
 | Record creation | Complete locally | Expense, income and transfer; category/subcategory, most-used shortcuts, date/time, labels and optional details/photo |
 | iCloud synchronization | Configured; device verification pending | Private CloudKit container and platform entitlements |
-| Statistics dashboard, record editing/deletion, account deletion | Not implemented | Future work |
+| Record editing/deletion | Complete locally | Edit all fields; confirmed detail, swipe and context deletion; atomic ledger balance recalculation |
+| Account deletion | Complete locally | Impact summary and cascade/unlink strategies, including transfers |
+| Category deletion | Complete locally | Delete or reassign children; Uncategorized fallback; retain at least one category |
+| Statistics dashboard | Complete locally | Period/account/category/label filters, currency-separated totals, category charts, trends and reconstructed balance history |
 
 ## Getting Started
 
@@ -76,7 +79,7 @@ Categories and subcategories each have a name and nature: **None**, **Must**, **
 
 Every starter subcategory also has a matching icon. Seed icons follow stable IDs, so renaming an item preserves its icon. Custom subcategories fall back to their seeded parent's icon, and other custom items use a tag icon.
 
-Missing starter IDs are seeded when categories load. Untouched earlier seeds receive the new nature defaults; edited seeds, including explicit None choices, retain their settings. Renaming a starter keeps its ID. Locally simulated duplicate seed replicas resolve to one visible category, preferring the latest edit over seed defaults. Real-device iCloud convergence remains unverified. Category deletion and moving subcategories are not implemented yet.
+Missing starter IDs are seeded when categories load. Untouched earlier seeds receive the new nature defaults; edited seeds, including explicit None choices, retain their settings. Renaming a starter keeps its ID. Locally simulated duplicate seed replicas resolve to one visible category, preferring the latest edit over seed defaults. Real-device iCloud convergence remains unverified. Category deletion can delete its children or move them to another root; duplicate sibling names must be resolved first. Records keep an Uncategorized fallback, and the last category cannot be deleted. Deleted IDs retain a tombstone so starter seeding does not recreate them.
 
 ## Category Colors
 
@@ -95,7 +98,7 @@ Nature badges use **None: gray**, **Must: green**, **Need: blue**, and **Want: r
 | Investments | Pink `#FF4081` |
 | Income | Amber `#FFC329` |
 
-Colors have no editor control. Future graphs/charts should reuse `category.colorToken.color` for marks and legends. Charts themselves are not implemented yet.
+Colors have no editor control. Future graphs/charts should reuse `category.colorToken.color` for marks and legends. Statistics charts use these same fixed colors.
 
 The bright palette follows the supplied visual reference, with Food & Drinks green and Life & Entertainment red. Category and account icons use white symbols on solid color backgrounds. Nature chips use white text on solid gray/green/blue/red fills for a consistent style; their colors remain independent of category and account colors.
 
@@ -129,7 +132,11 @@ Choose Expense, Income or Transfer and enter a positive amount. General contains
 
 More Details supports note, payee, payment type and one photo from the photo library. Photos are downsampled to at most 1,600 pixels, re-encoded as JPEG and limited to 5 MB. Saved attachments load when viewing details. Camera capture is not included.
 
-Expenses subtract from balances, income adds, and transfers debit/credit their selected accounts. Different-currency transfers require an explicit received amount; no exchange rate is fetched. Account balances derive from the stored starting/adjustment balance plus records. Manually editing a balance preserves existing records. All saved records affect balances immediately, including future-dated entries; scheduling, record editing/deletion and live iCloud verification remain pending.
+Expenses subtract from balances, income adds, and transfers debit/credit their selected accounts. Different-currency transfers require an explicit received amount; no exchange rate is fetched. Account balances derive from the stored starting/adjustment balance plus records. Manually editing a balance preserves existing records. All saved records affect balances immediately, including future-dated entries. Saved records can be edited, including account, type, transfer destination, labels and photo replacement/removal. Updates preserve identity and replace the ledger effect atomically. Delete from record details, swipe actions or context menus after confirmation; both transfer legs and attached photo data are removed. Scheduling and live iCloud verification remain pending.
+
+Delete an account from its swipe/context action to review its current balance, record count and transfer count. Keep Records removes only links to that account and preserves the surviving transfer leg. Delete Records removes associated records/photos and reverses their effects on other accounts. Unlinked records remain visible with currency snapshots; choose valid accounts to edit them again.
+
+The **Statistics** tab supports week, month, year and inclusive custom date ranges, account/category/label filters, expense/income category charts, daily/weekly/monthly trends, top spending categories and account balance history. Selecting a root category includes its children. Excluded accounts and unlinked activity are omitted. Currency totals are separate; transfers affect balance history only. History respects account and currency filters, while category/label filters affect activity charts. History is reconstructed from current base balances, so manual balance corrections apply retrospectively. Automatic exchange rates are not implemented.
 
 ## Settings
 

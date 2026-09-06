@@ -77,6 +77,16 @@ struct AccountTests {
         }
     }
 
+    @Test func failedDeletionPreservesAccountsAndReleasesSavingState() async throws {
+        let viewModel = AccountsViewModel(useCases: AccountUseCases(repository: FailingAccountRepository()))
+        await viewModel.reload()
+        await #expect(throws: FailingAccountRepository.Failure.self) {
+            try await viewModel.delete(id: UUID(), strategy: .keepRecords)
+        }
+        #expect(!viewModel.isSaving)
+        #expect(viewModel.accounts.isEmpty)
+    }
+
     @Test func failedUpdateRestoresSavingState() async {
         let viewModel = AccountsViewModel(useCases: AccountUseCases(repository: FailingAccountRepository()))
         await #expect(throws: FailingAccountRepository.Failure.self) {
@@ -168,6 +178,8 @@ struct AccountTests {
 
 @MainActor
 private final class FailingAccountRepository: AccountRepository {
+    func accountDeletionImpact(id: UUID) async throws -> AccountDeletionImpact { throw Failure() }
+    func deleteAccount(id: UUID, strategy: AccountDeletionStrategy) async throws { throw Failure() }
     struct Failure: Error {}
     func fetchAccounts() async throws -> [Account] { [] }
     func createAccount(_ account: Account) async throws { throw Failure() }

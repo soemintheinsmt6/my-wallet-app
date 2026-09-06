@@ -4,6 +4,9 @@ import WalletDomain
 
 struct RecordEditorView: View {
     @ObservedObject var viewModel: RecordsViewModel
+    let record: WalletRecord?
+    @State private var originalPhotoLoaded: Bool
+    @State private var isLoadingOriginalPhoto = false
     @Environment(\.dismiss) private var dismiss
     @State private var draft = RecordDraft()
     @State private var recordID = UUID()
@@ -22,8 +25,18 @@ struct RecordEditorView: View {
     @State private var selectionScreen: SelectionScreen?
     private enum SelectionScreen: String, Hashable { case account, destination, payment }
 
+    init(viewModel: RecordsViewModel, record: WalletRecord? = nil) {
+        self.viewModel = viewModel
+        self.record = record
+        _draft = State(initialValue: record?.draft ?? RecordDraft())
+        _recordID = State(initialValue: record?.id ?? UUID())
+        _amount = State(initialValue: record.map { AccountAmountInput.text($0.draft.amount) } ?? "")
+        _receivedAmount = State(initialValue: record?.draft.receivedAmount.map { AccountAmountInput.text($0) } ?? "")
+        _originalPhotoLoaded = State(initialValue: record?.hasPhoto != true)
+    }
+
     private var canSave: Bool {
-        guard !viewModel.isSaving, !isLoadingPhoto,
+        guard originalPhotoLoaded, !viewModel.isSaving, !isLoadingPhoto,
             let value = try? AccountAmountInput.parse(amount)
         else { return false }
         var values = draft
@@ -32,7 +45,7 @@ struct RecordEditorView: View {
             guard let received = try? AccountAmountInput.parse(receivedAmount) else { return false }
             values.receivedAmount = received
         }
-        return (try? values.validate()) != nil
+        return (try? values.validate(allowUncategorized: record != nil)) != nil
     }
 
     private var currency: String { viewModel.account(draft.accountID)?.currencyCode ?? "" }
@@ -85,7 +98,7 @@ struct RecordEditorView: View {
                 }
                 .background(.background)
             }
-            .navigationTitle("Add Record")
+            .navigationTitle(record == nil ? "Add Record" : "Edit Record")
             #if !os(macOS)
                 .navigationBarTitleDisplayMode(.inline)
             #endif
@@ -115,10 +128,11 @@ struct RecordEditorView: View {
             .task {
                 guard !didFocusAmount else { return }
                 didFocusAmount = true
-                if let id = UUID(uuidString: lastUsedAccountID), viewModel.account(id) != nil {
+                if record == nil, let id = UUID(uuidString: lastUsedAccountID), viewModel.account(id) != nil {
                     draft.accountID = id
                 }
-                draft.paymentType = PaymentType(rawValue: lastUsedPaymentType) ?? .unspecified
+                if record == nil { draft.paymentType = PaymentType(rawValue: lastUsedPaymentType) ?? .unspecified }
+                await loadOriginalPhoto()
                 await Task.yield()
                 focusedField = .amount
             }
@@ -184,7 +198,7 @@ struct RecordEditorView: View {
                     Spacer()
                     Text(
                         draft.categoryID == nil
-                            ? (draft.kind == .transfer ? "Optional" : "Required")
+                            ? (draft.kind == .transfer ? "Optional" : (record == nil ? "Required" : "Uncategorized"))
                             : viewModel.categoryTitle(draft.categoryID)
                     )
                     .foregroundStyle(draft.categoryID == nil && draft.kind != .transfer ? Color.red : Color.secondary)
@@ -249,6 +263,10 @@ struct RecordEditorView: View {
                 "Payment type", value: draft.paymentType == .unspecified ? nil : draft.paymentType.title,
                 screen: .payment)
         }
+        if !originalPhotoLoaded {
+            if isLoadingOriginalPhoto { ProgressView("Loading existing photo…") }
+            else { Button("Retry Loading Existing Photo") { Task { await loadOriginalPhoto() } } }
+        }
         let photoTitle = draft.photoData == nil ? "Attach Photo" : "Replace Photo"
         recordRow("photo") {
             PhotosPicker(selection: $photoItem, matching: .images) {
@@ -256,6 +274,7 @@ struct RecordEditorView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
+        .disabled(!originalPhotoLoaded)
         if isLoadingPhoto { ProgressView("Preparing photo…") }
         if let data = draft.photoData {
             RecordPhotoView(data: data)
@@ -309,6 +328,20 @@ struct RecordEditorView: View {
             filledIcon: filledIcon, content: content)
     }
 
+    private func loadOriginalPhoto() async {
+        guard !originalPhotoLoaded, !isLoadingOriginalPhoto, let record else { return }
+        isLoadingOriginalPhoto = true
+        defer { isLoadingOriginalPhoto = false }
+        do {
+            guard let data = try await viewModel.photo(id: record.id) else {
+                throw RecordValidationError.invalidPhoto
+            }
+            draft.photoData = data
+            originalPhotoLoaded = true
+            errorMessage = nil
+        } catch { errorMessage = error.localizedDescription }
+    }
+
     private func loadPhoto() async {
         guard let item = photoItem else {
             isLoadingPhoto = false
@@ -333,7 +366,7 @@ struct RecordEditorView: View {
             var values = draft
             values.amount = try AccountAmountInput.parse(amount)
             values.receivedAmount = crossCurrency ? try AccountAmountInput.parse(receivedAmount) : nil
-            try await viewModel.save(id: recordID, draft: values)
+            try await viewModel.save(id: recordID, draft: values, editing: record != nil)
             lastUsedAccountID = values.accountID?.uuidString ?? ""
             lastUsedPaymentType = values.paymentType.rawValue
             dismiss()

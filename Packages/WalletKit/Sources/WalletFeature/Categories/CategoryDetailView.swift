@@ -5,6 +5,7 @@ struct CategoryDetailView: View {
     @ObservedObject var viewModel: CategoriesViewModel
     let categoryID: UUID
     @State private var editor: CategoryEditorRoute?
+    @State private var deleting: WalletCategory?
 
     private var category: WalletCategory? { viewModel.category(id: categoryID) }
 
@@ -24,6 +25,7 @@ struct CategoryDetailView: View {
                                 .accessibilityLabel("Fixed category color \(category.colorToken.hex)")
                         }
                         Button("Edit Category") { editor = CategoryEditorRoute(category: category) }
+                        Button("Delete Category", role: .destructive) { deleting = category }
                     }
                     Section("Subcategories") {
                         ForEach(viewModel.subcategories(of: category.id)) { child in
@@ -43,6 +45,8 @@ struct CategoryDetailView: View {
                             }
                             .buttonStyle(.plain)
                             .accessibilityHint("Edit subcategory")
+                            .swipeActions { Button("Delete", role: .destructive) { deleting = child } }
+                            .contextMenu { Button("Delete Subcategory", role: .destructive) { deleting = child } }
                         }
                         Button { editor = CategoryEditorRoute(parent: category) } label: {
                             Label("Create Subcategory", systemImage: "plus")
@@ -54,6 +58,7 @@ struct CategoryDetailView: View {
             }
         }
         .navigationTitle(category?.name ?? "Category")
+        .sheet(item: $deleting) { CategoryDeletionView(viewModel: viewModel, category: $0) }
         .sheet(item: $editor) { CategoryEditorView(viewModel: viewModel, route: $0) }
         .refreshable { await viewModel.reload() }
     }

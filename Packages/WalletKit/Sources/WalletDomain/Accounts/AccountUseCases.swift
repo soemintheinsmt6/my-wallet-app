@@ -43,6 +43,15 @@ public struct AccountUseCases {
         try await repository.updateAccount(id: id, name: trimmedName, type: type, settings: settings)
     }
 
+    public func deletionImpact(id: UUID) async throws -> AccountDeletionImpact {
+        try await repository.accountDeletionImpact(id: id)
+    }
+
+    public func delete(id: UUID, strategy: AccountDeletionStrategy) async throws {
+        try Task.checkCancellation()
+        try await repository.deleteAccount(id: id, strategy: strategy)
+    }
+
     private func validate(name: String, settings: AccountSettings) throws -> String {
         let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedName.isEmpty else { throw AccountValidationError.emptyName }

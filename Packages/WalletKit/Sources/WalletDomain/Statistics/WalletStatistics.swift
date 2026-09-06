@@ -1,0 +1,127 @@
+import Foundation
+
+public enum StatisticsGranularity: String, CaseIterable, Sendable {
+    case day, week, month
+
+    public var component: Calendar.Component {
+        switch self {
+        case .day: .day
+        case .week: .weekOfYear
+        case .month: .month
+        }
+    }
+}
+
+public struct StatisticsFilter: Sendable {
+    public var interval: DateInterval
+    public var currencyCode: String
+    public var accountID: UUID?
+    public var categoryID: UUID?
+    public var tagID: UUID?
+    public var granularity: StatisticsGranularity
+
+    public init(interval: DateInterval, currencyCode: String, accountID: UUID? = nil,
+                categoryID: UUID? = nil, tagID: UUID? = nil, granularity: StatisticsGranularity = .day) {
+        self.interval = interval
+        self.currencyCode = currencyCode
+        self.accountID = accountID
+        self.categoryID = categoryID
+        self.tagID = tagID
+        self.granularity = granularity
+    }
+}
+
+public struct CategoryTotal: Identifiable, Sendable {
+    public let categoryID: UUID?
+    public let amount: Decimal
+    public var id: String { categoryID?.uuidString ?? "uncategorized" }
+}
+
+public struct StatisticsPoint: Identifiable, Sendable {
+    public let date: Date
+    public let amount: Decimal
+    public var id: Date { date }
+}
+
+public struct WalletStatistics: Sendable {
+    public let income: Decimal
+    public let expenses: Decimal
+    public let incomeByCategory: [CategoryTotal]
+    public let expensesByCategory: [CategoryTotal]
+    public let spendingTrend: [StatisticsPoint]
+    public let balanceHistory: [StatisticsPoint]
+    public var net: Decimal { income - expenses }
+
+    /// Currency totals are never combined without an exchange rate. Transfers affect only history.
+    /// History uses the current stored base balance, so manual balance corrections are retrospective.
+    public static func calculate(records: [WalletRecord], accounts: [Account], categories: [WalletCategory],
+                                 filter: StatisticsFilter, calendar: Calendar = .current) -> WalletStatistics {
+        let included = accounts.filter {
+            !$0.settings.excludeFromStats && $0.currencyCode == filter.currencyCode &&
+                (filter.accountID == nil || $0.id == filter.accountID)
+        }
+        let accountIDs = Set(included.map(\.id))
+        let categoryIDs = Set(categories.map(\.id))
+        let selectedCategories = Set(categories.filter {
+            $0.id == filter.categoryID || $0.parentID == filter.categoryID
+        }.map(\.id))
+        let activity = records.filter {
+            let draft = $0.draft
+            return draft.kind != .transfer && draft.accountID.map { accountIDs.contains($0) } == true &&
+                draft.date >= filter.interval.start && draft.date < filter.interval.end &&
+                (filter.categoryID == nil || draft.categoryID.map { selectedCategories.contains($0) } == true) &&
+                (filter.tagID == nil || draft.tagIDs.contains(filter.tagID!))
+        }
+        func breakdown(_ kind: RecordKind) -> [CategoryTotal] {
+            var values: [String: Decimal] = [:]
+            for record in activity where record.draft.kind == kind {
+                let id = record.draft.categoryID.flatMap { categoryIDs.contains($0) ? $0 : nil }
+                values[id?.uuidString ?? "uncategorized", default: 0] += record.draft.amount
+            }
+            return values.map { CategoryTotal(categoryID: UUID(uuidString: $0.key), amount: $0.value) }
+                .sorted { $0.amount == $1.amount ? $0.id < $1.id : $0.amount > $1.amount }
+        }
+        let incomeCategories = breakdown(.income)
+        let expenseCategories = breakdown(.expense)
+        func delta(_ record: WalletRecord) -> Decimal {
+            var result: Decimal = 0
+            let draft = record.draft
+            if let id = draft.accountID, accountIDs.contains(id) {
+                result += draft.kind == .income ? draft.amount : -draft.amount
+            }
+            if draft.kind == .transfer, let id = draft.destinationAccountID, accountIDs.contains(id) {
+                result += draft.receivedAmount ?? draft.amount
+            }
+            return result
+        }
+        let ledger = records.sorted { $0.draft.date < $1.draft.date }
+        var balance = included.reduce(Decimal.zero) { $0 + $1.settings.currentBalance }
+            - ledger.reduce(Decimal.zero) { $0 + delta($1) }
+        var cursor = 0
+        func advanceBalance(to date: Date) {
+            while cursor < ledger.count && ledger[cursor].draft.date < date {
+                balance += delta(ledger[cursor])
+                cursor += 1
+            }
+        }
+        advanceBalance(to: filter.interval.start)
+        var history = [StatisticsPoint(date: filter.interval.start, amount: balance)]
+        var trend: [StatisticsPoint] = []
+        var date = filter.interval.start
+        while date < filter.interval.end {
+            let bucket = calendar.dateInterval(of: filter.granularity.component, for: date)
+            guard let next = bucket?.end, next > date else { break }
+            let end = min(next, filter.interval.end)
+            let amount = activity.filter { $0.draft.kind == .expense && $0.draft.date >= date && $0.draft.date < end }
+                .reduce(Decimal.zero) { $0 + $1.draft.amount }
+            trend.append(StatisticsPoint(date: date, amount: amount))
+            advanceBalance(to: end)
+            history.append(StatisticsPoint(date: end, amount: balance))
+            date = end
+        }
+        return WalletStatistics(income: incomeCategories.reduce(0) { $0 + $1.amount },
+                                expenses: expenseCategories.reduce(0) { $0 + $1.amount },
+                                incomeByCategory: incomeCategories, expensesByCategory: expenseCategories,
+                                spendingTrend: trend, balanceHistory: history)
+    }
+}

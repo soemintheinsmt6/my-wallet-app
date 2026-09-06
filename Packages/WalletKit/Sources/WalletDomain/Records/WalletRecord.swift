@@ -26,13 +26,13 @@ public struct RecordDraft: Sendable, Equatable {
 
     public init() {}
 
-    public func validate() throws {
+    public func validate(allowUncategorized: Bool = false) throws {
         guard accountID != nil else { throw RecordValidationError.accountRequired }
         try Self.validateAmount(amount)
         if kind == .transfer {
             guard let destinationAccountID, destinationAccountID != accountID else { throw RecordValidationError.invalidTransfer }
             if let receivedAmount { try Self.validateAmount(receivedAmount) }
-        } else if categoryID == nil { throw RecordValidationError.categoryRequired }
+        } else if categoryID == nil && !allowUncategorized { throw RecordValidationError.categoryRequired }
         guard note.count <= 2000, payee.count <= 120 else { throw RecordValidationError.textTooLong }
         guard (photoData?.count ?? 0) <= 5 * 1024 * 1024 else { throw RecordValidationError.photoTooLarge }
         guard date.timeIntervalSince1970.isFinite else { throw RecordValidationError.invalidDate }

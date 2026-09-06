@@ -42,6 +42,14 @@ public final class CategoriesViewModel: ObservableObject {
         }
     }
 
+    public func delete(id: UUID, strategy: CategoryDeletionStrategy) async throws {
+        guard !isSaving else { throw CategoryValidationError.saveInProgress }
+        isSaving = true
+        defer { isSaving = false }
+        try await useCases.delete(id: id, strategy: strategy)
+        await reload()
+    }
+
     public func save(id: UUID? = nil, parentID: UUID? = nil, name: String, nature: CategoryNature) async throws {
         guard !isSaving else { throw CategoryValidationError.saveInProgress }
         isSaving = true

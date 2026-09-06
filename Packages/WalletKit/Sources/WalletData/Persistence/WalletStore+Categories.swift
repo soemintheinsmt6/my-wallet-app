@@ -59,15 +59,56 @@ extension WalletStore {
         try context.save()
     }
 
+    func deleteCategory(id: UUID, strategy: CategoryDeletionStrategy) throws {
+        try Task.checkCancellation()
+        let context = ModelContext(modelContainer)
+        context.autosaveEnabled = false
+        let records = try context.fetch(FetchDescriptor<CategoryRecord>())
+        let categories = canonicalCategories(records)
+        guard categories.contains(where: { $0.id == id }) else { return }
+        let children = categories.filter { $0.parentID == id }
+        var deletedIDs: Set<UUID> = [id]
+        var destinationID: UUID?
+        switch strategy {
+        case .deleteSubcategories:
+            deletedIDs.formUnion(children.map(\.id))
+        case .reassignSubcategories(let destination):
+            guard destination != id, categories.contains(where: { $0.id == destination && $0.parentID == nil }) else {
+                throw CategoryValidationError.invalidParent
+            }
+            for child in children {
+                try validateCategoryName(child.name, parentID: destination, excluding: child.id, categories: categories)
+            }
+            destinationID = destination
+        }
+        guard categories.contains(where: { !deletedIDs.contains($0.id) }) else { throw CategoryValidationError.lastCategory }
+        let childIDs = Set(children.map(\.id))
+        let now = Date()
+        for record in records {
+            if deletedIDs.contains(record.id) {
+                // Keep a tombstone so default seeding and older offline replicas cannot resurrect it.
+                record.deletionDate = now
+                record.updatedAt = now
+            } else if childIDs.contains(record.id), let destinationID {
+                record.parentID = destinationID
+                record.updatedAt = now
+            }
+        }
+        for record in try context.fetch(FetchDescriptor<TransactionRecord>()) {
+            if let categoryID = record.categoryID, deletedIDs.contains(categoryID) { record.categoryID = nil }
+        }
+        try context.save()
+    }
+
     /// Deterministically hide duplicate logical seed IDs without deleting synced records.
     /// Seed timestamps are the epoch, so imported seed defaults never replace an edit.
-    private func canonicalCategories(_ records: [CategoryRecord]) -> [WalletCategory] {
+    func canonicalCategories(_ records: [CategoryRecord]) -> [WalletCategory] {
         let sorted = records.sorted {
             if $0.updatedAt != $1.updatedAt { return $0.updatedAt > $1.updatedAt }
             return $0.replicaID.uuidString < $1.replicaID.uuidString
         }
         var seen = Set<UUID>()
-        return sorted.filter { seen.insert($0.id).inserted }.map(\.category).sorted {
+        return sorted.filter { seen.insert($0.id).inserted }.filter { $0.deletionDate == nil }.map(\.category).sorted {
             if $0.sortOrder != $1.sortOrder { return $0.sortOrder < $1.sortOrder }
             return $0.id.uuidString < $1.id.uuidString
         }

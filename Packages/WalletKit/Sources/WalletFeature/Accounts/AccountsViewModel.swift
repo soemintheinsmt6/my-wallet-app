@@ -55,6 +55,18 @@ public final class AccountsViewModel: ObservableObject {
         await reload()
     }
 
+    public func deletionImpact(id: UUID) async throws -> AccountDeletionImpact {
+        try await useCases.deletionImpact(id: id)
+    }
+
+    public func delete(id: UUID, strategy: AccountDeletionStrategy) async throws {
+        guard !isSaving else { throw AccountValidationError.saveInProgress }
+        isSaving = true
+        defer { isSaving = false }
+        try await useCases.delete(id: id, strategy: strategy)
+        await reload()
+    }
+
     public var accountsIncludedInStats: [Account] { accounts.filter { !$0.settings.excludeFromStats } }
 
     public var balanceNotifications: [Account] {

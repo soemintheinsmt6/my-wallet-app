@@ -7,6 +7,7 @@ final class CategoryRecord {
     var id: UUID = UUID()
     var parentID: UUID?
     var name: String = ""
+    var deletionDate: Date?
     var natureValue: String = "none"
     var sortOrder: Int = 0
     var updatedAt: Date = Date(timeIntervalSince1970: 0)
