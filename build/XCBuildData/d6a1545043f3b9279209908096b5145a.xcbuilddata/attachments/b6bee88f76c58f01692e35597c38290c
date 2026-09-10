@@ -1,0 +1,16 @@
+{
+  "" : {
+    "const-values" : "/Users/soeminthein/Desktop/SwiftProjects/My Wallet/build/My Wallet.build/Release-watchsimulator/WalletWatchWidgets.build/Objects-normal/x86_64/WalletWatchWidgets-primary.swiftconstvalues",
+    "dependencies" : "/Users/soeminthein/Desktop/SwiftProjects/My Wallet/build/My Wallet.build/Release-watchsimulator/WalletWatchWidgets.build/Objects-normal/x86_64/WalletWatchWidgets-primary.d",
+    "diagnostics" : "/Users/soeminthein/Desktop/SwiftProjects/My Wallet/build/My Wallet.build/Release-watchsimulator/WalletWatchWidgets.build/Objects-normal/x86_64/WalletWatchWidgets-primary.dia",
+    "emit-module-dependencies" : "/Users/soeminthein/Desktop/SwiftProjects/My Wallet/build/My Wallet.build/Release-watchsimulator/WalletWatchWidgets.build/Objects-normal/x86_64/WalletWatchWidgets-primary-emit-module.d",
+    "emit-module-diagnostics" : "/Users/soeminthein/Desktop/SwiftProjects/My Wallet/build/My Wallet.build/Release-watchsimulator/WalletWatchWidgets.build/Objects-normal/x86_64/WalletWatchWidgets-primary-emit-module.dia",
+    "pch" : "/Users/soeminthein/Desktop/SwiftProjects/My Wallet/build/My Wallet.build/Release-watchsimulator/WalletWatchWidgets.build/Objects-normal/x86_64/WalletWatchWidgets-primary-Bridging-header.pch",
+    "swift-dependencies" : "/Users/soeminthein/Desktop/SwiftProjects/My Wallet/build/My Wallet.build/Release-watchsimulator/WalletWatchWidgets.build/Objects-normal/x86_64/WalletWatchWidgets-primary.swiftdeps"
+  },
+  "/Users/soeminthein/Desktop/SwiftProjects/My Wallet/WalletWatchWidgets/WalletWatchComplications.swift" : {
+    "index-unit-output-path" : "/My Wallet.build/Release-watchsimulator/WalletWatchWidgets.build/Objects-normal/x86_64/WalletWatchComplications.o",
+    "llvm-bc" : "/Users/soeminthein/Desktop/SwiftProjects/My Wallet/build/My Wallet.build/Release-watchsimulator/WalletWatchWidgets.build/Objects-normal/x86_64/WalletWatchComplications.bc",
+    "object" : "/Users/soeminthein/Desktop/SwiftProjects/My Wallet/build/My Wallet.build/Release-watchsimulator/WalletWatchWidgets.build/Objects-normal/x86_64/WalletWatchComplications.o"
+  }
+}

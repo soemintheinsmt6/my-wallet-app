@@ -41,8 +41,59 @@ public enum WalletSnapshotBuilder {
                                                      currencyCode: $0.budget.currencyCode, status: $0.status)
             }
 
+        let options = included.map {
+            WalletSnapshot.Option(id: $0.id, title: $0.name, symbol: $0.type.symbol,
+                                  currencyCode: $0.currencyCode)
+        }
+        let quick = quickCategories(records: records, categories: categories, categoriesByID: categoriesByID)
+
         return WalletSnapshot(generatedAt: now, balances: balances, month: month,
-                              recent: Array(recent), budgets: Array(summaries))
+                              recent: Array(recent), budgets: Array(summaries),
+                              accounts: options, quickCategories: quick,
+                              todaySpend: todaySpend(records: records, accounts: accounts,
+                                                     balances: balances, now: now, calendar: calendar))
+    }
+
+    /// The expense categories used most often, so quick entry away from the phone offers the
+    /// handful that actually matter rather than the whole tree.
+    private static func quickCategories(records: [WalletRecord], categories: [WalletCategory],
+                                        categoriesByID: [UUID: WalletCategory]) -> [WalletSnapshot.Option] {
+        let expenses = records.filter { $0.draft.kind == .expense }
+        let counts = Dictionary(grouping: expenses.compactMap { $0.draft.categoryID }, by: { $0 })
+            .mapValues(\.count)
+        let ranked = categories
+            .filter { counts[$0.id] != nil }
+            .sorted {
+                counts[$0.id] == counts[$1.id]
+                    ? $0.id.uuidString < $1.id.uuidString
+                    : counts[$0.id, default: 0] > counts[$1.id, default: 0]
+            }
+            .prefix(quickCategoryLimit)
+        return ranked.map {
+            WalletSnapshot.Option(id: $0.id,
+                                  title: RecordCSV.path(for: $0.id, in: categoriesByID),
+                                  symbol: $0.symbol,
+                                  colorValue: $0.colorToken.rawValue)
+        }
+    }
+
+    public static let quickCategoryLimit = 8
+
+    /// Expenses recorded today in the leading currency; transfers are excluded as everywhere else.
+    private static func todaySpend(records: [WalletRecord], accounts: [Account],
+                                   balances: [WalletSnapshot.Balance], now: Date,
+                                   calendar: Calendar) -> Decimal {
+        let snapshot = WalletSnapshot(balances: balances)
+        guard let currency = snapshot.primaryBalance?.currencyCode,
+              let day = calendar.dateInterval(of: .day, for: now) else { return 0 }
+        let included = Set(accounts.filter { !$0.settings.excludeFromStats && $0.currencyCode == currency }
+            .map(\.id))
+        return records.reduce(Decimal.zero) { total, record in
+            let draft = record.draft
+            guard draft.kind == .expense, let account = draft.accountID, included.contains(account),
+                  draft.date >= day.start, draft.date < day.end else { return total }
+            return total + draft.amount
+        }
     }
 
     private static func month(records: [WalletRecord], accounts: [Account], categories: [WalletCategory],

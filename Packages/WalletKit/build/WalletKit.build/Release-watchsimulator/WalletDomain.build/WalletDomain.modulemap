@@ -1,0 +1,4 @@
+module WalletDomain {
+header "WalletDomain-Swift.h"
+export *
+}

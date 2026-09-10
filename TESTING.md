@@ -266,3 +266,20 @@ Manual checks:
 4. Search an account and a category name in Spotlight; confirm no balance appears in the result and that opening one lands on More.
 5. Rename an account, then search the old and new names. Delete one and confirm it leaves the index.
 6. Reset wallet data in a debug build and confirm Spotlight results disappear.
+
+## Apple Watch Validation (2026-09-11)
+
+**172 tests across 29 suites passed** (serially; the parallel run hit the known store race again). New coverage is for the shared pieces the watch relies on, all of which live in the package: quick-add options covering accounts and most-used expense categories while omitting accounts excluded from stats, today's spend counting only today's expenses in the leading currency, the WatchConnectivity payload codec round-tripping in both directions and rejecting foreign payloads, and a snapshot written before the quick-add fields still decoding.
+
+**Not compiled.** The watchOS 26.5 platform is not installed in this environment — only its SDK headers — so `WalletWatch` and `WalletWatchWidgets` could not be built, and no watch code has been through a compiler. `xcodebuild -downloadPlatform watchOS` was started and was still at 3.4% of 3.96 GB when work moved on.
+
+To keep the iOS build working meanwhile, the iOS target's Embed Watch Content phase and its dependency on `WalletWatch` are detached; see FEATURES.md 4.2 for the two steps to restore them.
+
+Manual checks (all outstanding):
+
+1. Install the watchOS platform, then build both watch targets and fix whatever the compiler finds.
+2. Re-attach Embed Watch Content and confirm the watch app installs alongside the iOS app.
+3. Open the watch app with the phone nearby; confirm balance, today's spending and the month figures match.
+4. Add an expense from the watch and confirm the record appears on the phone with the right account, category and amount.
+5. Put the phone in airplane mode, capture an expense, and confirm it is queued and delivered once reachable.
+6. Add both complications to a face and confirm they update after a change on the phone.

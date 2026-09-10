@@ -17,6 +17,7 @@ struct AppDependencies {
     let onboardingViewModel: OnboardingViewModel
     let currencyViewModel: CurrencyViewModel
     let spotlightIndexer: WalletSpotlightIndexer
+    let watchConnector: PhoneWatchConnector
 
     static func make() async throws -> AppDependencies {
         let repository = try await SwiftDataWalletRepository.make(
@@ -32,6 +33,20 @@ struct AppDependencies {
         let accounts = AccountsViewModel(useCases: AccountUseCases(repository: repository))
         let settings = SettingsViewModel(resetUseCase: ResetWalletUseCase(repository: repository))
         let spotlight = WalletSpotlightIndexer()
+        let watch = PhoneWatchConnector()
+        // Mirror every new snapshot to the watch, and write back whatever the watch captured.
+        snapshots.onSnapshot = { [weak watch] in watch?.send($0) }
+        watch.saveExpense = { [weak records] expense in
+            var draft = RecordDraft()
+            draft.kind = .expense
+            draft.accountID = expense.accountID
+            draft.categoryID = expense.categoryID
+            draft.amount = expense.amount
+            draft.date = expense.date
+            // Goes through the normal use case, so a watch capture is validated like any record.
+            try? await RecordUseCases(repository: repository).create(id: expense.id, draft: draft)
+            await records?.reload()
+        }
         // Widgets and Spotlight must stop showing wallet data as soon as it is cleared.
         settings.onReset = { [weak snapshots] in
             snapshots?.clear()
@@ -53,7 +68,8 @@ struct AppDependencies {
             ),
             onboardingViewModel: OnboardingViewModel(accounts: accounts, planning: planning),
             currencyViewModel: currency,
-            spotlightIndexer: spotlight
+            spotlightIndexer: spotlight,
+            watchConnector: watch
         )
     }
 }

@@ -161,6 +161,88 @@ struct WalletSnapshotTests {
         #expect(WalletSnapshotStore.read(from: corrupt) == nil)
     }
 
+    // MARK: - Watch payloads
+
+    @Test func quickAddOptionsCoverAccountsAndMostUsedExpenseCategories() {
+        let cash = account("Cash", balance: 0)
+        let hidden = account("Hidden", balance: 0, excluded: true)
+        let food = WalletCategory(name: "Food")
+        let travel = WalletCategory(name: "Travel")
+        let records = (0..<3).map { record(account: cash, category: food.id, dayOffset: -$0) }
+            + [record(account: cash, category: travel.id)]
+
+        let snapshot = WalletSnapshotBuilder.make(records: records, accounts: [cash, hidden],
+                                                  categories: [food, travel], budgets: [], now: now)
+
+        // Accounts excluded from stats are not offered for quick entry either.
+        #expect(snapshot.accounts.map(\.title) == ["Cash"])
+        #expect(snapshot.accounts.first?.currencyCode == "USD")
+        // Most-used first.
+        #expect(snapshot.quickCategories.map(\.title) == ["Food", "Travel"])
+        #expect(snapshot.quickCategories.first?.colorValue == food.colorToken.rawValue)
+    }
+
+    @Test func todaySpendCountsOnlyTodaysExpensesInTheLeadingCurrency() {
+        let cash = account("Cash", balance: 0)
+        // Two USD accounts so USD is unambiguously the leading currency.
+        let savings = account("Savings", balance: 0)
+        let euro = account("Euro", currency: "EUR", balance: 0)
+        let records = [
+            record(amount: 10, account: cash, category: UUID()),
+            record(amount: 25, account: savings, category: UUID()),
+            record(amount: 99, account: cash, category: UUID(), dayOffset: -1),
+            record(amount: 50, kind: .income, account: cash, category: UUID()),
+            record(amount: 40, account: euro, category: UUID()),
+        ]
+
+        let snapshot = WalletSnapshotBuilder.make(records: records, accounts: [cash, savings, euro],
+                                                  categories: [], budgets: [], now: now)
+        // Yesterday's 99, the income and the EUR expense are all excluded.
+        #expect(snapshot.month?.currencyCode == "USD")
+        #expect(snapshot.todaySpend == 35)
+    }
+
+    /// Both processes must agree on the payload shape.
+    @Test func watchPayloadsRoundTrip() throws {
+        let snapshot = WalletSnapshot.preview
+        let encoded = try WalletWatchTransfer.encode(snapshot: snapshot)
+        let decoded = try #require(WalletWatchTransfer.decodeSnapshot(from: encoded))
+        #expect(decoded.balances == snapshot.balances)
+        #expect(decoded.recent.count == snapshot.recent.count)
+
+        let expense = WalletSnapshot.QuickExpense(amount: Decimal(string: "12.50")!,
+                                                  accountID: UUID(), categoryID: UUID())
+        let payload = try WalletWatchTransfer.encode(expense: expense)
+        let received = try #require(WalletWatchTransfer.decodeExpense(from: payload))
+        #expect(received.id == expense.id)
+        #expect(received.amount == expense.amount)
+        #expect(received.accountID == expense.accountID)
+        #expect(received.categoryID == expense.categoryID)
+        // ISO-8601 carries whole seconds, so the timestamp survives to that precision — enough for
+        // a capture the phone will file at the moment it arrives.
+        #expect(abs(received.date.timeIntervalSince(expense.date)) < 1)
+
+        // Foreign payloads are rejected rather than half-read.
+        #expect(WalletWatchTransfer.decodeSnapshot(from: ["other": Data()]) == nil)
+        #expect(WalletWatchTransfer.decodeExpense(from: ["other": Data()]) == nil)
+    }
+
+    /// A snapshot written before quick-add existed must still load, not blank every widget.
+    @Test func aSnapshotWithoutTheNewerFieldsStillDecodes() throws {
+        let legacy = """
+        {"generatedAt":"2024-01-01T12:00:00Z","balances":[{"currencyCode":"USD","total":10,\
+        "accountCount":1}],"recent":[],"budgets":[]}
+        """
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        let snapshot = try decoder.decode(WalletSnapshot.self, from: Data(legacy.utf8))
+
+        #expect(snapshot.balances.count == 1)
+        #expect(snapshot.accounts.isEmpty)
+        #expect(snapshot.quickCategories.isEmpty)
+        #expect(snapshot.todaySpend == 0)
+    }
+
     // MARK: - Deep links
 
     @Test func deepLinksRoundTripAndRejectForeignURLs() {

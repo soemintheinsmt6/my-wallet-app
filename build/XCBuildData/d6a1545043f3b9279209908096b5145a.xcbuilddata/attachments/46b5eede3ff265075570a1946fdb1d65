@@ -1,0 +1,191 @@
+{
+  "" : {
+    "const-values" : "/Users/soeminthein/Desktop/SwiftProjects/My Wallet/Packages/WalletKit/build/WalletKit.build/Release-watchsimulator/WalletDomain.build/Objects-normal/x86_64/WalletDomain-primary.swiftconstvalues",
+    "dependencies" : "/Users/soeminthein/Desktop/SwiftProjects/My Wallet/Packages/WalletKit/build/WalletKit.build/Release-watchsimulator/WalletDomain.build/Objects-normal/x86_64/WalletDomain-primary.d",
+    "diagnostics" : "/Users/soeminthein/Desktop/SwiftProjects/My Wallet/Packages/WalletKit/build/WalletKit.build/Release-watchsimulator/WalletDomain.build/Objects-normal/x86_64/WalletDomain-primary.dia",
+    "emit-module-dependencies" : "/Users/soeminthein/Desktop/SwiftProjects/My Wallet/Packages/WalletKit/build/WalletKit.build/Release-watchsimulator/WalletDomain.build/Objects-normal/x86_64/WalletDomain-primary-emit-module.d",
+    "emit-module-diagnostics" : "/Users/soeminthein/Desktop/SwiftProjects/My Wallet/Packages/WalletKit/build/WalletKit.build/Release-watchsimulator/WalletDomain.build/Objects-normal/x86_64/WalletDomain-primary-emit-module.dia",
+    "pch" : "/Users/soeminthein/Desktop/SwiftProjects/My Wallet/Packages/WalletKit/build/WalletKit.build/Release-watchsimulator/WalletDomain.build/Objects-normal/x86_64/WalletDomain-primary-Bridging-header.pch",
+    "swift-dependencies" : "/Users/soeminthein/Desktop/SwiftProjects/My Wallet/Packages/WalletKit/build/WalletKit.build/Release-watchsimulator/WalletDomain.build/Objects-normal/x86_64/WalletDomain-primary.swiftdeps"
+  },
+  "/Users/soeminthein/Desktop/SwiftProjects/My Wallet/Packages/WalletKit/Sources/WalletDomain/Accounts/Account.swift" : {
+    "index-unit-output-path" : "/WalletKit.build/Release-watchsimulator/WalletDomain.build/Objects-normal/x86_64/Account.o",
+    "llvm-bc" : "/Users/soeminthein/Desktop/SwiftProjects/My Wallet/Packages/WalletKit/build/WalletKit.build/Release-watchsimulator/WalletDomain.build/Objects-normal/x86_64/Account.bc",
+    "object" : "/Users/soeminthein/Desktop/SwiftProjects/My Wallet/Packages/WalletKit/build/WalletKit.build/Release-watchsimulator/WalletDomain.build/Objects-normal/x86_64/Account.o"
+  },
+  "/Users/soeminthein/Desktop/SwiftProjects/My Wallet/Packages/WalletKit/Sources/WalletDomain/Accounts/AccountRepository.swift" : {
+    "index-unit-output-path" : "/WalletKit.build/Release-watchsimulator/WalletDomain.build/Objects-normal/x86_64/AccountRepository.o",
+    "llvm-bc" : "/Users/soeminthein/Desktop/SwiftProjects/My Wallet/Packages/WalletKit/build/WalletKit.build/Release-watchsimulator/WalletDomain.build/Objects-normal/x86_64/AccountRepository.bc",
+    "object" : "/Users/soeminthein/Desktop/SwiftProjects/My Wallet/Packages/WalletKit/build/WalletKit.build/Release-watchsimulator/WalletDomain.build/Objects-normal/x86_64/AccountRepository.o"
+  },
+  "/Users/soeminthein/Desktop/SwiftProjects/My Wallet/Packages/WalletKit/Sources/WalletDomain/Accounts/AccountUseCases.swift" : {
+    "index-unit-output-path" : "/WalletKit.build/Release-watchsimulator/WalletDomain.build/Objects-normal/x86_64/AccountUseCases.o",
+    "llvm-bc" : "/Users/soeminthein/Desktop/SwiftProjects/My Wallet/Packages/WalletKit/build/WalletKit.build/Release-watchsimulator/WalletDomain.build/Objects-normal/x86_64/AccountUseCases.bc",
+    "object" : "/Users/soeminthein/Desktop/SwiftProjects/My Wallet/Packages/WalletKit/build/WalletKit.build/Release-watchsimulator/WalletDomain.build/Objects-normal/x86_64/AccountUseCases.o"
+  },
+  "/Users/soeminthein/Desktop/SwiftProjects/My Wallet/Packages/WalletKit/Sources/WalletDomain/Budgets/Budget.swift" : {
+    "index-unit-output-path" : "/WalletKit.build/Release-watchsimulator/WalletDomain.build/Objects-normal/x86_64/Budget.o",
+    "llvm-bc" : "/Users/soeminthein/Desktop/SwiftProjects/My Wallet/Packages/WalletKit/build/WalletKit.build/Release-watchsimulator/WalletDomain.build/Objects-normal/x86_64/Budget.bc",
+    "object" : "/Users/soeminthein/Desktop/SwiftProjects/My Wallet/Packages/WalletKit/build/WalletKit.build/Release-watchsimulator/WalletDomain.build/Objects-normal/x86_64/Budget.o"
+  },
+  "/Users/soeminthein/Desktop/SwiftProjects/My Wallet/Packages/WalletKit/Sources/WalletDomain/Categories/CategoryColor.swift" : {
+    "index-unit-output-path" : "/WalletKit.build/Release-watchsimulator/WalletDomain.build/Objects-normal/x86_64/CategoryColor.o",
+    "llvm-bc" : "/Users/soeminthein/Desktop/SwiftProjects/My Wallet/Packages/WalletKit/build/WalletKit.build/Release-watchsimulator/WalletDomain.build/Objects-normal/x86_64/CategoryColor.bc",
+    "object" : "/Users/soeminthein/Desktop/SwiftProjects/My Wallet/Packages/WalletKit/build/WalletKit.build/Release-watchsimulator/WalletDomain.build/Objects-normal/x86_64/CategoryColor.o"
+  },
+  "/Users/soeminthein/Desktop/SwiftProjects/My Wallet/Packages/WalletKit/Sources/WalletDomain/Categories/CategoryRepository.swift" : {
+    "index-unit-output-path" : "/WalletKit.build/Release-watchsimulator/WalletDomain.build/Objects-normal/x86_64/CategoryRepository.o",
+    "llvm-bc" : "/Users/soeminthein/Desktop/SwiftProjects/My Wallet/Packages/WalletKit/build/WalletKit.build/Release-watchsimulator/WalletDomain.build/Objects-normal/x86_64/CategoryRepository.bc",
+    "object" : "/Users/soeminthein/Desktop/SwiftProjects/My Wallet/Packages/WalletKit/build/WalletKit.build/Release-watchsimulator/WalletDomain.build/Objects-normal/x86_64/CategoryRepository.o"
+  },
+  "/Users/soeminthein/Desktop/SwiftProjects/My Wallet/Packages/WalletKit/Sources/WalletDomain/Categories/CategorySeeds.swift" : {
+    "index-unit-output-path" : "/WalletKit.build/Release-watchsimulator/WalletDomain.build/Objects-normal/x86_64/CategorySeeds.o",
+    "llvm-bc" : "/Users/soeminthein/Desktop/SwiftProjects/My Wallet/Packages/WalletKit/build/WalletKit.build/Release-watchsimulator/WalletDomain.build/Objects-normal/x86_64/CategorySeeds.bc",
+    "object" : "/Users/soeminthein/Desktop/SwiftProjects/My Wallet/Packages/WalletKit/build/WalletKit.build/Release-watchsimulator/WalletDomain.build/Objects-normal/x86_64/CategorySeeds.o"
+  },
+  "/Users/soeminthein/Desktop/SwiftProjects/My Wallet/Packages/WalletKit/Sources/WalletDomain/Categories/CategoryUseCases.swift" : {
+    "index-unit-output-path" : "/WalletKit.build/Release-watchsimulator/WalletDomain.build/Objects-normal/x86_64/CategoryUseCases.o",
+    "llvm-bc" : "/Users/soeminthein/Desktop/SwiftProjects/My Wallet/Packages/WalletKit/build/WalletKit.build/Release-watchsimulator/WalletDomain.build/Objects-normal/x86_64/CategoryUseCases.bc",
+    "object" : "/Users/soeminthein/Desktop/SwiftProjects/My Wallet/Packages/WalletKit/build/WalletKit.build/Release-watchsimulator/WalletDomain.build/Objects-normal/x86_64/CategoryUseCases.o"
+  },
+  "/Users/soeminthein/Desktop/SwiftProjects/My Wallet/Packages/WalletKit/Sources/WalletDomain/Categories/WalletCategory.swift" : {
+    "index-unit-output-path" : "/WalletKit.build/Release-watchsimulator/WalletDomain.build/Objects-normal/x86_64/WalletCategory.o",
+    "llvm-bc" : "/Users/soeminthein/Desktop/SwiftProjects/My Wallet/Packages/WalletKit/build/WalletKit.build/Release-watchsimulator/WalletDomain.build/Objects-normal/x86_64/WalletCategory.bc",
+    "object" : "/Users/soeminthein/Desktop/SwiftProjects/My Wallet/Packages/WalletKit/build/WalletKit.build/Release-watchsimulator/WalletDomain.build/Objects-normal/x86_64/WalletCategory.o"
+  },
+  "/Users/soeminthein/Desktop/SwiftProjects/My Wallet/Packages/WalletKit/Sources/WalletDomain/Currency/ExchangeRates.swift" : {
+    "index-unit-output-path" : "/WalletKit.build/Release-watchsimulator/WalletDomain.build/Objects-normal/x86_64/ExchangeRates.o",
+    "llvm-bc" : "/Users/soeminthein/Desktop/SwiftProjects/My Wallet/Packages/WalletKit/build/WalletKit.build/Release-watchsimulator/WalletDomain.build/Objects-normal/x86_64/ExchangeRates.bc",
+    "object" : "/Users/soeminthein/Desktop/SwiftProjects/My Wallet/Packages/WalletKit/build/WalletKit.build/Release-watchsimulator/WalletDomain.build/Objects-normal/x86_64/ExchangeRates.o"
+  },
+  "/Users/soeminthein/Desktop/SwiftProjects/My Wallet/Packages/WalletKit/Sources/WalletDomain/DataExchange/CSV.swift" : {
+    "index-unit-output-path" : "/WalletKit.build/Release-watchsimulator/WalletDomain.build/Objects-normal/x86_64/CSV.o",
+    "llvm-bc" : "/Users/soeminthein/Desktop/SwiftProjects/My Wallet/Packages/WalletKit/build/WalletKit.build/Release-watchsimulator/WalletDomain.build/Objects-normal/x86_64/CSV.bc",
+    "object" : "/Users/soeminthein/Desktop/SwiftProjects/My Wallet/Packages/WalletKit/build/WalletKit.build/Release-watchsimulator/WalletDomain.build/Objects-normal/x86_64/CSV.o"
+  },
+  "/Users/soeminthein/Desktop/SwiftProjects/My Wallet/Packages/WalletKit/Sources/WalletDomain/DataExchange/ImportPlan.swift" : {
+    "index-unit-output-path" : "/WalletKit.build/Release-watchsimulator/WalletDomain.build/Objects-normal/x86_64/ImportPlan.o",
+    "llvm-bc" : "/Users/soeminthein/Desktop/SwiftProjects/My Wallet/Packages/WalletKit/build/WalletKit.build/Release-watchsimulator/WalletDomain.build/Objects-normal/x86_64/ImportPlan.bc",
+    "object" : "/Users/soeminthein/Desktop/SwiftProjects/My Wallet/Packages/WalletKit/build/WalletKit.build/Release-watchsimulator/WalletDomain.build/Objects-normal/x86_64/ImportPlan.o"
+  },
+  "/Users/soeminthein/Desktop/SwiftProjects/My Wallet/Packages/WalletKit/Sources/WalletDomain/DataExchange/RecordCSV.swift" : {
+    "index-unit-output-path" : "/WalletKit.build/Release-watchsimulator/WalletDomain.build/Objects-normal/x86_64/RecordCSV.o",
+    "llvm-bc" : "/Users/soeminthein/Desktop/SwiftProjects/My Wallet/Packages/WalletKit/build/WalletKit.build/Release-watchsimulator/WalletDomain.build/Objects-normal/x86_64/RecordCSV.bc",
+    "object" : "/Users/soeminthein/Desktop/SwiftProjects/My Wallet/Packages/WalletKit/build/WalletKit.build/Release-watchsimulator/WalletDomain.build/Objects-normal/x86_64/RecordCSV.o"
+  },
+  "/Users/soeminthein/Desktop/SwiftProjects/My Wallet/Packages/WalletKit/Sources/WalletDomain/DataExchange/WalletArchive.swift" : {
+    "index-unit-output-path" : "/WalletKit.build/Release-watchsimulator/WalletDomain.build/Objects-normal/x86_64/WalletArchive.o",
+    "llvm-bc" : "/Users/soeminthein/Desktop/SwiftProjects/My Wallet/Packages/WalletKit/build/WalletKit.build/Release-watchsimulator/WalletDomain.build/Objects-normal/x86_64/WalletArchive.bc",
+    "object" : "/Users/soeminthein/Desktop/SwiftProjects/My Wallet/Packages/WalletKit/build/WalletKit.build/Release-watchsimulator/WalletDomain.build/Objects-normal/x86_64/WalletArchive.o"
+  },
+  "/Users/soeminthein/Desktop/SwiftProjects/My Wallet/Packages/WalletKit/Sources/WalletDomain/Legacy/WalletEntry.swift" : {
+    "index-unit-output-path" : "/WalletKit.build/Release-watchsimulator/WalletDomain.build/Objects-normal/x86_64/WalletEntry.o",
+    "llvm-bc" : "/Users/soeminthein/Desktop/SwiftProjects/My Wallet/Packages/WalletKit/build/WalletKit.build/Release-watchsimulator/WalletDomain.build/Objects-normal/x86_64/WalletEntry.bc",
+    "object" : "/Users/soeminthein/Desktop/SwiftProjects/My Wallet/Packages/WalletKit/build/WalletKit.build/Release-watchsimulator/WalletDomain.build/Objects-normal/x86_64/WalletEntry.o"
+  },
+  "/Users/soeminthein/Desktop/SwiftProjects/My Wallet/Packages/WalletKit/Sources/WalletDomain/Legacy/WalletRepository.swift" : {
+    "index-unit-output-path" : "/WalletKit.build/Release-watchsimulator/WalletDomain.build/Objects-normal/x86_64/WalletRepository.o",
+    "llvm-bc" : "/Users/soeminthein/Desktop/SwiftProjects/My Wallet/Packages/WalletKit/build/WalletKit.build/Release-watchsimulator/WalletDomain.build/Objects-normal/x86_64/WalletRepository.bc",
+    "object" : "/Users/soeminthein/Desktop/SwiftProjects/My Wallet/Packages/WalletKit/build/WalletKit.build/Release-watchsimulator/WalletDomain.build/Objects-normal/x86_64/WalletRepository.o"
+  },
+  "/Users/soeminthein/Desktop/SwiftProjects/My Wallet/Packages/WalletKit/Sources/WalletDomain/Legacy/WalletUseCases.swift" : {
+    "index-unit-output-path" : "/WalletKit.build/Release-watchsimulator/WalletDomain.build/Objects-normal/x86_64/WalletUseCases.o",
+    "llvm-bc" : "/Users/soeminthein/Desktop/SwiftProjects/My Wallet/Packages/WalletKit/build/WalletKit.build/Release-watchsimulator/WalletDomain.build/Objects-normal/x86_64/WalletUseCases.bc",
+    "object" : "/Users/soeminthein/Desktop/SwiftProjects/My Wallet/Packages/WalletKit/build/WalletKit.build/Release-watchsimulator/WalletDomain.build/Objects-normal/x86_64/WalletUseCases.o"
+  },
+  "/Users/soeminthein/Desktop/SwiftProjects/My Wallet/Packages/WalletKit/Sources/WalletDomain/Records/RecordQuery.swift" : {
+    "index-unit-output-path" : "/WalletKit.build/Release-watchsimulator/WalletDomain.build/Objects-normal/x86_64/RecordQuery.o",
+    "llvm-bc" : "/Users/soeminthein/Desktop/SwiftProjects/My Wallet/Packages/WalletKit/build/WalletKit.build/Release-watchsimulator/WalletDomain.build/Objects-normal/x86_64/RecordQuery.bc",
+    "object" : "/Users/soeminthein/Desktop/SwiftProjects/My Wallet/Packages/WalletKit/build/WalletKit.build/Release-watchsimulator/WalletDomain.build/Objects-normal/x86_64/RecordQuery.o"
+  },
+  "/Users/soeminthein/Desktop/SwiftProjects/My Wallet/Packages/WalletKit/Sources/WalletDomain/Records/RecordRepository.swift" : {
+    "index-unit-output-path" : "/WalletKit.build/Release-watchsimulator/WalletDomain.build/Objects-normal/x86_64/RecordRepository.o",
+    "llvm-bc" : "/Users/soeminthein/Desktop/SwiftProjects/My Wallet/Packages/WalletKit/build/WalletKit.build/Release-watchsimulator/WalletDomain.build/Objects-normal/x86_64/RecordRepository.bc",
+    "object" : "/Users/soeminthein/Desktop/SwiftProjects/My Wallet/Packages/WalletKit/build/WalletKit.build/Release-watchsimulator/WalletDomain.build/Objects-normal/x86_64/RecordRepository.o"
+  },
+  "/Users/soeminthein/Desktop/SwiftProjects/My Wallet/Packages/WalletKit/Sources/WalletDomain/Records/RecordSearch.swift" : {
+    "index-unit-output-path" : "/WalletKit.build/Release-watchsimulator/WalletDomain.build/Objects-normal/x86_64/RecordSearch.o",
+    "llvm-bc" : "/Users/soeminthein/Desktop/SwiftProjects/My Wallet/Packages/WalletKit/build/WalletKit.build/Release-watchsimulator/WalletDomain.build/Objects-normal/x86_64/RecordSearch.bc",
+    "object" : "/Users/soeminthein/Desktop/SwiftProjects/My Wallet/Packages/WalletKit/build/WalletKit.build/Release-watchsimulator/WalletDomain.build/Objects-normal/x86_64/RecordSearch.o"
+  },
+  "/Users/soeminthein/Desktop/SwiftProjects/My Wallet/Packages/WalletKit/Sources/WalletDomain/Records/RecordUseCases.swift" : {
+    "index-unit-output-path" : "/WalletKit.build/Release-watchsimulator/WalletDomain.build/Objects-normal/x86_64/RecordUseCases.o",
+    "llvm-bc" : "/Users/soeminthein/Desktop/SwiftProjects/My Wallet/Packages/WalletKit/build/WalletKit.build/Release-watchsimulator/WalletDomain.build/Objects-normal/x86_64/RecordUseCases.bc",
+    "object" : "/Users/soeminthein/Desktop/SwiftProjects/My Wallet/Packages/WalletKit/build/WalletKit.build/Release-watchsimulator/WalletDomain.build/Objects-normal/x86_64/RecordUseCases.o"
+  },
+  "/Users/soeminthein/Desktop/SwiftProjects/My Wallet/Packages/WalletKit/Sources/WalletDomain/Records/RecurrenceRule.swift" : {
+    "index-unit-output-path" : "/WalletKit.build/Release-watchsimulator/WalletDomain.build/Objects-normal/x86_64/RecurrenceRule.o",
+    "llvm-bc" : "/Users/soeminthein/Desktop/SwiftProjects/My Wallet/Packages/WalletKit/build/WalletKit.build/Release-watchsimulator/WalletDomain.build/Objects-normal/x86_64/RecurrenceRule.bc",
+    "object" : "/Users/soeminthein/Desktop/SwiftProjects/My Wallet/Packages/WalletKit/build/WalletKit.build/Release-watchsimulator/WalletDomain.build/Objects-normal/x86_64/RecurrenceRule.o"
+  },
+  "/Users/soeminthein/Desktop/SwiftProjects/My Wallet/Packages/WalletKit/Sources/WalletDomain/Records/WalletRecord.swift" : {
+    "index-unit-output-path" : "/WalletKit.build/Release-watchsimulator/WalletDomain.build/Objects-normal/x86_64/WalletRecord.o",
+    "llvm-bc" : "/Users/soeminthein/Desktop/SwiftProjects/My Wallet/Packages/WalletKit/build/WalletKit.build/Release-watchsimulator/WalletDomain.build/Objects-normal/x86_64/WalletRecord.bc",
+    "object" : "/Users/soeminthein/Desktop/SwiftProjects/My Wallet/Packages/WalletKit/build/WalletKit.build/Release-watchsimulator/WalletDomain.build/Objects-normal/x86_64/WalletRecord.o"
+  },
+  "/Users/soeminthein/Desktop/SwiftProjects/My Wallet/Packages/WalletKit/Sources/WalletDomain/Reminders/BillReminder.swift" : {
+    "index-unit-output-path" : "/WalletKit.build/Release-watchsimulator/WalletDomain.build/Objects-normal/x86_64/BillReminder.o",
+    "llvm-bc" : "/Users/soeminthein/Desktop/SwiftProjects/My Wallet/Packages/WalletKit/build/WalletKit.build/Release-watchsimulator/WalletDomain.build/Objects-normal/x86_64/BillReminder.bc",
+    "object" : "/Users/soeminthein/Desktop/SwiftProjects/My Wallet/Packages/WalletKit/build/WalletKit.build/Release-watchsimulator/WalletDomain.build/Objects-normal/x86_64/BillReminder.o"
+  },
+  "/Users/soeminthein/Desktop/SwiftProjects/My Wallet/Packages/WalletKit/Sources/WalletDomain/Reports/FinancialReport.swift" : {
+    "index-unit-output-path" : "/WalletKit.build/Release-watchsimulator/WalletDomain.build/Objects-normal/x86_64/FinancialReport.o",
+    "llvm-bc" : "/Users/soeminthein/Desktop/SwiftProjects/My Wallet/Packages/WalletKit/build/WalletKit.build/Release-watchsimulator/WalletDomain.build/Objects-normal/x86_64/FinancialReport.bc",
+    "object" : "/Users/soeminthein/Desktop/SwiftProjects/My Wallet/Packages/WalletKit/build/WalletKit.build/Release-watchsimulator/WalletDomain.build/Objects-normal/x86_64/FinancialReport.o"
+  },
+  "/Users/soeminthein/Desktop/SwiftProjects/My Wallet/Packages/WalletKit/Sources/WalletDomain/Security/AppLock.swift" : {
+    "index-unit-output-path" : "/WalletKit.build/Release-watchsimulator/WalletDomain.build/Objects-normal/x86_64/AppLock.o",
+    "llvm-bc" : "/Users/soeminthein/Desktop/SwiftProjects/My Wallet/Packages/WalletKit/build/WalletKit.build/Release-watchsimulator/WalletDomain.build/Objects-normal/x86_64/AppLock.bc",
+    "object" : "/Users/soeminthein/Desktop/SwiftProjects/My Wallet/Packages/WalletKit/build/WalletKit.build/Release-watchsimulator/WalletDomain.build/Objects-normal/x86_64/AppLock.o"
+  },
+  "/Users/soeminthein/Desktop/SwiftProjects/My Wallet/Packages/WalletKit/Sources/WalletDomain/Settings/Repositories/WalletResetRepository.swift" : {
+    "index-unit-output-path" : "/WalletKit.build/Release-watchsimulator/WalletDomain.build/Objects-normal/x86_64/WalletResetRepository.o",
+    "llvm-bc" : "/Users/soeminthein/Desktop/SwiftProjects/My Wallet/Packages/WalletKit/build/WalletKit.build/Release-watchsimulator/WalletDomain.build/Objects-normal/x86_64/WalletResetRepository.bc",
+    "object" : "/Users/soeminthein/Desktop/SwiftProjects/My Wallet/Packages/WalletKit/build/WalletKit.build/Release-watchsimulator/WalletDomain.build/Objects-normal/x86_64/WalletResetRepository.o"
+  },
+  "/Users/soeminthein/Desktop/SwiftProjects/My Wallet/Packages/WalletKit/Sources/WalletDomain/Settings/UseCases/ResetWalletUseCase.swift" : {
+    "index-unit-output-path" : "/WalletKit.build/Release-watchsimulator/WalletDomain.build/Objects-normal/x86_64/ResetWalletUseCase.o",
+    "llvm-bc" : "/Users/soeminthein/Desktop/SwiftProjects/My Wallet/Packages/WalletKit/build/WalletKit.build/Release-watchsimulator/WalletDomain.build/Objects-normal/x86_64/ResetWalletUseCase.bc",
+    "object" : "/Users/soeminthein/Desktop/SwiftProjects/My Wallet/Packages/WalletKit/build/WalletKit.build/Release-watchsimulator/WalletDomain.build/Objects-normal/x86_64/ResetWalletUseCase.o"
+  },
+  "/Users/soeminthein/Desktop/SwiftProjects/My Wallet/Packages/WalletKit/Sources/WalletDomain/Statistics/WalletStatistics.swift" : {
+    "index-unit-output-path" : "/WalletKit.build/Release-watchsimulator/WalletDomain.build/Objects-normal/x86_64/WalletStatistics.o",
+    "llvm-bc" : "/Users/soeminthein/Desktop/SwiftProjects/My Wallet/Packages/WalletKit/build/WalletKit.build/Release-watchsimulator/WalletDomain.build/Objects-normal/x86_64/WalletStatistics.bc",
+    "object" : "/Users/soeminthein/Desktop/SwiftProjects/My Wallet/Packages/WalletKit/build/WalletKit.build/Release-watchsimulator/WalletDomain.build/Objects-normal/x86_64/WalletStatistics.o"
+  },
+  "/Users/soeminthein/Desktop/SwiftProjects/My Wallet/Packages/WalletKit/Sources/WalletDomain/Tags/TagRepository.swift" : {
+    "index-unit-output-path" : "/WalletKit.build/Release-watchsimulator/WalletDomain.build/Objects-normal/x86_64/TagRepository.o",
+    "llvm-bc" : "/Users/soeminthein/Desktop/SwiftProjects/My Wallet/Packages/WalletKit/build/WalletKit.build/Release-watchsimulator/WalletDomain.build/Objects-normal/x86_64/TagRepository.bc",
+    "object" : "/Users/soeminthein/Desktop/SwiftProjects/My Wallet/Packages/WalletKit/build/WalletKit.build/Release-watchsimulator/WalletDomain.build/Objects-normal/x86_64/TagRepository.o"
+  },
+  "/Users/soeminthein/Desktop/SwiftProjects/My Wallet/Packages/WalletKit/Sources/WalletDomain/Tags/TagUseCases.swift" : {
+    "index-unit-output-path" : "/WalletKit.build/Release-watchsimulator/WalletDomain.build/Objects-normal/x86_64/TagUseCases.o",
+    "llvm-bc" : "/Users/soeminthein/Desktop/SwiftProjects/My Wallet/Packages/WalletKit/build/WalletKit.build/Release-watchsimulator/WalletDomain.build/Objects-normal/x86_64/TagUseCases.bc",
+    "object" : "/Users/soeminthein/Desktop/SwiftProjects/My Wallet/Packages/WalletKit/build/WalletKit.build/Release-watchsimulator/WalletDomain.build/Objects-normal/x86_64/TagUseCases.o"
+  },
+  "/Users/soeminthein/Desktop/SwiftProjects/My Wallet/Packages/WalletKit/Sources/WalletDomain/Tags/WalletTag.swift" : {
+    "index-unit-output-path" : "/WalletKit.build/Release-watchsimulator/WalletDomain.build/Objects-normal/x86_64/WalletTag.o",
+    "llvm-bc" : "/Users/soeminthein/Desktop/SwiftProjects/My Wallet/Packages/WalletKit/build/WalletKit.build/Release-watchsimulator/WalletDomain.build/Objects-normal/x86_64/WalletTag.bc",
+    "object" : "/Users/soeminthein/Desktop/SwiftProjects/My Wallet/Packages/WalletKit/build/WalletKit.build/Release-watchsimulator/WalletDomain.build/Objects-normal/x86_64/WalletTag.o"
+  },
+  "/Users/soeminthein/Desktop/SwiftProjects/My Wallet/Packages/WalletKit/Sources/WalletDomain/Widgets/WalletDeepLink.swift" : {
+    "index-unit-output-path" : "/WalletKit.build/Release-watchsimulator/WalletDomain.build/Objects-normal/x86_64/WalletDeepLink.o",
+    "llvm-bc" : "/Users/soeminthein/Desktop/SwiftProjects/My Wallet/Packages/WalletKit/build/WalletKit.build/Release-watchsimulator/WalletDomain.build/Objects-normal/x86_64/WalletDeepLink.bc",
+    "object" : "/Users/soeminthein/Desktop/SwiftProjects/My Wallet/Packages/WalletKit/build/WalletKit.build/Release-watchsimulator/WalletDomain.build/Objects-normal/x86_64/WalletDeepLink.o"
+  },
+  "/Users/soeminthein/Desktop/SwiftProjects/My Wallet/Packages/WalletKit/Sources/WalletDomain/Widgets/WalletSnapshot.swift" : {
+    "index-unit-output-path" : "/WalletKit.build/Release-watchsimulator/WalletDomain.build/Objects-normal/x86_64/WalletSnapshot.o",
+    "llvm-bc" : "/Users/soeminthein/Desktop/SwiftProjects/My Wallet/Packages/WalletKit/build/WalletKit.build/Release-watchsimulator/WalletDomain.build/Objects-normal/x86_64/WalletSnapshot.bc",
+    "object" : "/Users/soeminthein/Desktop/SwiftProjects/My Wallet/Packages/WalletKit/build/WalletKit.build/Release-watchsimulator/WalletDomain.build/Objects-normal/x86_64/WalletSnapshot.o"
+  },
+  "/Users/soeminthein/Desktop/SwiftProjects/My Wallet/Packages/WalletKit/Sources/WalletDomain/Widgets/WalletSnapshotStore.swift" : {
+    "index-unit-output-path" : "/WalletKit.build/Release-watchsimulator/WalletDomain.build/Objects-normal/x86_64/WalletSnapshotStore.o",
+    "llvm-bc" : "/Users/soeminthein/Desktop/SwiftProjects/My Wallet/Packages/WalletKit/build/WalletKit.build/Release-watchsimulator/WalletDomain.build/Objects-normal/x86_64/WalletSnapshotStore.bc",
+    "object" : "/Users/soeminthein/Desktop/SwiftProjects/My Wallet/Packages/WalletKit/build/WalletKit.build/Release-watchsimulator/WalletDomain.build/Objects-normal/x86_64/WalletSnapshotStore.o"
+  },
+  "/Users/soeminthein/Desktop/SwiftProjects/My Wallet/Packages/WalletKit/Sources/WalletDomain/Widgets/WalletWatchTransfer.swift" : {
+    "index-unit-output-path" : "/WalletKit.build/Release-watchsimulator/WalletDomain.build/Objects-normal/x86_64/WalletWatchTransfer.o",
+    "llvm-bc" : "/Users/soeminthein/Desktop/SwiftProjects/My Wallet/Packages/WalletKit/build/WalletKit.build/Release-watchsimulator/WalletDomain.build/Objects-normal/x86_64/WalletWatchTransfer.bc",
+    "object" : "/Users/soeminthein/Desktop/SwiftProjects/My Wallet/Packages/WalletKit/build/WalletKit.build/Release-watchsimulator/WalletDomain.build/Objects-normal/x86_64/WalletWatchTransfer.o"
+  }
+}

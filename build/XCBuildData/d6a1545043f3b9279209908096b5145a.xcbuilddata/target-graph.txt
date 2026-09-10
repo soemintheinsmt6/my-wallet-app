@@ -1,0 +1,6 @@
+Target dependency graph (3 targets)
+Target 'WalletWatchWidgets' in project 'My Wallet'
+➜ Explicit dependency on target 'WalletDomain' in project 'WalletKit'
+Target 'WalletDomain' in project 'WalletKit'
+➜ Explicit dependency on target 'WalletDomain' in project 'WalletKit'
+Target 'WalletDomain' in project 'WalletKit' (no dependencies)

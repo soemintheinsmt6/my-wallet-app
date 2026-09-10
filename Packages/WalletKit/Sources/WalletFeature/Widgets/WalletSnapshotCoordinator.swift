@@ -17,6 +17,8 @@ public final class WalletSnapshotCoordinator {
     private let planning: PlanningViewModel
     private var cancellables: Set<AnyCancellable> = []
     private var lastWritten: WalletSnapshot?
+    /// Set by the app to mirror each new snapshot to a paired Apple Watch.
+    public var onSnapshot: ((WalletSnapshot) -> Void)?
 
     public init(records: RecordsViewModel, planning: PlanningViewModel) {
         self.records = records
@@ -47,6 +49,7 @@ public final class WalletSnapshotCoordinator {
             try WalletSnapshotStore.write(snapshot)
             lastWritten = snapshot
             reloadWidgets()
+            onSnapshot?(snapshot)
         } catch {
             // A missing App Group container must never break the app; widgets keep their last summary.
         }

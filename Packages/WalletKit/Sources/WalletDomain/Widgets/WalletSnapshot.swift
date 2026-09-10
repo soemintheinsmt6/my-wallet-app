@@ -94,19 +94,62 @@ public struct WalletSnapshot: Codable, Sendable, Equatable {
         }
     }
 
+    /// A pickable account or category, carried so the watch can add a record without the store.
+    public struct Option: Codable, Sendable, Equatable, Identifiable {
+        public let id: UUID
+        public let title: String
+        public let symbol: String
+        public let colorValue: UInt32?
+        /// Only accounts carry a currency.
+        public let currencyCode: String?
+
+        public init(id: UUID, title: String, symbol: String, colorValue: UInt32? = nil,
+                    currencyCode: String? = nil) {
+            self.id = id
+            self.title = title
+            self.symbol = symbol
+            self.colorValue = colorValue
+            self.currencyCode = currencyCode
+        }
+    }
+
     public let generatedAt: Date
     public let balances: [Balance]
     public let month: Month?
     public let recent: [Entry]
     public let budgets: [BudgetProgressSummary]
+    /// Accounts and most-used expense categories, for quick entry away from the store.
+    public let accounts: [Option]
+    public let quickCategories: [Option]
+    /// Spending so far today, in the leading currency.
+    public let todaySpend: Decimal
 
     public init(generatedAt: Date = Date(), balances: [Balance] = [], month: Month? = nil,
-                recent: [Entry] = [], budgets: [BudgetProgressSummary] = []) {
+                recent: [Entry] = [], budgets: [BudgetProgressSummary] = [],
+                accounts: [Option] = [], quickCategories: [Option] = [],
+                todaySpend: Decimal = 0) {
         self.generatedAt = generatedAt
         self.balances = balances
         self.month = month
         self.recent = recent
         self.budgets = budgets
+        self.accounts = accounts
+        self.quickCategories = quickCategories
+        self.todaySpend = todaySpend
+    }
+
+    /// Decoded field by field so a snapshot written by an older build — one without the quick-add
+    /// fields — still loads instead of failing and blanking every widget.
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        generatedAt = try container.decode(Date.self, forKey: .generatedAt)
+        balances = try container.decodeIfPresent([Balance].self, forKey: .balances) ?? []
+        month = try container.decodeIfPresent(Month.self, forKey: .month)
+        recent = try container.decodeIfPresent([Entry].self, forKey: .recent) ?? []
+        budgets = try container.decodeIfPresent([BudgetProgressSummary].self, forKey: .budgets) ?? []
+        accounts = try container.decodeIfPresent([Option].self, forKey: .accounts) ?? []
+        quickCategories = try container.decodeIfPresent([Option].self, forKey: .quickCategories) ?? []
+        todaySpend = try container.decodeIfPresent(Decimal.self, forKey: .todaySpend) ?? 0
     }
 
     public var isEmpty: Bool { balances.isEmpty && recent.isEmpty && budgets.isEmpty }
@@ -117,6 +160,27 @@ public struct WalletSnapshot: Codable, Sendable, Equatable {
         balances.max { left, right in
             left.accountCount == right.accountCount ? left.currencyCode > right.currencyCode
                                                     : left.accountCount < right.accountCount
+        }
+    }
+
+    /// A pending expense the watch captured, sent to the phone to be written.
+    ///
+    /// Carried here so both sides share one definition; the watch never writes to the wallet
+    /// itself, because the store lives on the phone.
+    public struct QuickExpense: Codable, Sendable, Equatable, Identifiable {
+        public let id: UUID
+        public let amount: Decimal
+        public let accountID: UUID
+        public let categoryID: UUID?
+        public let date: Date
+
+        public init(id: UUID = UUID(), amount: Decimal, accountID: UUID,
+                    categoryID: UUID? = nil, date: Date = Date()) {
+            self.id = id
+            self.amount = amount
+            self.accountID = accountID
+            self.categoryID = categoryID
+            self.date = date
         }
     }
 

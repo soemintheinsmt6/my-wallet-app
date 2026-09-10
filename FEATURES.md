@@ -324,14 +324,23 @@ Spotlight indexes names and types only — never balances or record details — 
 
 ### 4.2 Apple Watch Companion
 
-> **Modules:** New watchOS target, shared domain
+> **Status:** Implemented; **not compiled** — the watchOS platform is not installed in the build environment
+> **Modules:** New `WalletWatch` and `WalletWatchWidgets` targets, `WalletDomain/Widgets/`, `My Wallet/App/Watch/`
 
 Quick record entry and balance checking from the wrist.
 
-- [ ] Complication showing total or account balance
-- [ ] Quick expense entry with recent categories
-- [ ] Today's spending summary
-- [ ] Sync via WatchConnectivity or shared CloudKit
+- [x] Complication showing total or account balance
+- [x] Quick expense entry with recent categories
+- [x] Today's spending summary
+- [x] Sync via WatchConnectivity
+
+Implementation notes (2026-09-11): The store lives on the phone, so the watch never writes to the wallet. The phone mirrors a `WalletSnapshot` with `updateApplicationContext` — latest-state-wins, delivered in the background, which suits a summary far better than a queue of stale ones — and the watch proposes expenses with `transferUserInfo`, so a capture made out of range is queued and delivered later rather than failing. Incoming expenses are written through `RecordUseCases`, so a wrist capture is validated exactly like a typed record. `WalletWatchTransfer` holds the payload encoding once, shared by both processes, so the two sides cannot drift.
+
+The snapshot gained accounts, most-used expense categories and today's spend so quick entry works without the store, and `WalletSnapshot` now decodes field by field: a snapshot written by an older build still loads instead of blanking every widget. The watch persists what it receives into the App Group so its complications — which cannot use WatchConnectivity themselves — have data after a relaunch out of range.
+
+**Build status:** the watchOS platform (`watchOS 26.5`) is not installed here, only its SDK headers, so neither watch target could be compiled and neither could the iOS app while it embedded the watch app. To keep `xcodebuild -scheme 'My Wallet'` working, the iOS target's **Embed Watch Content** phase and its dependency on `WalletWatch` are currently detached — both targets exist and are fully configured, but the watch app is not embedded in the iOS app.
+
+**To finish on a machine with the platform:** run `xcodebuild -downloadPlatform watchOS`, then in Xcode select the *My Wallet* target → General → **Embed Watch Content** and add `WalletWatch.app` (this restores the `A30000000000000000000034` copy-files phase and the `A30000000000000000000040` dependency). Then build `WalletWatch` and `WalletWatchWidgets`. Treat every line of watch code as unreviewed by a compiler until that happens.
 
 ---
 

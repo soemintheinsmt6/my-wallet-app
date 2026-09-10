@@ -65,6 +65,7 @@ struct WalletTabsView: View {
         .disabled(settings.isResetting)
         .task { await dependencies.planningViewModel.observe() }
         .task { dependencies.snapshotCoordinator.start() }
+        .task { dependencies.watchConnector.activate() }
         // Names, not counts: a rename must reindex too. The indexer skips identical passes.
         .onChange(of: records.accounts.map(\.name)) { _, _ in indexSpotlight() }
         .onChange(of: records.categories.map(\.name)) { _, _ in indexSpotlight() }
