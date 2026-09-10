@@ -10,6 +10,8 @@ public struct HomeView: View {
     @ObservedObject private var records: RecordsViewModel
     @ObservedObject private var planning: PlanningViewModel
     @Binding private var selection: WalletTab
+    /// Set by a widget quick-add deep link; presents the editor with that kind preselected.
+    @Binding private var pendingAdd: RecordKind?
     @Environment(\.scenePhase) private var scenePhase
     @State private var creating = false
     @State private var currency = ""
@@ -17,10 +19,12 @@ public struct HomeView: View {
     private let recentLimit = 5
     private let previewLimit = 3
 
-    public init(records: RecordsViewModel, planning: PlanningViewModel, selection: Binding<WalletTab>) {
+    public init(records: RecordsViewModel, planning: PlanningViewModel, selection: Binding<WalletTab>,
+                pendingAdd: Binding<RecordKind?> = .constant(nil)) {
         self.records = records
         self.planning = planning
         _selection = selection
+        _pendingAdd = pendingAdd
     }
 
     // MARK: - Derived values
@@ -97,6 +101,9 @@ public struct HomeView: View {
                 }
             }
             .sheet(isPresented: $creating) { RecordEditorView(viewModel: records) }
+            .sheet(item: $pendingAdd) { kind in
+                RecordEditorView(viewModel: records, initialKind: kind)
+            }
             .refreshable { await planning.refresh(generate: true) }
             .overlay {
                 if records.isLoading && records.accounts.isEmpty {

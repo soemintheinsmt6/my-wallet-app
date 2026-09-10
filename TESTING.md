@@ -167,3 +167,19 @@ Manual checks:
 3. Create bills with on-date and advance notices, deny/allow permission, edit/cancel notifications, mark paid both ways, and repeat a stale confirmation. Verify calendar filtering, overdue highlighting and the next recurring due date.
 4. Export monthly/yearly/custom summaries and account statements using multiple currencies, long names/notes and large record lists. Share/save the PDF on both platforms.
 5. Deploy the additive CloudKit schema in development and test offline simultaneous edits/generation, receipt sync, deletion and reset on signed devices before production use.
+
+## Home Screen Widgets Validation (2026-09-10)
+
+**104 tests across 18 suites passed.** `WalletSnapshotTests` covers snapshot building (per-currency balance grouping, `excludeFromStats` omission, deterministic primary-currency tie-breaking, month totals excluding transfers, newest-first capped recent entries with resolved parent/child titles and category colors, transfer subtitles naming both accounts, budgets ranked by ratio and clamped meters), the store's encode/decode round trip and overwrite path, `nil` for missing and corrupt files, and `WalletDeepLink` round trips including rejection of foreign URLs and the fallback for a malformed `kind`.
+
+Verified by running the app on an iPhone 17 Pro simulator: the `WalletWidgets.appex` is built and embedded in the app's `PlugIns/`, launching the app creates the `group.com.app.My-Wallet` container and writes a well-formed `wallet-snapshot.json`, and the `mywallet://` scheme is registered — iOS offers to open the app for an external deep link.
+
+**Not verified:** widgets rendering on a real home screen in any family, timeline reloads after data changes, and in-app routing after the deep-link confirmation, because simulator UI input could not be driven from this environment. App Group provisioning for signed device builds is also outstanding.
+
+Manual checks:
+
+1. Add each widget in every supported family. Confirm balance currency selection, month figures, recent record tiles/colors, budget meters and quick-add buttons.
+2. Change records, accounts and budgets in the app, then confirm widgets update without relaunching.
+3. Tap each widget and each quick-add button. Confirm the correct tab opens and that quick-add opens the editor with the kind preselected.
+4. Reset wallet data in a debug build and confirm widgets fall back to their empty states.
+5. Confirm widgets still render after the app has not run for a day, and on a device where the App Group container is provisioned.

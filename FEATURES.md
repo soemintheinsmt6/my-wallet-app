@@ -186,15 +186,24 @@ Implementation notes (2026-09-10): `RecordSearch` is a pure domain calculation o
 
 ### 3.2 Home Screen Widgets
 
-> **Modules:** New widget extension target
+> **Status:** Implemented locally; on-device widget rendering verification pending
+> **Modules:** `WalletDomain` (new `Widgets/`), `WalletFeature` (new `Widgets/`), new `WalletWidgets` extension target
 
 Glanceable financial summaries on the home screen.
 
-- [ ] Total balance across accounts widget (small/medium)
-- [ ] Monthly spending summary widget
-- [ ] Recent transactions widget (medium/large)
-- [ ] Budget progress widget
-- [ ] Quick-add record intent (interactive widget on iOS 17+)
+- [x] Total balance across accounts widget (small/medium)
+- [x] Monthly spending summary widget
+- [x] Recent transactions widget (medium/large)
+- [x] Budget progress widget
+- [x] Quick-add record widget deep-linking into the editor with the kind preselected
+
+Implementation notes (2026-09-10): The extension never opens the wallet's SwiftData store. Doing so would mean relocating the CloudKit-backed store into a shared App Group container and migrating existing installs, so instead the app writes a resolved `WalletSnapshot` — balances per currency, this month's totals, recent records, budget progress — into `group.com.app.My-Wallet` and the widget only reads it. Titles, symbols and category colors are resolved by the app, so the extension links `WalletDomain` alone and carries no presentation logic. Writes are atomic (temporary file plus replace) so a reload landing mid-write cannot see a truncated file, and a missing container is never fatal: the app keeps working and widgets keep their previous summary.
+
+`WalletSnapshotCoordinator` observes both view models, debounces 400 ms because one save publishes several times, skips writing when nothing the widgets show has changed, and then reloads timelines. Resetting wallet data clears the snapshot through `SettingsViewModel.onReset`. Timelines refresh hourly purely as a fallback for when the app has not run.
+
+Widgets lead with the currency holding the most accounts, ties broken by code so the figure never flickers between refreshes; totals are never combined across currencies. Quick-add uses `Link`/`widgetURL` deep links (`mywallet://`) rather than an `AppIntent` performed in place: adding a record needs an amount and a category, so the widget hands off to the app instead of writing anything itself. The extension is iOS-only — macOS App Groups require a team-prefixed identifier — so the macOS app build simply skips it.
+
+**Provisioning:** the `group.com.app.My-Wallet` App Group must be enabled for the team's app ID and the widget's `com.app.My-Wallet.WalletWidgets` ID before a signed device build will install.
 
 ---
 

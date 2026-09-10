@@ -30,13 +30,16 @@ struct RecordEditorView: View {
     @State private var selectionScreen: SelectionScreen?
     private enum SelectionScreen: String, Hashable { case account, destination, payment }
 
-    init(viewModel: RecordsViewModel, record: WalletRecord? = nil, title: String? = nil, allowsRecurrence: Bool = true, saveAction: ((UUID, RecordDraft) async throws -> Void)? = nil) {
+    /// `initialKind` preselects the segmented type for a new record; widget quick-add uses it.
+    init(viewModel: RecordsViewModel, record: WalletRecord? = nil, title: String? = nil, allowsRecurrence: Bool = true, initialKind: RecordKind? = nil, saveAction: ((UUID, RecordDraft) async throws -> Void)? = nil) {
         self.viewModel = viewModel
         self.record = record
         self.saveAction = saveAction
         self.editorTitle = title
         self.allowsRecurrence = allowsRecurrence
-        _draft = State(initialValue: record?.draft ?? RecordDraft())
+        var initialDraft = record?.draft ?? RecordDraft()
+        if record == nil, let initialKind { initialDraft.kind = initialKind }
+        _draft = State(initialValue: initialDraft)
         _recordID = State(initialValue: record?.id ?? UUID())
         _amount = State(initialValue: record.map { AccountAmountInput.text($0.draft.amount) } ?? "")
         _receivedAmount = State(initialValue: record?.draft.receivedAmount.map { AccountAmountInput.text($0) } ?? "")

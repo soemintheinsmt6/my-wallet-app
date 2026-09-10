@@ -9,6 +9,9 @@ public final class SettingsViewModel: ObservableObject {
     @Published public var errorMessage: String?
     private let resetUseCase: ResetWalletUseCase
     private let preferences: UserDefaults
+    /// Called after a successful reset so shared caches outside the store — the widget snapshot —
+    /// can be cleared too.
+    public var onReset: (() -> Void)?
 
     public init(resetUseCase: ResetWalletUseCase, preferences: UserDefaults = .standard) {
         self.resetUseCase = resetUseCase
@@ -25,6 +28,7 @@ public final class SettingsViewModel: ObservableObject {
             preferences.removeObject(forKey: WalletPreferenceKeys.lastUsedAccountID)
             preferences.removeObject(forKey: WalletPreferenceKeys.lastUsedPaymentType)
             preferences.removeObject(forKey: WalletPreferenceKeys.recentSearches)
+            onReset?()
             resetGeneration += 1
         } catch {
             errorMessage = error.localizedDescription
