@@ -89,7 +89,7 @@ A dedicated tab or section showing spending and income analytics. Reuse `categor
 
 ---
 
-Implementation notes (2026-09-06): Phase 1 is implemented. Statistics keeps currencies separate; automatic conversion remains Phase 3.6. Balance history is reconstructed from current base balances and the ledger, so manual balance corrections apply retrospectively. Category deletion adds an optional `deletionDate` tombstone to preserve deleted starter IDs across reseeding. Archived account records retain currency snapshots and surviving transfer legs; editing an unlinked record requires selecting valid accounts again. Phases 2–5 remain planned.
+Implementation notes (2026-09-06): Phase 1 is implemented. Statistics keeps currencies separate; automatic conversion remains Phase 3.6. Balance history is reconstructed from current base balances and the ledger, so manual balance corrections apply retrospectively. Category deletion adds an optional `deletionDate` tombstone to preserve deleted starter IDs across reseeding. Archived account records retain currency snapshots and surviving transfer legs; editing an unlinked record requires selecting valid accounts again. Phase 2 is implemented below; Phases 3–5 remain planned.
 
 ## Phase 2 — Financial Intelligence
 
@@ -99,61 +99,67 @@ Features that help users understand and control their finances beyond basic trac
 
 ### 2.1 Budgets
 
+> **Status:** Implemented locally; notification/device verification pending
 > **Modules:** `WalletDomain` (new `Budgets/`), `WalletData`, `WalletFeature` (new `Budgets/`)
 
 Set monthly or custom-period spending limits per category or overall. Track progress against the budget with visual indicators.
 
-- [ ] `Budget` entity: amount, period (monthly/weekly/custom), linked category or global
-- [ ] `BudgetRepository` and `BudgetUseCases`
-- [ ] Budget progress bar in the dashboard and category detail
-- [ ] Notifications when approaching or exceeding a budget limit
-- [ ] Rollover option for unused budget amounts
-- [ ] Budget vs. actual comparison view
+- [x] `Budget` entity: amount, period (monthly/weekly/custom), linked category or global
+- [x] `BudgetRepository` and `BudgetUseCases`
+- [x] Budget progress bar in the dashboard and category detail
+- [x] Notifications when approaching or exceeding a budget limit
+- [x] Rollover option for unused budget amounts
+- [x] Budget vs. actual comparison view
 
 ---
 
 ### 2.2 Recurring Transactions
 
+> **Status:** Implemented locally; notification/device verification pending
 > **Modules:** `WalletDomain/Records` (extend), `WalletData`, `WalletFeature/Records`
 
 Define transactions that repeat on a schedule. The app creates records automatically or prompts the user to confirm.
 
-- [ ] `RecurrenceRule` value type: frequency (daily/weekly/biweekly/monthly/yearly), end date or count
-- [ ] Attach recurrence to a `RecordDraft`
-- [ ] Background task or app-launch hook to generate due records
-- [ ] Upcoming recurring transactions list
-- [ ] Edit/pause/cancel a recurring series
-- [ ] Skip or modify individual occurrences
+- [x] `RecurrenceRule` value type: frequency (daily/weekly/biweekly/monthly/yearly), end date or count
+- [x] Attach recurrence to a `RecordDraft`
+- [x] Background task or app-launch hook to generate due records
+- [x] Upcoming recurring transactions list
+- [x] Edit/pause/cancel a recurring series
+- [x] Skip or modify individual occurrences
 
 ---
 
 ### 2.3 Financial Reports
 
+> **Status:** Implemented locally; notification/device verification pending
 > **Modules:** `WalletFeature` (new `Reports/`)
 
 Generate downloadable or shareable reports summarizing financial activity.
 
-- [ ] Monthly/yearly summary report (income, expenses, net, top categories)
-- [ ] Category-level breakdown report
-- [ ] Account statement view with running balance
-- [ ] Export as PDF or share via system share sheet
-- [ ] Date range selection for custom reports
+- [x] Monthly/yearly summary report (income, expenses, net, top categories)
+- [x] Category-level breakdown report
+- [x] Account statement view with running balance
+- [x] Export as PDF or share via system share sheet
+- [x] Date range selection for custom reports
 
 ---
 
 ### 2.4 Bill Reminders
 
+> **Status:** Implemented locally; notification/device verification pending
 > **Modules:** `WalletDomain` (new `Reminders/`), `WalletData`, `WalletFeature` (new `Reminders/`)
 
 Track upcoming bills and due dates with push notification reminders.
 
-- [ ] `BillReminder` entity: name, amount, due date, recurrence, linked category/account
-- [ ] Local notification scheduling (1 day before, on due date, configurable)
-- [ ] Mark as paid — optionally auto-create a record
-- [ ] Overdue bill highlighting
-- [ ] Calendar view of upcoming bills
+- [x] `BillReminder` entity: name, amount, due date, recurrence, linked category/account
+- [x] Local notification scheduling (1 day before, on due date, configurable)
+- [x] Mark as paid — optionally auto-create a record
+- [x] Overdue bill highlighting
+- [x] Calendar view of upcoming bills
 
 ---
+
+Implementation notes (2026-09-06): Phase 2 adds a Planning tab for budgets, recurring series, bills and reports. Monthly/weekly budgets are anchored to their start date, use included accounts in one currency, and roll over only positive unused funds. Recurring records are generated on launch/foreground or manual refresh in batches of up to 500 per series; later records do not block behind postponed individual occurrences. Occurrence receipts prevent local retries or record deletion from regenerating charges. Notification permission is explicitly requested from the budget/bill editor; the nearest 60 eligible notices are scheduled/refreshed on app activity. Reports include native paginated PDF export and currency-separated summaries. Four additive SwiftData models store Codable payloads; signed-device CloudKit and notification delivery still require verification.
 
 ## Phase 3 — User Experience Enhancements
 

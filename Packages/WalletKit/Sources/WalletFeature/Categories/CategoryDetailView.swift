@@ -4,6 +4,7 @@ import WalletDomain
 struct CategoryDetailView: View {
     @ObservedObject var viewModel: CategoriesViewModel
     let categoryID: UUID
+    var planning: PlanningViewModel? = nil
     @State private var editor: CategoryEditorRoute?
     @State private var deleting: WalletCategory?
 
@@ -27,6 +28,7 @@ struct CategoryDetailView: View {
                         Button("Edit Category") { editor = CategoryEditorRoute(category: category) }
                         Button("Delete Category", role: .destructive) { deleting = category }
                     }
+                    if let planning { BudgetProgressSection(viewModel: planning, categoryID: category.id) }
                     Section("Subcategories") {
                         ForEach(viewModel.subcategories(of: category.id)) { child in
                             Button { editor = CategoryEditorRoute(category: child, parent: category) } label: {

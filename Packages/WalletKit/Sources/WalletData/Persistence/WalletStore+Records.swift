@@ -37,6 +37,12 @@ extension WalletStore {
         try draft.validate(allowUncategorized: updating && draft.categoryID == nil)
         let context = ModelContext(modelContainer)
         context.autosaveEnabled = false
+        try writeRecord(id: id, draft: draft, updating: updating, in: context)
+        try context.save()
+    }
+
+    func writeRecord(id: UUID, draft: RecordDraft, updating: Bool = false, in context: ModelContext) throws {
+        try draft.validate(allowUncategorized: updating && draft.categoryID == nil)
         // A retried save of the same editor submission must not affect balances twice.
         let existing = try context.fetch(FetchDescriptor<TransactionRecord>(predicate: #Predicate { $0.id == id }))
         if updating {
@@ -67,7 +73,10 @@ extension WalletStore {
         } else {
             context.insert(TransactionRecord(id: id, draft: normalized, currencyCode: source.currencyCode, destinationCurrencyCode: destinationCurrency))
         }
-        try context.save()
+        if !updating, let rule = draft.recurrence {
+            let series = RecurringSeries(id: id, template: normalized, rule: rule)
+            context.insert(try RecurringSeriesRecord(series))
+        }
     }
 
     /// Derive balances from ledger entries, avoiding synced read-modify-write counters.

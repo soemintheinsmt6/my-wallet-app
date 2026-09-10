@@ -5,6 +5,11 @@ import WalletDomain
 struct RecordEditorView: View {
     @ObservedObject var viewModel: RecordsViewModel
     let record: WalletRecord?
+    let saveAction: ((UUID, RecordDraft) async throws -> Void)?
+    let editorTitle: String?
+    let allowsRecurrence: Bool
+    @State private var isSubmitting = false
+    private var isBusy: Bool { viewModel.isSaving || isSubmitting }
     @State private var originalPhotoLoaded: Bool
     @State private var isLoadingOriginalPhoto = false
     @Environment(\.dismiss) private var dismiss
@@ -25,9 +30,12 @@ struct RecordEditorView: View {
     @State private var selectionScreen: SelectionScreen?
     private enum SelectionScreen: String, Hashable { case account, destination, payment }
 
-    init(viewModel: RecordsViewModel, record: WalletRecord? = nil) {
+    init(viewModel: RecordsViewModel, record: WalletRecord? = nil, title: String? = nil, allowsRecurrence: Bool = true, saveAction: ((UUID, RecordDraft) async throws -> Void)? = nil) {
         self.viewModel = viewModel
         self.record = record
+        self.saveAction = saveAction
+        self.editorTitle = title
+        self.allowsRecurrence = allowsRecurrence
         _draft = State(initialValue: record?.draft ?? RecordDraft())
         _recordID = State(initialValue: record?.id ?? UUID())
         _amount = State(initialValue: record.map { AccountAmountInput.text($0.draft.amount) } ?? "")
@@ -36,7 +44,7 @@ struct RecordEditorView: View {
     }
 
     private var canSave: Bool {
-        guard originalPhotoLoaded, !viewModel.isSaving, !isLoadingPhoto,
+        guard originalPhotoLoaded, !isBusy, !isLoadingPhoto,
             let value = try? AccountAmountInput.parse(amount)
         else { return false }
         var values = draft
@@ -65,6 +73,15 @@ struct RecordEditorView: View {
                     amountSection
                     generalSection
                     detailsSection
+                    if record == nil && allowsRecurrence {
+                        VStack(alignment: .leading, spacing: 12) {
+                            RecurrenceFields(rule: $draft.recurrence, start: draft.date)
+                            if draft.recurrence != nil {
+                                Text("This record is saved now. Later occurrences are created when the app opens or becomes active. Manage them under Planning → Recurring.")
+                                    .font(.caption).foregroundStyle(.secondary)
+                            }
+                        }.padding(20)
+                    }
                     if let errorMessage { Text(errorMessage).foregroundStyle(.red).padding(20) }
                 }
                 .background {
@@ -77,7 +94,7 @@ struct RecordEditorView: View {
                 Color.clear.contentShape(Rectangle())
                     .onTapGesture { focusedField = nil }
             }
-            .disabled(viewModel.isSaving)
+            .disabled(isBusy)
             .safeAreaInset(edge: .bottom, spacing: 0) {
                 VStack(spacing: 0) {
                     Divider()
@@ -86,7 +103,7 @@ struct RecordEditorView: View {
                     } label: {
                         HStack {
                             Spacer()
-                            if viewModel.isSaving { ProgressView() } else { Text("Save").font(.headline) }
+                            if isBusy { ProgressView() } else { Text("Save").font(.headline) }
                             Spacer()
                         }
                         .frame(minHeight: 28)
@@ -98,13 +115,13 @@ struct RecordEditorView: View {
                 }
                 .background(.background)
             }
-            .navigationTitle(record == nil ? "Add Record" : "Edit Record")
+            .navigationTitle(editorTitle ?? (record == nil ? "Add Record" : "Edit Record"))
             #if !os(macOS)
                 .navigationBarTitleDisplayMode(.inline)
             #endif
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }.disabled(viewModel.isSaving)
+                    Button("Cancel") { dismiss() }.disabled(isBusy)
                 }
             }
             .sheet(isPresented: $selectingCategory) {
@@ -136,7 +153,7 @@ struct RecordEditorView: View {
                 await Task.yield()
                 focusedField = .amount
             }
-            .interactiveDismissDisabled(viewModel.isSaving)
+            .interactiveDismissDisabled(isBusy)
             .task(id: photoItem) { await loadPhoto() }
             .onChange(of: draft.accountID) { _, id in
                 if draft.destinationAccountID == id { draft.destinationAccountID = nil }
@@ -361,12 +378,16 @@ struct RecordEditorView: View {
     }
 
     private func save() async {
+        guard canSave else { return }
+        isSubmitting = true
+        defer { isSubmitting = false }
         errorMessage = nil
         do {
             var values = draft
             values.amount = try AccountAmountInput.parse(amount)
             values.receivedAmount = crossCurrency ? try AccountAmountInput.parse(receivedAmount) : nil
-            try await viewModel.save(id: recordID, draft: values, editing: record != nil)
+            if let saveAction { try await saveAction(recordID, values) }
+            else { try await viewModel.save(id: recordID, draft: values, editing: record != nil) }
             lastUsedAccountID = values.accountID?.uuidString ?? ""
             lastUsedPaymentType = values.paymentType.rawValue
             dismiss()

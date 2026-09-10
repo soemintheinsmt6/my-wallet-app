@@ -1,0 +1,120 @@
+import Combine
+import Foundation
+import WalletDomain
+
+@MainActor
+public final class PlanningViewModel: ObservableObject {
+    @Published public private(set) var budgets: [Budget] = []
+    @Published public private(set) var series: [RecurringSeries] = []
+    @Published public private(set) var occurrences: [ScheduledOccurrence] = []
+    @Published public private(set) var bills: [BillReminder] = []
+    @Published public private(set) var isSaving = false
+    @Published public private(set) var isLoading = false
+    @Published public var errorMessage: String?
+    public let records: RecordsViewModel
+    private let repository: any BudgetRepository & RecurringRepository & BillReminderRepository
+    private let notifications: (any WalletNotificationClient)?
+    private var generation = 0
+    private var isGenerating = false
+
+    public init(repository: any BudgetRepository & RecurringRepository & BillReminderRepository,
+                records: RecordsViewModel, notifications: (any WalletNotificationClient)? = nil) {
+        self.repository = repository
+        self.records = records
+        self.notifications = notifications
+    }
+
+    public func observe() async {
+        let changes = repository.changes()
+        await refresh(generate: true)
+        for await _ in changes {
+            guard !Task.isCancelled else { break }
+            await refresh()
+        }
+    }
+
+    public func refresh(generate: Bool = false) async {
+        if generate && !isGenerating {
+            isGenerating = true
+            do { _ = try await repository.generateDueRecords(through: Date()) }
+            catch { errorMessage = "Recurring records: \(error.localizedDescription)" }
+            isGenerating = false
+        }
+        generation += 1
+        let version = generation
+        isLoading = true
+        defer { if version == generation { isLoading = false } }
+        do {
+            let budgets = try await repository.fetchBudgets()
+            let series = try await repository.fetchRecurringSeries()
+            let occurrences = try await repository.fetchOccurrences()
+            let bills = try await repository.fetchBillReminders()
+            await records.reload()
+            guard version == generation else { return }
+            self.budgets = budgets; self.series = series; self.occurrences = occurrences; self.bills = bills
+            try await synchronizeNotifications()
+        } catch is CancellationError {
+        } catch { if version == generation { errorMessage = error.localizedDescription } }
+    }
+
+    public func progress(on date: Date = Date(), categoryID: UUID? = nil) -> [BudgetProgress] {
+        budgets.filter { categoryID == nil || $0.categoryID == categoryID }.compactMap {
+            BudgetProgress.calculate(budget: $0, records: records.records, accounts: records.accounts, categories: records.categories, now: date)
+        }
+    }
+
+    public func save(_ budget: Budget) async throws {
+        try await mutate { try await BudgetUseCases(repository: repository).save(budget) }
+    }
+    public func deleteBudget(id: UUID) async throws { try await mutate { try await repository.deleteBudget(id: id) } }
+    public func save(_ bill: BillReminder) async throws {
+        try bill.validate()
+        try await mutate { try await repository.saveBillReminder(bill) }
+    }
+    public func deleteBill(id: UUID) async throws { try await mutate { try await repository.deleteBillReminder(id: id) } }
+    public func pay(_ bill: BillReminder, createRecord: Bool) async throws {
+        try await mutate { try await repository.markBillPaid(id: bill.id, occurrenceIndex: bill.nextIndex, createRecord: createRecord, paidAt: Date()) }
+    }
+    public func save(_ series: RecurringSeries) async throws { try await mutate { try await repository.updateRecurringSeries(series) } }
+    public func save(_ occurrence: ScheduledOccurrence) async throws { try await mutate { try await repository.saveOccurrence(occurrence) } }
+
+    private func mutate(_ operation: () async throws -> Void) async throws {
+        guard !isSaving else { throw PlanningError.busy }
+        isSaving = true
+        defer { isSaving = false }
+        try await operation()
+        await refresh()
+    }
+
+    public func requestNotifications() async {
+        do {
+            guard let notifications, try await notifications.requestAuthorization() else {
+                errorMessage = "Notifications are disabled. Enable them for My Wallet in system settings."
+                return
+            }
+            try await synchronizeNotifications()
+        } catch { errorMessage = error.localizedDescription }
+    }
+
+    private func synchronizeNotifications() async throws {
+        guard let notifications else { return }
+        let now = Date()
+        var notices: [WalletNotification] = []
+        for bill in bills where bill.notificationsEnabled {
+            guard let due = bill.nextDueDate else { continue }
+            var calendar = Calendar(identifier: .gregorian)
+            calendar.timeZone = bill.recurrence.flatMap { TimeZone(identifier: $0.timeZoneIdentifier) } ?? .current
+            let alertDate = calendar.date(byAdding: .day, value: -bill.reminderDaysBefore, to: due) ?? due
+            notices.append(WalletNotification(id: "wallet.bill.\(bill.id).\(bill.nextIndex)", title: "Bill due: \(bill.name)",
+                                               body: "\(bill.amount.formatted(.currency(code: bill.currencyCode))) · \(due.formatted(date: .abbreviated, time: .shortened))",
+                                               date: alertDate > now ? alertDate : nil))
+        }
+        for value in progress() where value.budget.notificationsEnabled && value.ratio >= 0.8 {
+            let level = value.ratio >= 1 ? "exceeded" : "approaching"
+            notices.append(WalletNotification(id: "wallet.budget.\(value.id).\(Int(value.interval.start.timeIntervalSince1970)).\(level)",
+                                               title: "\(value.budget.name): \(value.status)",
+                                               body: "Spent \(value.spent.formatted(.currency(code: value.budget.currencyCode))) of \(value.limit.formatted(.currency(code: value.budget.currencyCode)))."))
+        }
+        try await notifications.synchronize(notices)
+    }
+}

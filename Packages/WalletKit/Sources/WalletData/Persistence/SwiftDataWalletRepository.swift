@@ -5,7 +5,7 @@ import SwiftData
 import WalletDomain
 
 @MainActor
-public final class SwiftDataWalletRepository: WalletRepository, AccountRepository, CategoryRepository, TagRepository, RecordRepository, WalletResetRepository {
+public final class SwiftDataWalletRepository: WalletRepository, AccountRepository, CategoryRepository, TagRepository, RecordRepository, WalletResetRepository, BudgetRepository, RecurringRepository, BillReminderRepository {
     private let store: WalletStore
     private var subscriptions = Set<AnyCancellable>()
     private var observers: [UUID: AsyncStream<Void>.Continuation] = [:]
@@ -33,6 +33,52 @@ public final class SwiftDataWalletRepository: WalletRepository, AccountRepositor
     public func resetWalletData() async throws {
         try await store.resetWalletData()
         notifyChanges()
+    }
+
+    public func fetchBudgets() async throws -> [Budget] { try await store.fetchBudgets() }
+    public func fetchRecurringSeries() async throws -> [RecurringSeries] { try await store.fetchRecurringSeries() }
+    public func fetchOccurrences() async throws -> [ScheduledOccurrence] { try await store.fetchOccurrences() }
+    public func fetchBillReminders() async throws -> [BillReminder] { try await store.fetchBillReminders() }
+
+    public func saveBudget(_ budget: Budget) async throws {
+        try await store.saveBudget(budget)
+        notifyChanges()
+    }
+
+    public func deleteBudget(id: UUID) async throws {
+        try await store.deleteBudget(id: id)
+        notifyChanges()
+    }
+
+    public func updateRecurringSeries(_ series: RecurringSeries) async throws {
+        try await store.updateRecurringSeries(series)
+        notifyChanges()
+    }
+
+    public func saveOccurrence(_ occurrence: ScheduledOccurrence) async throws {
+        try await store.saveOccurrence(occurrence)
+        notifyChanges()
+    }
+
+    public func saveBillReminder(_ bill: BillReminder) async throws {
+        try await store.saveBillReminder(bill)
+        notifyChanges()
+    }
+
+    public func deleteBillReminder(id: UUID) async throws {
+        try await store.deleteBillReminder(id: id)
+        notifyChanges()
+    }
+
+    public func markBillPaid(id: UUID, occurrenceIndex: Int, createRecord: Bool, paidAt: Date) async throws {
+        try await store.markBillPaid(id: id, occurrenceIndex: occurrenceIndex, createRecord: createRecord, paidAt: paidAt)
+        notifyChanges()
+    }
+
+    public func generateDueRecords(through date: Date) async throws -> Int {
+        let count = try await store.generateDueRecords(through: date)
+        if count > 0 { notifyChanges() }
+        return count
     }
 
     public func fetchAccounts() async throws -> [Account] { try await store.fetchAccounts() }

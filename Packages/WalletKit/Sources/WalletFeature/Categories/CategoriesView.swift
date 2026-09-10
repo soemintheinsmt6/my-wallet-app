@@ -3,10 +3,11 @@ import WalletDomain
 
 public struct CategoriesView: View {
     @ObservedObject private var viewModel: CategoriesViewModel
+    private let planning: PlanningViewModel?
     @Environment(\.scenePhase) private var scenePhase
     @State private var editor: CategoryEditorRoute?
 
-    public init(viewModel: CategoriesViewModel) { self.viewModel = viewModel }
+    public init(viewModel: CategoriesViewModel, planning: PlanningViewModel? = nil) { self.viewModel = viewModel; self.planning = planning }
 
     public var body: some View {
         NavigationStack {
@@ -35,7 +36,7 @@ public struct CategoriesView: View {
             }
             .navigationTitle("Categories")
             .navigationDestination(for: UUID.self) { id in
-                CategoryDetailView(viewModel: viewModel, categoryID: id)
+                CategoryDetailView(viewModel: viewModel, categoryID: id, planning: planning)
             }
             .toolbar {
                 ToolbarItem {

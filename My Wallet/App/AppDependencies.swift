@@ -8,17 +8,21 @@ struct AppDependencies {
     let categoriesViewModel: CategoriesViewModel
     let tagsViewModel: TagsViewModel
     let recordsViewModel: RecordsViewModel
+    let planningViewModel: PlanningViewModel
     let settingsViewModel: SettingsViewModel
 
     static func make() async throws -> AppDependencies {
         let repository = try await SwiftDataWalletRepository.make(
             configuration: .cloud(containerIdentifier: "iCloud.com.app.My-Wallet")
         )
+        let records = RecordsViewModel(useCases: RecordUseCases(repository: repository), accounts: AccountUseCases(repository: repository), categories: CategoryUseCases(repository: repository), tags: TagUseCases(repository: repository))
+        let planning = PlanningViewModel(repository: repository, records: records, notifications: LocalWalletNotifications())
         return AppDependencies(
             accountsViewModel: AccountsViewModel(useCases: AccountUseCases(repository: repository)),
             categoriesViewModel: CategoriesViewModel(useCases: CategoryUseCases(repository: repository)),
             tagsViewModel: TagsViewModel(useCases: TagUseCases(repository: repository)),
-            recordsViewModel: RecordsViewModel(useCases: RecordUseCases(repository: repository), accounts: AccountUseCases(repository: repository), categories: CategoryUseCases(repository: repository), tags: TagUseCases(repository: repository)),
+            recordsViewModel: records,
+            planningViewModel: planning,
             settingsViewModel: SettingsViewModel(resetUseCase: ResetWalletUseCase(repository: repository))
         )
     }

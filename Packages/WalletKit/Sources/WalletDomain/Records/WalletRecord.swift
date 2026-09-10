@@ -10,7 +10,7 @@ public enum PaymentType: String, CaseIterable, Codable, Sendable, Identifiable {
     public var id: String { rawValue }
 }
 
-public struct RecordDraft: Sendable, Equatable {
+public struct RecordDraft: Sendable, Equatable, Codable {
     public var kind: RecordKind = .expense
     public var accountID: UUID?
     public var destinationAccountID: UUID?
@@ -23,10 +23,12 @@ public struct RecordDraft: Sendable, Equatable {
     public var payee: String = ""
     public var paymentType: PaymentType = .unspecified
     public var photoData: Data?
+    public var recurrence: RecurrenceRule?
 
     public init() {}
 
     public func validate(allowUncategorized: Bool = false) throws {
+        try recurrence?.validate(start: date)
         guard accountID != nil else { throw RecordValidationError.accountRequired }
         try Self.validateAmount(amount)
         if kind == .transfer {

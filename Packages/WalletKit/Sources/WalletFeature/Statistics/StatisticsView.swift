@@ -4,6 +4,7 @@ import WalletDomain
 
 public struct StatisticsView: View {
     @ObservedObject private var viewModel: RecordsViewModel
+    private let planning: PlanningViewModel?
     @Environment(\.scenePhase) private var scenePhase
     @State private var period = Period.month
     @State private var anchor = Date()
@@ -17,7 +18,7 @@ public struct StatisticsView: View {
 
     private enum Period: String, CaseIterable { case week, month, year, custom }
 
-    public init(viewModel: RecordsViewModel) { self.viewModel = viewModel }
+    public init(viewModel: RecordsViewModel, planning: PlanningViewModel? = nil) { self.viewModel = viewModel; self.planning = planning }
 
     private var accounts: [Account] { viewModel.accounts.filter { !$0.settings.excludeFromStats } }
     private var currencies: [String] { Array(Set(accounts.map(\.currencyCode))).sorted() }
@@ -44,6 +45,7 @@ public struct StatisticsView: View {
         NavigationStack {
             List {
                 filters
+                if let planning { BudgetProgressSection(viewModel: planning) }
                 if viewModel.isLoading { ProgressView("Loading statistics…") }
                 if accounts.isEmpty {
                     Text("Create an account or include an account in statistics to see your activity.")

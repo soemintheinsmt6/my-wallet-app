@@ -148,3 +148,19 @@ Unsigned iOS Simulator and macOS builds both passed for this change. Visual/acce
 4. Delete a category with children. Exercise reassignment and cascade, duplicate destination names, Uncategorized records and refusal to remove the final category. Relaunch and confirm deleted starters stay deleted.
 5. Inspect Statistics for each period, custom range and currency; combine account/category/label filters. Verify exclusions, transfer treatment, donut legends, zero activity, trend granularity, historical balance explanation and top categories.
 6. Review iPhone/iPad/macOS layouts, larger text, VoiceOver, light/dark mode and all six tabs (including compact tab overflow). Run signed-device tests for category tombstones, record/photo changes and account deletions after deploying the additive CloudKit schema.
+
+## Phase 2 Validation (2026-09-06)
+
+**80 tests across 15 suites passed** serially. The added tests cover anchored month-end/leap-year/DST recurrence, count/end bounds, idempotent catch-up, deleted-record receipts, pause/resume/cancel, skips, modified/postponed dates, failure rollback, repeated bill payment, mark-paid-only, budget currency/category/account exclusions, positive rollover, custom-period validation, published planning state and notification intent reconciliation. Migration/reopening tests preserve prior accounts, exact decimals, template photos and completion receipts. Reset covers all new models. Statement tests cover transfer legs and interval boundaries.
+
+The native PDF renderer was exercised with a four-page summary containing 70 categories and a long note. PDFKit verified text/pagination and all four Poppler-rendered pages were visually inspected for margins, wrapping and intact final totals. The QA sample contains synthetic data and is not an app fixture or user report.
+
+Final unsigned iOS Simulator and macOS builds both passed after the last code changes. Notification delivery/permission UI, cross-device CloudKit generation, live app interaction and accessibility remain unverified.
+
+Manual checks:
+
+1. Create monthly/weekly/custom and category/global budgets. Exercise rollover, amount boundaries, excluded accounts and 80%/100% notices. Inspect progress in Statistics and category details.
+2. Add each recurring frequency; relaunch after due dates, pause/resume/cancel, modify and skip occurrences, and delete a generated record. Confirm it does not reappear. Move one occurrence after a later regular due date and verify the regular record is still generated.
+3. Create bills with on-date and advance notices, deny/allow permission, edit/cancel notifications, mark paid both ways, and repeat a stale confirmation. Verify calendar filtering, overdue highlighting and the next recurring due date.
+4. Export monthly/yearly/custom summaries and account statements using multiple currencies, long names/notes and large record lists. Share/save the PDF on both platforms.
+5. Deploy the additive CloudKit schema in development and test offline simultaneous edits/generation, receipt sync, deletion and reset on signed devices before production use.
