@@ -3,8 +3,12 @@ import WalletDomain
 
 public struct PlanningView: View {
     @ObservedObject var viewModel: PlanningViewModel
+    @ObservedObject private var debts: DebtsViewModel
 
-    public init(viewModel: PlanningViewModel) { self.viewModel = viewModel }
+    public init(viewModel: PlanningViewModel, debts: DebtsViewModel) {
+        self.viewModel = viewModel
+        self.debts = debts
+    }
 
     private var progress: [BudgetProgress] { viewModel.progress().sorted { $0.ratio > $1.ratio } }
 
@@ -37,6 +41,17 @@ public struct PlanningView: View {
                     }
                 }
 
+                Section {
+                    NavigationLink { DebtsView(viewModel: debts) } label: {
+                        PlanningRow(title: "Debts", detail: debtDetail,
+                                    symbol: "person.2", color: .teal,
+                                    highlighted: debts.debts.contains { $0.isOverdue })
+                    }
+                    NavigationLink { GoalsView(viewModel: debts) } label: {
+                        PlanningRow(title: "Goals", detail: goalDetail, symbol: "target", color: .pink)
+                    }
+                }
+
                 if !progress.isEmpty {
                     Section("Budget progress") {
                         ForEach(progress) { BudgetProgressRow(progress: $0) }
@@ -49,7 +64,8 @@ public struct PlanningView: View {
                     WalletLoadingState(message: "Refreshing plans…")
                 }
             }
-            .refreshable { await viewModel.refresh(generate: true) }
+            .refreshable { await viewModel.refresh(generate: true); await debts.refresh() }
+            .task { await debts.refresh() }
             .alert("Unable to Update Planning", isPresented: Binding(get: { viewModel.errorMessage != nil }, set: { if !$0 { viewModel.errorMessage = nil } })) {
                 Button("OK", role: .cancel) { viewModel.errorMessage = nil }
             } message: { Text(viewModel.errorMessage ?? "") }
@@ -62,6 +78,20 @@ public struct PlanningView: View {
         let over = progress.filter { $0.ratio >= 1 }.count
         if over > 0 { return over == 1 ? "1 over budget" : "\(over) over budget" }
         return count == 1 ? "1 budget" : "\(count) budgets"
+    }
+
+    private var debtDetail: String {
+        let outstanding = debts.debts.filter { !$0.isSettled }
+        guard !outstanding.isEmpty else { return "Track money lent and borrowed" }
+        let overdue = outstanding.filter(\.isOverdue).count
+        if overdue > 0 { return overdue == 1 ? "1 overdue" : "\(overdue) overdue" }
+        return outstanding.count == 1 ? "1 outstanding" : "\(outstanding.count) outstanding"
+    }
+
+    private var goalDetail: String {
+        guard !debts.goals.isEmpty else { return "Save toward something" }
+        let done = debts.goals.filter(\.isAchieved).count
+        return done > 0 ? "\(done) of \(debts.goals.count) reached" : "\(debts.goals.count) in progress"
     }
 
     private var billDetail: String {

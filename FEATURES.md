@@ -425,29 +425,43 @@ Features for power users and long-term product differentiation.
 
 ### 5.1 Debt Tracking
 
+> **Status:** Implemented locally; notification and device verification pending
 > **Modules:** `WalletDomain` (new `Debts/`), `WalletData`, `WalletFeature` (new `Debts/`)
 
 Track money owed to or by other people.
 
-- [ ] `Debt` entity: person, amount, direction (owe/owed), due date, linked records
-- [ ] Debt list with net balance per person
-- [ ] Settle debt — auto-create a transfer or expense record
-- [ ] Reminders for outstanding debts
-- [ ] History of partial payments
+- [x] `Debt` entity: person, amount, direction (owe/owed), due date, linked records
+- [x] Debt list with net balance per person
+- [x] Settle debt — auto-create a transfer or expense record
+- [x] Reminders for outstanding debts
+- [x] History of partial payments
+
+Implementation notes (2026-09-11): A debt is deliberately **not** an account. It is a claim, not money the user holds, so folding it into account balances would misstate the wallet. Debts are grouped per person and per currency and netted, so two debts in opposite directions cancel into one number that says plainly who owes whom; names are matched case-insensitively. Settled debts stay visible for their history but contribute zero and sort to the bottom.
+
+Payments are separate rows, so a debt can be settled piece by piece, and a payment beyond what is still outstanding is refused — a debt can never be overpaid into a negative balance. Settling optionally writes a real ledger record: a debt owed to the user settles as income, one the user owes as an expense. The record is written **first**, so if it fails the payment is not recorded either and the two can never disagree. Only accounts in the debt's own currency are offered, so the record cannot misstate the amount. Deleting a debt deletes its payments, since a payment without its debt could never be shown; records already created are kept.
+
+Reminders reuse the notification client under a `wallet.debt.` prefix, disjoint from planning and insight notices, and only fire while a debt is still outstanding.
 
 ---
 
 ### 5.2 Savings Goals
 
+> **Status:** Implemented locally; device verification pending
 > **Modules:** `WalletDomain` (new `Goals/`), `WalletData`, `WalletFeature` (new `Goals/`)
 
 Set and track progress toward specific financial goals.
 
-- [ ] `SavingsGoal` entity: name, target amount, deadline, linked account
-- [ ] Visual progress indicator (bar or ring)
-- [ ] Contribution history
-- [ ] Projected completion date based on contribution rate
-- [ ] Goal achieved celebration animation
+- [x] `SavingsGoal` entity: name, target amount, deadline, linked account
+- [x] Visual progress indicator (ring)
+- [x] Contribution history
+- [x] Projected completion date based on contribution rate
+- [x] Goal achieved celebration animation
+
+Implementation notes (2026-09-11): Progress comes from contributions the user records, **not** from an account balance. An account usually holds more than one goal's worth of money, and reading the balance would let ordinary spending silently undo progress. The linked account is reference only, and stated as such in the form. Contributions may be negative, so a withdrawal moves progress down honestly rather than being hidden.
+
+The projection is a straight-line extrapolation from the average saved per day since the first contribution; it is withheld when nothing has been contributed, when the goal is already reached, or when the rate is so slow the answer would be noise rather than information. A deadline turns that projection into an on-track or behind-schedule reading, and an achieved goal is never behind whatever its deadline said. Every one of those figures is stated in words — the ring only reinforces it.
+
+Contributing can optionally record a real transfer between two of the user's accounts, so the money movement lands in balances and statistics. The celebration plays once, when a goal is first reached, and holds still under Reduce Motion.
 
 ---
 

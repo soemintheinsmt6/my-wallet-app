@@ -71,4 +71,6 @@ public extension WalletNotificationClient {
     static var planningPrefixes: [String] { ["wallet.bill.", "wallet.budget."] }
     /// Weekly summaries, unusual spending, streaks and month comparisons.
     static var insightPrefixes: [String] { ["wallet.insight."] }
+    /// Reminders for outstanding debts.
+    static var debtPrefixes: [String] { ["wallet.debt."] }
 }

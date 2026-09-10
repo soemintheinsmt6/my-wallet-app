@@ -43,6 +43,8 @@ Update this table whenever a feature is completed.
 | iPad and Mac layout | Complete locally; split view verified on an iPad simulator | Sidebar and split view at regular width with the dashboard beside statistics, ⌘N/⌘F/⌘1–⌘5 shortcuts, drag a record onto a category to refile it, and multi-window |
 | Insights and alerts | Complete locally; notification delivery verification pending | Week and month comparisons, unusual-spending detection against a category's own average, logging and under-budget streaks, all opt-in per notice |
 | Receipt scanning | Complete locally; camera and OCR device verification pending | Multi-page VisionKit scanning stored per record with a gallery, plus on-device OCR that suggests an amount and date for you to accept |
+| Debt tracking | Complete locally; notification verification pending | Debts per person netted by currency, partial payments, optional ledger record on settlement and due-date reminders |
+| Savings goals | Complete locally; device verification pending | Targets with a progress ring, contribution and withdrawal history, a rate-based projection against an optional deadline, and a celebration when reached |
 
 ## Getting Started
 

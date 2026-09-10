@@ -5,7 +5,7 @@ import SwiftData
 import WalletDomain
 
 @MainActor
-public final class SwiftDataWalletRepository: WalletRepository, AccountRepository, CategoryRepository, TagRepository, RecordRepository, WalletResetRepository, BudgetRepository, RecurringRepository, BillReminderRepository, ReceiptRepository {
+public final class SwiftDataWalletRepository: WalletRepository, AccountRepository, CategoryRepository, TagRepository, RecordRepository, WalletResetRepository, BudgetRepository, RecurringRepository, BillReminderRepository, ReceiptRepository, DebtRepository, GoalRepository {
     private let store: WalletStore
     private var subscriptions = Set<AnyCancellable>()
     private var observers: [UUID: AsyncStream<Void>.Continuation] = [:]
@@ -94,6 +94,54 @@ public final class SwiftDataWalletRepository: WalletRepository, AccountRepositor
 
     public func updateRecord(id: UUID, draft: RecordDraft) async throws {
         try await store.updateRecord(id: id, draft: draft)
+        notifyChanges()
+    }
+
+    public func fetchDebts() async throws -> [Debt] { try await store.fetchDebts() }
+    public func fetchDebtPayments() async throws -> [DebtPayment] { try await store.fetchDebtPayments() }
+
+    public func saveDebt(_ debt: Debt) async throws {
+        try await store.saveDebt(debt)
+        notifyChanges()
+    }
+
+    public func deleteDebt(id: UUID) async throws {
+        try await store.deleteDebt(id: id)
+        notifyChanges()
+    }
+
+    public func saveDebtPayment(_ payment: DebtPayment) async throws {
+        try await store.saveDebtPayment(payment)
+        notifyChanges()
+    }
+
+    public func deleteDebtPayment(id: UUID) async throws {
+        try await store.deleteDebtPayment(id: id)
+        notifyChanges()
+    }
+
+    public func fetchGoals() async throws -> [SavingsGoal] { try await store.fetchGoals() }
+    public func fetchGoalContributions() async throws -> [GoalContribution] {
+        try await store.fetchGoalContributions()
+    }
+
+    public func saveGoal(_ goal: SavingsGoal) async throws {
+        try await store.saveGoal(goal)
+        notifyChanges()
+    }
+
+    public func deleteGoal(id: UUID) async throws {
+        try await store.deleteGoal(id: id)
+        notifyChanges()
+    }
+
+    public func saveGoalContribution(_ contribution: GoalContribution) async throws {
+        try await store.saveGoalContribution(contribution)
+        notifyChanges()
+    }
+
+    public func deleteGoalContribution(id: UUID) async throws {
+        try await store.deleteGoalContribution(id: id)
         notifyChanges()
     }
 

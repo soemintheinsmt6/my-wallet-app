@@ -39,7 +39,7 @@ struct WalletTabsView: View {
                 .tabItem { Label(WalletTab.statistics.title, systemImage: WalletTab.statistics.symbol) }
                 .tag(WalletTab.statistics)
 
-            PlanningView(viewModel: dependencies.planningViewModel)
+            PlanningView(viewModel: dependencies.planningViewModel, debts: dependencies.debtsViewModel)
                 .tabItem { Label(WalletTab.planning.title, systemImage: WalletTab.planning.symbol) }
                 .tag(WalletTab.planning)
 

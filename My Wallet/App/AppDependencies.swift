@@ -23,6 +23,7 @@ struct AppDependencies {
     let refileRecords: (Set<UUID>, UUID) async -> Void
     let insightsViewModel: InsightsViewModel
     let receiptUseCases: ReceiptUseCases
+    let debtsViewModel: DebtsViewModel
 
     static func make() async throws -> AppDependencies {
         let repository = try await SwiftDataWalletRepository.make(
@@ -32,6 +33,7 @@ struct AppDependencies {
         let notifications = LocalWalletNotifications()
         let planning = PlanningViewModel(repository: repository, records: records, notifications: notifications)
         let insights = InsightsViewModel(records: records, planning: planning, notifications: notifications)
+        let debts = DebtsViewModel(repository: repository, records: records, notifications: notifications)
         let snapshots = WalletSnapshotCoordinator(records: records, planning: planning)
         let rateCache = ExchangeRateCache()
         let currency = CurrencyViewModel(provider: FrankfurterExchangeRateProvider(),
@@ -90,7 +92,8 @@ struct AppDependencies {
             watchConnector: watch,
             refileRecords: refile,
             insightsViewModel: insights,
-            receiptUseCases: ReceiptUseCases(repository: repository)
+            receiptUseCases: ReceiptUseCases(repository: repository),
+            debtsViewModel: debts
         )
     }
 }
