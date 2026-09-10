@@ -9,7 +9,11 @@ struct AppRootView: View {
     var body: some View {
         Group {
             if let dependencies = bootstrap.dependencies {
-                WalletTabsView(dependencies: dependencies, settings: dependencies.settingsViewModel)
+                // The gate renders the lock screen instead of the tabs, so no balance is
+                // readable — or captured in the app switcher — while locked.
+                AppLockGate(viewModel: dependencies.appLockViewModel) {
+                    WalletTabsView(dependencies: dependencies, settings: dependencies.settingsViewModel)
+                }
             } else if let startupError = bootstrap.errorMessage {
                 ContentUnavailableView {
                     Label("Unable to Open Wallet", systemImage: "exclamationmark.triangle")

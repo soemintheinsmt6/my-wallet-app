@@ -183,3 +183,20 @@ Manual checks:
 3. Tap each widget and each quick-add button. Confirm the correct tab opens and that quick-add opens the editor with the kind preselected.
 4. Reset wallet data in a debug build and confirm widgets fall back to their empty states.
 5. Confirm widgets still render after the app has not run for a day, and on a device where the App Group container is provisioned.
+
+## App Lock Validation (2026-09-10)
+
+**122 tests across 21 suites passed.** `AppLockPolicyTests` covers fresh-launch locking, each grace-period boundary at 59/60 and 299/300 seconds, backwards-clock handling, passcode validation including non-ASCII digits, and the throttle's back-off curve and 15-minute cap. `PasscodeHasherTests` confirms a verifier matches only its own passcode, that each verifier gets a distinct salt, and that the encoded verifier contains no trace of the passcode. `AppLockViewModelTests` drives the state machine against in-memory doubles: locking on start, unlock clearing failures, a throttle that refuses even the correct passcode until served, biometric success/failure/opt-out, backgrounding across the grace period, confirmation mismatch leaving nothing stored, and disabling requiring the current passcode.
+
+Verified by running on an iPhone 17 Pro simulator: the app launches unlocked when no passcode is set, so the gate passes through without regression.
+
+**Not verified:** the lock screen, keypad and Face ID/Touch ID prompts were not exercised, because simulator UI input could not be driven from this environment. Keychain persistence across reinstall, and biometric enrolment and fallback on real hardware, remain outstanding.
+
+Manual checks:
+
+1. Set a 4-digit and a 6-digit passcode; confirm mismatch is rejected and the length picker resets entry.
+2. Force-quit and relaunch; confirm the app locks and Face ID/Touch ID is offered before the keypad.
+3. Enter a wrong passcode six times; confirm the countdown appears and the correct passcode is refused until it expires.
+4. Exercise each auto-lock setting by backgrounding briefly and beyond the interval. Confirm the app-switcher card shows no balances.
+5. Deny or unenroll biometrics and confirm the passcode still unlocks; turn the toggle off and confirm no prompt appears.
+6. Turn the lock off with the wrong passcode, then the right one. Reinstall and confirm the keychain item did not survive as a stale lock.

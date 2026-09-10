@@ -11,14 +11,17 @@ public struct MoreView: View {
     @ObservedObject private var tags: TagsViewModel
     @ObservedObject private var settings: SettingsViewModel
     private let planning: PlanningViewModel?
+    private let appLock: AppLockViewModel?
 
     public init(accounts: AccountsViewModel, categories: CategoriesViewModel, tags: TagsViewModel,
-                settings: SettingsViewModel, planning: PlanningViewModel? = nil) {
+                settings: SettingsViewModel, planning: PlanningViewModel? = nil,
+                appLock: AppLockViewModel? = nil) {
         self.accounts = accounts
         self.categories = categories
         self.tags = tags
         self.settings = settings
         self.planning = planning
+        self.appLock = appLock
     }
 
     private var alertCount: Int { accounts.balanceNotifications.count }
@@ -51,9 +54,9 @@ public struct MoreView: View {
 
                 Section {
                     NavigationLink {
-                        SettingsView(viewModel: settings)
+                        SettingsView(viewModel: settings, appLock: appLock)
                     } label: {
-                        MoreRow(title: "Settings", detail: "Appearance and app data",
+                        MoreRow(title: "Settings", detail: "Appearance, app lock and app data",
                                 symbol: "gearshape", color: .gray)
                     }
                 }

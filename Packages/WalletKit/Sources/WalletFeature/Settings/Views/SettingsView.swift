@@ -2,11 +2,13 @@ import SwiftUI
 
 public struct SettingsView: View {
     @ObservedObject private var viewModel: SettingsViewModel
+    private let appLock: AppLockViewModel?
     @AppStorage(WalletPreferenceKeys.appearance) private var appearance = AppAppearance.system.rawValue
     @State private var confirmingReset = false
 
-    public init(viewModel: SettingsViewModel) {
+    public init(viewModel: SettingsViewModel, appLock: AppLockViewModel? = nil) {
         self.viewModel = viewModel
+        self.appLock = appLock
     }
 
     private var version: String {
@@ -30,6 +32,8 @@ public struct SettingsView: View {
             } footer: {
                 Text("Applies to every tab and sheet. System follows your device setting.")
             }
+
+            if let appLock { AppLockSettingsSection(viewModel: appLock) }
 
             Section("About") {
                 LabeledContent("Version", value: version)

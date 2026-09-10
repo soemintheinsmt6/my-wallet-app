@@ -209,15 +209,22 @@ Widgets lead with the currency holding the most accounts, ties broken by code so
 
 ### 3.3 Biometric / Passcode Lock
 
-> **Modules:** `WalletFeature/Settings`, App entry point
+> **Status:** Implemented locally; on-device biometric verification pending
+> **Modules:** `WalletDomain` (new `Security/`), `WalletFeature` (new `Security/`), App entry point
 
 Protect sensitive financial data with Face ID, Touch ID, or a custom passcode.
 
-- [ ] App lock toggle in Settings
-- [ ] Face ID / Touch ID authentication via `LocalAuthentication`
-- [ ] Fallback passcode (4-digit or 6-digit)
-- [ ] Auto-lock on app background or after timeout
-- [ ] Grace period setting (immediately, after 1 min, after 5 min)
+- [x] App lock toggle in Settings
+- [x] Face ID / Touch ID authentication via `LocalAuthentication`
+- [x] Fallback passcode (4-digit or 6-digit)
+- [x] Auto-lock on app background or after timeout
+- [x] Grace period setting (immediately, after 1 min, after 5 min)
+
+Implementation notes (2026-09-10): The passcode is never stored. `PasscodeHasher` derives a SHA-256 verifier over a fresh 32-byte random salt, and `KeychainPasscodeStore` keeps only that verifier, as a `WhenUnlockedThisDeviceOnly` generic password so it neither syncs nor survives into a backup. Comparison is constant-time. A 4- or 6-digit passcode has a small keyspace, so the real protection is that keychain accessibility plus throttling: after five free attempts `AppLockPolicy` backs off 30s, 60s, 120s… capped at 15 minutes, and while throttled even the correct passcode is refused.
+
+`AppLockPolicy` is pure and holds every decision: a fresh launch always locks, a returning app locks once the grace period elapses, and a clock that moved backwards is treated as expired so changing the device clock cannot extend a session. `AppLockGate` wraps the tabs and renders the lock screen instead of them — the content is not merely covered — and treats `.inactive` as backgrounding so the app-switcher snapshot cannot expose balances. Biometrics are offered on appearance with the keypad always available; a cancelled or failed prompt is not counted as a passcode attempt. Turning the lock off requires the current passcode.
+
+`BiometricAuthenticating` and `PasscodeStoring` are protocols so the view model is tested against in-memory doubles rather than the keychain or `LocalAuthentication`. `NSFaceIDUsageDescription` is set; without it the Face ID prompt terminates the app.
 
 ---
 

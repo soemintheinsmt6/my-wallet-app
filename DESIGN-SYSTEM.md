@@ -133,7 +133,9 @@ Display balances with the account currency and up to eight fractional digits. In
 
 ## Settings
 
-Settings is reached through More, with a native System/Light/Dark segmented selector and an About section carrying the version and sync method. Theme is applied at the app root so sheets and all tabs share the same choice. Use semantic colors for surfaces and text.
+Settings is reached through More, with a native System/Light/Dark segmented selector and an About section carrying the version and sync method.
+
+A Privacy & Security section holds app lock: a Require Passcode toggle, the passcode length, a biometric toggle named for the device's own sensor (Face ID, Touch ID or Optic ID), an Auto-Lock picker and Lock Now. Setting, changing and removing a passcode all run through the same sheet, which steps through current/new/confirm prompts using the shared `PasscodeKeypad` and `PasscodeDots`. The lock screen fills the window, offers biometrics on appearance with the keypad always available, shakes the dots on a wrong entry (honoring Reduce Motion) and states the remaining delay in text while throttled. Theme is applied at the app root so sheets and all tabs share the same choice. Use semantic colors for surfaces and text.
 
 Debug-only Temporary Development Tools contains a destructive Reset Wallet Data action and an explicit warning about iCloud propagation. Require confirmation, disable the tab interface during reset, show progress/errors, and discard open drafts after success. No reset action is visible in release builds.
 
