@@ -24,6 +24,7 @@ public final class SettingsViewModel: ObservableObject {
             try await resetUseCase.execute()
             preferences.removeObject(forKey: WalletPreferenceKeys.lastUsedAccountID)
             preferences.removeObject(forKey: WalletPreferenceKeys.lastUsedPaymentType)
+            preferences.removeObject(forKey: WalletPreferenceKeys.recentSearches)
             resetGeneration += 1
         } catch {
             errorMessage = error.localizedDescription

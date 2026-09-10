@@ -169,15 +169,18 @@ Polish and convenience features that make daily use smoother.
 
 ### 3.1 Search and Filtering
 
+> **Status:** Implemented locally; visual/device verification pending
 > **Modules:** `WalletDomain/Records`, `WalletFeature/Records`
 
 Full-text search across records with advanced filtering.
 
-- [ ] Search by note, payee, amount, category name, tag name
-- [ ] Filter by date range, record type, account, category, tag, payment type
-- [ ] Combine search with filters
-- [ ] Recent searches history
-- [ ] Results sorted by relevance or date
+- [x] Search by note, payee, amount, category name, tag name
+- [x] Filter by date range, record type, account, category, tag, payment type
+- [x] Combine search with filters
+- [x] Recent searches history
+- [x] Results sorted by relevance or date
+
+Implementation notes (2026-09-10): `RecordSearch` is a pure domain calculation over the records already loaded by `RecordsViewModel`; there is no new persistence or repository contract. Every whitespace-separated term must match at least one of payee, note, category name (including its parent), label name or amount, compared case- and diacritic-insensitively. Filter groups intersect while values inside a group union; selecting a root category includes its subcategories and excludes uncategorized records, and an account filter matches either leg of a transfer. Date ranges are start-inclusive/end-exclusive and amount bounds are inclusive, comparing the record's own amount without currency conversion. Relevance falls back to newest-first without search text, and all orders break ties deterministically. Recent searches are a capped, newline-separated local preference cleared by Reset Wallet Data; they do not sync.
 
 ---
 

@@ -32,6 +32,7 @@ Update this table whenever a feature is completed.
 | Account deletion | Complete locally | Impact summary and cascade/unlink strategies, including transfers |
 | Category deletion | Complete locally | Delete or reassign children; Uncategorized fallback; retain at least one category |
 | Statistics dashboard | Complete locally | Period/account/category/label filters, currency-separated totals, category charts, trends and reconstructed balance history |
+| Record search and filtering | Complete locally | Search payee, note, amount, category and label names; combine with type/account/category/label/payment/date/amount filters; relevance, date or amount ordering and local recent searches |
 
 ## Getting Started
 
@@ -140,6 +141,8 @@ Expenses subtract from balances, income adds, and transfers debit/credit their s
 
 Delete an account from its swipe/context action to review its current balance, record count and transfer count. Keep Records removes only links to that account and preserves the surviving transfer leg. Delete Records removes associated records/photos and reverses their effects on other accounts. Unlinked records remain visible with currency snapshots; choose valid accounts to edit them again.
 
+Search the Records list to match a payee, note, amount, category name (its parent name also matches) or label name. Every word you type must match one of those fields, ignoring case and accents; a numeric word matches an exact amount first, then amounts containing those digits. Submitted searches are remembered on this device as suggestions until you clear them or reset wallet data. The Filters button combines search with record type, accounts, categories, labels, payment type, an inclusive date range and minimum/maximum amounts, and sorts by relevance, date or amount. Filter groups narrow each other while values inside one group widen it, so choosing two labels matches records carrying either. A category selection includes its subcategories and hides uncategorized records; an account selection matches either side of a transfer. Amount bounds compare the record's own amount without currency conversion.
+
 The **Statistics** tab supports week, month, year and inclusive custom date ranges, account/category/label filters, expense/income category charts, daily/weekly/monthly trends, top spending categories and account balance history. Selecting a root category includes its children. Excluded accounts and unlinked activity are omitted. Currency totals are separate; transfers affect balance history only. History respects account and currency filters, while category/label filters affect activity charts. History is reconstructed from current base balances, so manual balance corrections apply retrospectively. Automatic exchange rates are not implemented.
 
 ## Settings
@@ -176,7 +179,7 @@ Do not mark a feature fully verified when provisioning, migration or device chec
 
 ## Financial Planning (Phase 2)
 
-Open **Planning** for Budgets, Recurring, Bills and Reports. On compact screens, additional tabs may appear under More.
+Open **Planning** for Budgets, Recurring, Bills and Reports. **Home** summarizes balance, this month's activity, budget progress, upcoming bills and recent records. **More** holds Accounts, Categories, Labels and Settings.
 
 - **Budgets:** Create weekly, monthly or custom-period limits for one category (including its children) or overall spending. Currency totals remain separate and excluded accounts are omitted. Weekly/monthly periods are anchored to the chosen start date. Custom end dates are exclusive. Positive unused funds can roll into the next period; overspending does not reduce the next period's allowance. Budget vs. actual has a date selector, and current progress also appears in Statistics and category details. Enable notices at 80% and 100% and grant notification permission.
 - **Recurring:** Enable Repeat in Add Record. The first record saves immediately; subsequent occurrences are generated when the app opens, becomes active, or you choose Generate Due Records Now. Daily, weekly, biweekly, monthly and yearly rules support an end date and/or count including the first record. Dates retain the original time zone and month-end anchor. Pause/resume/cancel future generation, edit future details or the schedule, and skip/modify upcoming occurrences. Moving one occurrence does not delay others. Generation processes at most 500 occurrences per series per refresh; refresh again for longer catch-up. Cancel/pause preserves existing records. Missing linked references must be repaired or the affected series paused before catch-up can succeed.

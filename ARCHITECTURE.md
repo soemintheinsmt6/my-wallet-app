@@ -97,7 +97,7 @@ Records reference label UUIDs. Deletion removes the selected ID from locally kno
 
 Account reads derive balances from stored base balances plus ledger deltas. Editing an account's displayed balance subtracts its existing ledger delta before storing the new base. Record creation saves one ledger item rather than independently updating synchronized account counters. This does not establish conflict-free concurrent manual balance edits; CloudKit convergence remains unverified.
 
-PhotosPicker data is downsampled off the main actor and re-encoded without copying source metadata. SwiftData external storage holds the JPEG. List values carry only `hasPhoto`; detail views fetch attachment bytes lazily. Most-used category rankings derive from exact category IDs and record kind, then frequency and recency. The app exposes Records, Statistics, Accounts, Categories, Labels, Planning and Settings tabs. Records support create/read/update/delete. Updates apply all fields to the existing logical record in one context save; deleting a record removes photo data and the ledger effect.
+PhotosPicker data is downsampled off the main actor and re-encoded without copying source metadata. SwiftData external storage holds the JPEG. List values carry only `hasPhoto`; detail views fetch attachment bytes lazily. Most-used category rankings derive from exact category IDs and record kind, then frequency and recency. The app exposes Home, Records, Statistics, Planning and More tabs; More carries Accounts, Categories, Labels and Settings. Records support create/read/update/delete. Updates apply all fields to the existing logical record in one context save; deleting a record removes photo data and the ledger effect.
 
 ## Settings and Maintenance
 
@@ -132,3 +132,13 @@ Bills store an immutable-after-payment anchor and a next-unpaid index. Marking p
 `AccountStatement` calculates exact Decimal running balances in Domain. `ReportPDF` uses CoreText and a CoreGraphics PDF context, paginating text without splitting words at arbitrary character counts. Reports are generated off the main actor into temporary PDFs and shared through SwiftUI ShareLink. Sample output is checked with PDFKit text extraction and rendered with Poppler for visual QA.
 
 Notifications are reconciled by stable bill-occurrence/budget-threshold IDs. The app remembers scheduled/delivered IDs, limits the pending set to 60, removes obsolete requests and presents foreground banners. Permission is requested only from explicit editor actions. OS delivery, entitlement provisioning, timezone changes and accessibility require device verification.
+
+## Record Search and Filtering
+
+`RecordQuery` and `RecordSearch` are additive domain values in `Records/`. `RecordSearch.run` is a pure calculation over the records, categories and labels already loaded by `RecordsViewModel`; no repository contract, persisted model or fetch predicate changes. Searching costs one in-memory pass per body evaluation and scales with the loaded ledger rather than the store. Move ranking into a store-side predicate only if the loaded ledger stops fitting in memory.
+
+Text is tokenized on whitespace, and every term must match at least one of payee, note, category name (plus its parent's), label name or amount, compared with `caseInsensitive` and `diacriticInsensitive` options. Scores weight exact, word-prefix and containing matches per field, then sum across terms. Amount terms normalize a comma decimal separator, compare exact Decimal equality first, and otherwise match the canonical Decimal description, which is never grouped or localized. Sorting is total: relevance falls back to newest, and every order ends on the record UUID so equal values keep a stable position across reloads.
+
+Filter groups intersect while values inside one group union, and an empty group means no restriction. Root category selections expand to direct children, and an active category filter excludes uncategorized records. Account filters match either transfer leg. `start`/`end` follow the exclusive-end ledger convention; amount bounds are inclusive and compare the record's own amount without conversion.
+
+`RecordFilterView` mutates a private copy of the query and assigns it on Apply, so cancelling changes nothing. Recent searches live in `RecentSearches`, a capped newline-separated `AppStorage` string under `Shared/Preferences`, cleared by `SettingsViewModel.resetData`. That history is device-local and intentionally not synchronized.

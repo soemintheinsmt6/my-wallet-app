@@ -3,31 +3,84 @@ import WalletDomain
 
 struct RecurringView: View {
     @ObservedObject var viewModel: PlanningViewModel
+
     var body: some View {
         List {
-            if viewModel.series.isEmpty {
-                Text("Turn on Repeat when adding a record to create a recurring series.")
-            }
-            ForEach(viewModel.series) { series in
-                NavigationLink {
-                    RecurringDetailView(viewModel: viewModel, seriesID: series.id)
-                } label: {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(series.template.payee.isEmpty ? viewModel.records.categoryTitle(series.template.categoryID) : series.template.payee).font(.headline)
-                        Text("\(series.rule.frequency.rawValue.capitalized) · \(series.state.rawValue.capitalized)").font(.caption)
-                        if let date = series.nextDate { Text("Next: \(date.formatted())").font(.caption).foregroundStyle(.secondary) }
-                        else { Text("Series complete").font(.caption) }
+            if !viewModel.series.isEmpty {
+                Section("Series") {
+                    ForEach(viewModel.series) { series in
+                        NavigationLink {
+                            RecurringDetailView(viewModel: viewModel, seriesID: series.id)
+                        } label: {
+                            row(series)
+                        }
                     }
                 }
             }
             Section {
-                Button("Generate Due Records Now") { Task { await viewModel.refresh(generate: true) } }
-                    .disabled(viewModel.isLoading)
+                Button {
+                    Task { await viewModel.refresh(generate: true) }
+                } label: {
+                    Label("Generate Due Records Now", systemImage: "arrow.clockwise")
+                }
+                .disabled(viewModel.isLoading)
+            } footer: {
                 Text("Catch-up processes up to 500 occurrences per series at a time. Saved occurrences can be changed or deleted in Records without being regenerated.")
-                    .font(.caption).foregroundStyle(.secondary)
+            }
+        }
+        .overlay {
+            if viewModel.series.isEmpty {
+                WalletEmptyState(title: "No recurring records", symbol: "repeat",
+                                 message: "Turn on Repeat when adding a record to create a recurring series.")
             }
         }
         .navigationTitle("Recurring")
+    }
+
+    private func row(_ series: RecurringSeries) -> some View {
+        let title = series.template.payee.isEmpty
+            ? viewModel.records.categoryTitle(series.template.categoryID)
+            : series.template.payee
+        return HStack(spacing: WalletMetrics.medium) {
+            WalletIconTile(symbol: "repeat", color: tint(for: series.state))
+            VStack(alignment: .leading, spacing: WalletMetrics.hair) {
+                HStack(spacing: WalletMetrics.small) {
+                    Text(title)
+                        .font(.body.weight(.medium))
+                        .lineLimit(1)
+                    if series.state != .active {
+                        WalletBadge(title: series.state.rawValue.capitalized,
+                                    tint: tint(for: series.state),
+                                    accessibilityPrefix: "Status")
+                            .fixedSize()
+                    }
+                }
+                Text(detail(series))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+            Spacer(minLength: WalletMetrics.small)
+            WalletAmountText(amount: series.template.amount,
+                             currencyCode: viewModel.records.account(series.template.accountID)?.currencyCode ?? "USD",
+                             kind: series.template.kind, font: .subheadline.weight(.semibold))
+        }
+        .frame(minHeight: WalletMetrics.touchTarget)
+        .padding(.vertical, WalletMetrics.tight)
+    }
+
+    private func detail(_ series: RecurringSeries) -> String {
+        let frequency = series.rule.frequency.rawValue.capitalized
+        guard let next = series.nextDate else { return "\(frequency) · Series complete" }
+        return "\(frequency) · Next \(next.formatted(date: .abbreviated, time: .omitted))"
+    }
+
+    private func tint(for state: SeriesState) -> Color {
+        switch state {
+        case .active: .indigo
+        case .paused: .orange
+        case .cancelled: .gray
+        }
     }
 }
 
@@ -43,35 +96,55 @@ private struct RecurringDetailView: View {
     var body: some View {
         List {
             if let series {
-                Section("Series") {
-                    Text(series.state.rawValue.capitalized)
-                    Button("Edit Future Record Details") { editingTemplate = true }
-                    Button("Edit Schedule") { editingSchedule = true }
-                    Button(series.state == .active ? "Pause" : "Resume") {
+                Section {
+                    LabeledContent("Status") {
+                        WalletBadge(title: series.state.rawValue.capitalized,
+                                    tint: series.state == .active ? .green : series.state == .paused ? .orange : .gray,
+                                    accessibilityPrefix: "Status")
+                    }
+                    LabeledContent("Repeats", value: series.rule.frequency.rawValue.capitalized)
+                    if let next = series.nextDate {
+                        LabeledContent("Next record", value: next.formatted(date: .abbreviated, time: .shortened))
+                    }
+                } header: {
+                    Text("Series")
+                }
+
+                Section("Actions") {
+                    Button { editingTemplate = true } label: {
+                        Label("Edit Future Record Details", systemImage: "square.and.pencil")
+                    }
+                    Button { editingSchedule = true } label: {
+                        Label("Edit Schedule", systemImage: "calendar")
+                    }
+                    Button {
                         var updated = series
                         updated.state = series.state == .active ? .paused : .active
                         save(updated)
-                    }.disabled(series.state == .cancelled)
-                    Button("Cancel Series", role: .destructive) { confirmingCancel = true }.disabled(series.state == .cancelled)
-                }
-                Section("Upcoming occurrences") {
-                    if series.state != .active { Text("No automatic records while \(series.state.rawValue).") }
-                    ForEach(upcoming(series)) { occurrence in
-                        let date = occurrence.overrideDraft?.date ?? series.rule.date(start: series.startDate, index: occurrence.index)!
-                        VStack(alignment: .leading) {
-                            Text(date.formatted())
-                            Text(occurrence.skipped ? "Skipped" : (occurrence.overrideDraft == nil ? "Scheduled" : "Modified"))
-                                .font(.caption).foregroundStyle(.secondary)
-                            HStack {
-                                Button("Modify") { editingOccurrence = occurrence }
-                                Button(occurrence.skipped ? "Restore" : "Skip") {
-                                    var updated = occurrence
-                                    updated.skipped.toggle()
-                                    Task { do { try await viewModel.save(updated) } catch { viewModel.errorMessage = error.localizedDescription } }
-                                }
-                            }.buttonStyle(.bordered)
-                        }
+                    } label: {
+                        Label(series.state == .active ? "Pause Series" : "Resume Series",
+                              systemImage: series.state == .active ? "pause.circle" : "play.circle")
                     }
+                    .disabled(series.state == .cancelled)
+                    Button(role: .destructive) { confirmingCancel = true } label: {
+                        Label("Cancel Series", systemImage: "xmark.circle")
+                    }
+                    .disabled(series.state == .cancelled)
+                }
+
+                Section {
+                    if series.state != .active {
+                        Label("No automatic records while \(series.state.rawValue).", systemImage: "info.circle")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+                    ForEach(upcoming(series)) { occurrence in
+                        occurrenceRow(occurrence, in: series)
+                    }
+                } header: {
+                    Text("Upcoming occurrences")
+                } footer: {
+                    Text("Swipe an occurrence to skip it or restore it. Modify opens the record editor for that date only.")
                 }
             }
         }
@@ -109,6 +182,49 @@ private struct RecurringDetailView: View {
                 save(updated)
             }
         } message: { Text("Future automatic records stop. Existing records are kept.") }
+    }
+
+    private func occurrenceRow(_ occurrence: ScheduledOccurrence, in series: RecurringSeries) -> some View {
+        let date = occurrence.overrideDraft?.date ?? series.rule.date(start: series.startDate, index: occurrence.index)!
+        let state = occurrence.skipped ? "Skipped" : occurrence.overrideDraft == nil ? "Scheduled" : "Modified"
+        return HStack(spacing: WalletMetrics.medium) {
+            WalletIconTile(symbol: occurrence.skipped ? "minus.circle" : "calendar",
+                           color: occurrence.skipped ? .gray : .indigo)
+            VStack(alignment: .leading, spacing: WalletMetrics.hair) {
+                Text(date.formatted(date: .abbreviated, time: .shortened))
+                    .font(.body.weight(.medium))
+                    .foregroundStyle(occurrence.skipped ? Color.secondary : Color.primary)
+                Text(state)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer(minLength: WalletMetrics.small)
+        }
+        .frame(minHeight: WalletMetrics.touchTarget)
+        .padding(.vertical, WalletMetrics.tight)
+        .contentShape(Rectangle())
+        .accessibilityElement(children: .combine)
+        .swipeActions(edge: .leading) {
+            Button("Modify", systemImage: "pencil") { editingOccurrence = occurrence }.tint(.blue)
+        }
+        .swipeActions {
+            Button(occurrence.skipped ? "Restore" : "Skip",
+                   systemImage: occurrence.skipped ? "arrow.uturn.backward" : "minus.circle") {
+                var updated = occurrence
+                updated.skipped.toggle()
+                Task { do { try await viewModel.save(updated) } catch { viewModel.errorMessage = error.localizedDescription } }
+            }
+            .tint(occurrence.skipped ? .green : .orange)
+        }
+        .contextMenu {
+            Button("Modify", systemImage: "pencil") { editingOccurrence = occurrence }
+            Button(occurrence.skipped ? "Restore" : "Skip",
+                   systemImage: occurrence.skipped ? "arrow.uturn.backward" : "minus.circle") {
+                var updated = occurrence
+                updated.skipped.toggle()
+                Task { do { try await viewModel.save(updated) } catch { viewModel.errorMessage = error.localizedDescription } }
+            }
+        }
     }
 
     private func upcoming(_ series: RecurringSeries) -> [ScheduledOccurrence] {

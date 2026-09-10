@@ -12,22 +12,26 @@
 		A10000000000000000000003 /* WalletFeature in Frameworks */ = {isa = PBXBuildFile; productRef = A10000000000000000000013 /* WalletFeature */; };
 /* End PBXBuildFile section */
 
-/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		A10000000000000000000021 = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (Info.plist,);
-			target = 92538FE5304C11FC00A6CFE1 /* My Wallet */;
-		};
-/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
-
 /* Begin PBXFileReference section */
 		92538FE6304C11FC00A6CFE1 /* My Wallet.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "My Wallet.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		A10000000000000000000021 /* Exceptions for "My Wallet" folder in "My Wallet" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 92538FE5304C11FC00A6CFE1 /* My Wallet */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		92538FE8304C11FC00A6CFE1 /* My Wallet */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (A10000000000000000000021,);
+			exceptions = (
+				A10000000000000000000021 /* Exceptions for "My Wallet" folder in "My Wallet" target */,
+			);
 			path = "My Wallet";
 			sourceTree = "<group>";
 		};
@@ -104,9 +108,15 @@
 					92538FE5304C11FC00A6CFE1 = {
 						CreatedOnToolsVersion = 26.6;
 						SystemCapabilities = {
-							com.apple.iCloud = {enabled = 1;};
-							com.apple.BackgroundModes = {enabled = 1;};
-							com.apple.Push = {enabled = 1;};
+							com.apple.BackgroundModes = {
+								enabled = 1;
+							};
+							com.apple.Push = {
+								enabled = 1;
+							};
+							com.apple.iCloud = {
+								enabled = 1;
+							};
 						};
 					};
 				};
@@ -120,7 +130,9 @@
 			);
 			mainGroup = 92538FDD304C11FC00A6CFE1;
 			minimizedProjectReferenceProxies = 1;
-			packageReferences = (A10000000000000000000010 /* WalletKit */,);
+			packageReferences = (
+				A10000000000000000000010 /* XCLocalSwiftPackageReference "Packages/WalletKit" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 92538FE7304C11FC00A6CFE1 /* Products */;
 			projectDirPath = "";
@@ -275,18 +287,18 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = "My Wallet/My Wallet.entitlements";
 				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = "My Wallet/My Wallet.macOS.entitlements";
-				CODE_SIGN_STYLE = Automatic;
 				CODE_SIGN_INJECT_BASE_ENTITLEMENTS = YES;
-				ENABLE_INCOMING_NETWORK_CONNECTIONS = YES;
-				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
-				INFOPLIST_FILE = "My Wallet/Info.plist";
+				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = UX8NR68J5X;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_INCOMING_NETWORK_CONNECTIONS = YES;
+				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "My Wallet/Info.plist";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
@@ -325,18 +337,18 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = "My Wallet/My Wallet.entitlements";
 				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = "My Wallet/My Wallet.macOS.entitlements";
-				CODE_SIGN_STYLE = Automatic;
 				CODE_SIGN_INJECT_BASE_ENTITLEMENTS = YES;
-				ENABLE_INCOMING_NETWORK_CONNECTIONS = YES;
-				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
-				INFOPLIST_FILE = "My Wallet/Info.plist";
+				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = UX8NR68J5X;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_INCOMING_NETWORK_CONNECTIONS = YES;
+				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "My Wallet/Info.plist";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
@@ -392,16 +404,28 @@
 /* End XCConfigurationList section */
 
 /* Begin XCLocalSwiftPackageReference section */
-		A10000000000000000000010 /* WalletKit */ = {
+		A10000000000000000000010 /* XCLocalSwiftPackageReference "Packages/WalletKit" */ = {
 			isa = XCLocalSwiftPackageReference;
 			relativePath = Packages/WalletKit;
 		};
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		A10000000000000000000011 /* WalletDomain */ = {isa = XCSwiftPackageProductDependency; package = A10000000000000000000010; productName = WalletDomain; };
-		A10000000000000000000012 /* WalletData */ = {isa = XCSwiftPackageProductDependency; package = A10000000000000000000010; productName = WalletData; };
-		A10000000000000000000013 /* WalletFeature */ = {isa = XCSwiftPackageProductDependency; package = A10000000000000000000010; productName = WalletFeature; };
+		A10000000000000000000011 /* WalletDomain */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A10000000000000000000010 /* XCLocalSwiftPackageReference "Packages/WalletKit" */;
+			productName = WalletDomain;
+		};
+		A10000000000000000000012 /* WalletData */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A10000000000000000000010 /* XCLocalSwiftPackageReference "Packages/WalletKit" */;
+			productName = WalletData;
+		};
+		A10000000000000000000013 /* WalletFeature */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A10000000000000000000010 /* XCLocalSwiftPackageReference "Packages/WalletKit" */;
+			productName = WalletFeature;
+		};
 /* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 92538FDE304C11FC00A6CFE1 /* Project object */;

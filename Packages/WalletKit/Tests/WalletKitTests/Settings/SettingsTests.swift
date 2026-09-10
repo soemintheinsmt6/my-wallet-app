@@ -47,6 +47,7 @@ struct SettingsTests {
         preferences.set("dark", forKey: WalletPreferenceKeys.appearance)
         preferences.set(UUID().uuidString, forKey: WalletPreferenceKeys.lastUsedAccountID)
         preferences.set("cash", forKey: WalletPreferenceKeys.lastUsedPaymentType)
+        preferences.set("coffee", forKey: WalletPreferenceKeys.recentSearches)
         let repository = ResetStub()
         let model = SettingsViewModel(resetUseCase: ResetWalletUseCase(repository: repository), preferences: preferences)
         await model.resetData()
@@ -57,6 +58,7 @@ struct SettingsTests {
         #expect(preferences.string(forKey: WalletPreferenceKeys.appearance) == "dark")
         #expect(preferences.object(forKey: WalletPreferenceKeys.lastUsedAccountID) == nil)
         #expect(preferences.object(forKey: WalletPreferenceKeys.lastUsedPaymentType) == nil)
+        #expect(preferences.object(forKey: WalletPreferenceKeys.recentSearches) == nil)
     }
 
     @Test func resetFailurePreservesPreferencesAndNavigation() async throws {

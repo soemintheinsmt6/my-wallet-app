@@ -1,0 +1,73 @@
+import SwiftUI
+import WalletDomain
+
+/// The record row shared by the records list and the Home dashboard.
+///
+/// Leading category tile, name, context line, trailing signed amount — the same rhythm as every
+/// other list in the app.
+struct RecordRow: View {
+    @ObservedObject var viewModel: RecordsViewModel
+    let record: WalletRecord
+    /// Home shows records across days, so it needs the date; the grouped list only needs the time.
+    var showsDate = false
+
+    private var draft: RecordDraft { record.draft }
+
+    private var title: String {
+        if draft.kind == .transfer, draft.categoryID == nil { return draft.kind.title }
+        return viewModel.categoryTitle(draft.categoryID)
+    }
+
+    private var context: String {
+        let account = viewModel.account(draft.accountID)?.name ?? "Unlinked account"
+        if draft.kind == .transfer {
+            let destination = viewModel.account(draft.destinationAccountID)?.name ?? "Unlinked account"
+            return "\(account) → \(destination)"
+        }
+        if !draft.payee.isEmpty { return "\(account) · \(draft.payee)" }
+        return account
+    }
+
+    private var timestamp: String {
+        showsDate
+            ? draft.date.formatted(date: .abbreviated, time: .shortened)
+            : draft.date.formatted(date: .omitted, time: .shortened)
+    }
+
+    var body: some View {
+        HStack(spacing: WalletMetrics.medium) {
+            tile
+            VStack(alignment: .leading, spacing: WalletMetrics.hair) {
+                Text(title)
+                    .font(.body.weight(.medium))
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+                Text("\(context) · \(timestamp)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+            Spacer(minLength: WalletMetrics.small)
+            VStack(alignment: .trailing, spacing: WalletMetrics.hair) {
+                WalletAmountText(amount: draft.amount, currencyCode: record.currencyCode, kind: draft.kind)
+                if record.hasPhoto {
+                    Image(systemName: "paperclip")
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                        .accessibilityLabel("Has photo")
+                }
+            }
+        }
+        .frame(minHeight: WalletMetrics.touchTarget)
+        .padding(.vertical, WalletMetrics.tight)
+        .accessibilityElement(children: .combine)
+    }
+
+    @ViewBuilder private var tile: some View {
+        if let category = viewModel.category(draft.categoryID) {
+            CategoryIcon(category: category)
+        } else {
+            WalletIconTile(symbol: draft.kind.symbol, color: draft.kind.tint)
+        }
+    }
+}

@@ -4,9 +4,32 @@
 
 ## Current Foundation
 
-The app uses native SwiftUI navigation, lists, grouped forms, sheets and semantic colors. This guide documents current conventions; there is no dedicated design-system package or centralized spacing token set yet.
+The app uses native SwiftUI navigation, lists, grouped forms, sheets and semantic colors. Shared tokens and components live in `Sources/WalletFeature/Shared/DesignSystem/`; screens compose them rather than repeating literals.
 
 Use system controls and text styles for new screens. Keep account-specific color independent of global action tint. `Assets.xcassets` contains app icon and accent-color slots; the accent asset currently has no custom color components.
+
+### Shared tokens and components
+
+| Type | Purpose |
+| --- | --- |
+| `WalletMetrics` | 4-point spacing scale (`hair` 2 … `xxLarge` 28), `touchTarget` 44, `Tile` sizes, `Chart` heights |
+| `WalletIconTile` | The one leading-icon treatment: white symbol on a solid color tile, 36 pt standard / 44 pt `large` |
+| `WalletDisclosure` | Trailing chevron matching the system's `NavigationLink` weight |
+| `WalletAmountText` | Money with the sign and tint rules; `.net(_:currencyCode:)` signs from the value itself |
+| `WalletStatTile` | Labelled figure for summary rows, on a cleared list row so the grouped background reads as the gap |
+| `WalletBadge` | Status capsule; the label always carries the meaning |
+| `WalletEmptyState` / `WalletLoadingState` | The single empty and loading shapes, wrapping `ContentUnavailableView` and `ProgressView` |
+| `Decimal.walletFormatted(_:)` | The app-wide money format: account currency, up to eight fractional digits |
+
+Prefer these over literals so unrelated screens line up. `CategoryIcon` remains the category-specific tile and matches `WalletIconTile` geometry.
+
+## Navigation
+
+Five tabs: Home, Records, Statistics, Planning and More. iOS collapses anything past five into its own "More" list, so the secondary destinations live behind `MoreView`, where Accounts, Categories, Labels and Settings keep real icon tiles, counts and a badge when an account balance limit is breached. `WalletTab` in `Shared/Navigation/` is the shared tab identity; `HomeView` takes a binding to it so dashboard sections can link through to the tab that owns them.
+
+Home, Records, Statistics and Planning each own a `NavigationStack`. Screens reached through More do not; they are pushed into the More stack and only declare their title, toolbar and destinations.
+
+`HomeView` is derived entirely from `RecordsViewModel` and `PlanningViewModel` and adds no persistence: total balance for the dominant currency (with a currency menu only when more than one is in use), this month's income/expense tiles and net, the tightest budget progress, the nearest bills and the most recent records.
 
 ## Color and Typography
 
@@ -46,7 +69,7 @@ Currency is interactive only on creation. Below/above toggles reveal their corre
 
 ## Category Components
 
-The app has Records, Statistics, Accounts, Categories, Labels, Planning and Settings tabs. Label rows use 36-point solid-color tiles with 18-point white tag symbols, a name and trailing chevron; row content stays at least 44 points tall. The shared label editor uses a leading Name label, trailing-aligned text field, and the same ten-color grid pattern as accounts. Titles are Create Label and Edit. A destructive Delete Label action requires confirmation; deletion is also available through swipe/context actions. Preserve the draft and show inline errors when saving or deletion fails. The macOS label editor minimum is 440 × 460 points.
+Label rows use 36-point solid-color tiles with 18-point white tag symbols, a name and trailing chevron; row content stays at least 44 points tall. The shared label editor uses a leading Name label, trailing-aligned text field, and the same ten-color grid pattern as accounts. Titles are Create Label and Edit. A destructive Delete Label action requires confirmation; deletion is also available through swipe/context actions. Preserve the draft and show inline errors when saving or deletion fails. The macOS label editor minimum is 440 × 460 points.
 
 Each tab has its own navigation stack. `CategoriesView` displays root names and relevant SF Symbols without subcategory counts or nature chips. `WalletCategory+Presentation` maps all 60 starter IDs to icons, preserving icons after renaming. Custom children fall back to their seeded parent's icon; other custom items use a tag. `CategoryDetailView` shows its card below the navigation title without a large header icon. Category and subcategory names share a horizontal row with their nature chips. Subcategory rows retain icons, use a trailing chevron and open the editor. Edit Category and Create Subcategory remain explicit actions.
 
@@ -69,6 +92,14 @@ Use an inline Add Record navigation title on mobile. A segmented selector sits a
 Record creation uses an Expense/Income/Transfer segmented selector and amount input. General groups account (From/To for transfers), category, most-used shortcuts, date/time and labels. More Details groups optional note, payee, payment type and library-photo attachment. Different-currency transfers reveal a received amount input.
 
 The searchable category sheet allows either a root or child selection and reuses fixed category colors/icons; most-used entries include parent context. Label selection supports multiple checkmarks. Photo loading shows progress and disables saving; previews offer replacement/removal. Record rows open details with Edit and confirmed Delete actions. Edit reuses the record form and loads original photos before permitting saves. Retain textual type labels alongside red expense, green income and blue transfer indicators.
+
+The records list groups rows into day sections with a Today/Yesterday/weekday header and the day's net on the trailing edge. `RecordDayGrouping` owns that logic: transfers are excluded from the net exactly as statistics excludes them, and a day spanning more than one currency states no net rather than adding unlike currencies. Day headers appear only while the list is in date order — sorting by relevance over search text, or by amount, interleaves days and drops the headers. A toolbar sort menu exposes the order.
+
+`RecordRow` is the shared row for the ledger and the Home dashboard: category tile, name, account/payee context with the time, and the trailing signed amount. Rows without a category fall back to a kind-colored tile.
+
+The records list uses the native search field with a prompt naming the searched fields, and recent searches appear as a labeled suggestion section with a clear action. The toolbar filter control uses `line.3.horizontal.decrease.circle`, filled while filters are active, and carries an accessibility value naming the number of active filters. An active search or filter shows a leading footnote summary row with a Clear action; empty results use `ContentUnavailableView` naming the search text and offering the same clear action rather than replacing the "No records yet" state.
+
+`RecordFilterView` is a grouped form that edits a private copy of the query and applies on Apply, so Cancel leaves visible results unchanged. It reuses record-row checkmark selection with 44-point minimum rows, pushes long lists (categories, payment types) instead of inlining them, states its selection counts in trailing values, and disables Apply while an amount bound is invalid. Footers explain transfer, subcategory and currency behavior; Clear All Filters is destructive and disabled when nothing is set.
 
 `CategoryEditorView` shares a grouped form for create/edit at both levels. Edit sheets use the title Edit; create sheets retain Create Category/Create Subcategory. The editor has no icon/name preview. Name uses a leading label and a trailing-aligned text field. The parent is read-only for subcategories. A native picker offers None, Must, Need and Want without a separate badge below it. Seeds have suggested natures listed in README; custom items start at None. Use the established saving state and inline-error patterns, preserving the draft after validation/storage failures. The macOS editor minimum is 440 × 360 points.
 
@@ -102,7 +133,7 @@ Display balances with the account currency and up to eight fractional digits. In
 
 ## Settings
 
-Settings has its own tab, with a native System/Light/Dark segmented selector. Theme is applied at the app root so sheets and all tabs share the same choice. Use semantic colors for surfaces and text.
+Settings is reached through More, with a native System/Light/Dark segmented selector and an About section carrying the version and sync method. Theme is applied at the app root so sheets and all tabs share the same choice. Use semantic colors for surfaces and text.
 
 Debug-only Temporary Development Tools contains a destructive Reset Wallet Data action and an explicit warning about iCloud propagation. Require confirmation, disable the tab interface during reset, show progress/errors, and discard open drafts after success. No reset action is visible in release builds.
 
@@ -114,7 +145,11 @@ Update this guide when adding shared visual conventions, and update [README.md](
 
 ## Statistics and Destructive Actions
 
-Statistics uses native period and filter pickers, currency-formatted summary rows, labeled donut charts, a spending bar chart, a balance-history line chart and a top-category list. Chart marks and legends reuse category color tokens with a gray Uncategorized fallback; names and amounts accompany color. VoiceOver marks expose dates/categories and formatted amounts. Empty periods show explicit no-activity text. Totals remain separate by currency and the history explanation stays visible.
+Statistics leads with a segmented Week/Month/Year/Custom control and a period stepper that moves whole periods with the range named between the arrows; stepping forward stops at the current period. Account, category, label and currency filters sit in a toolbar menu, with a summary row and Clear action appearing only while a filter is set. Income and expenses use `WalletStatTile`, and net uses the signed amount style.
+
+Donut breakdowns hide the chart legend and carry the period total in the center, with each category listed below as color, name, share percentage and amount. The spending chart uses rounded bars over the selected granularity, the balance history a stepped line with a soft area fill, and both use compact leading axis labels. Top spending categories are ranked with a proportional meter tinted by the category color. Charts remain decorative: every figure is stated in text beside them.
+
+Accounts lead with a per-currency total, group rows by account type and show the balance on the trailing edge; the alert section uses `bell.badge` on red and states which limit was breached. Chart marks and legends reuse category color tokens with a gray Uncategorized fallback; names and amounts accompany color. VoiceOver marks expose dates/categories and formatted amounts. Empty periods show explicit no-activity text. Totals remain separate by currency and the history explanation stays visible.
 
 Record deletion is available through detail toolbar, swipe and context actions with a confirmation explaining balance reversal and photo removal. Account deletion opens an impact sheet with record/transfer counts, balance, Keep/Delete Records strategy and a final destructive confirmation. Category deletion offers child reassignment or deletion and explains the Uncategorized fallback. Disable actions while saving and retain forms with inline errors on failure.
 

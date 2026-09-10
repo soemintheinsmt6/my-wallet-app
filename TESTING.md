@@ -41,6 +41,7 @@ Tests live in `Packages/WalletKit/Tests/WalletKitTests/` and use Swift Testing (
 | `CategoryColorTests` | Fixed palette, independence from names/natures and deterministic custom/root-child color mapping |
 | `TagTests` | Ten colors, name validation/uniqueness, stable edit identity, selective/idempotent deletion, notifications, view-model failure state and migration/reopening |
 | `RecordTests` | Ledger balances, idempotent creation, transfers and received amounts, reference/amount validation, details/photos, label detachment, most-used ranking and additive migration/reopening |
+| `RecordSearchTests` | Field matching (payee, note, amount, category and parent, label), multi-term AND, case/diacritic insensitivity, relevance ranking and tie-breaks, intersecting filter groups, transfer account legs, date/amount bounds, sort determinism and recent-search history |
 | `SettingsTests` | Confirmed-reset operation, deletion notifications, starter reseeding, preference retention/clearing, failure state and appearance mapping |
 
 Use in-memory stores for isolated behavior, repository doubles for failures, and unique temporary directories for disk/migration tests. Preserve snapshots of previous schemas when adding upgrade tests. Never point tests at a personal wallet database or live CloudKit container.
@@ -48,6 +49,8 @@ Use in-memory stores for isolated behavior, repository doubles for failures, and
 Name tests after observable behavior, such as `editsPersistAllSettingsAndPreserveCurrencyAndIdentity`. Add meaningful regression coverage for changed behavior; no numeric coverage threshold is configured.
 
 ## Recorded Validation
+
+Search and filtering validation on 2026-09-10: **89 tests across 16 suites passed with `--no-parallel`**, and unsigned iOS Simulator/macOS builds passed. Nine new tests cover text field matching, multi-term AND, case/diacritic insensitivity, relevance ranking, intersecting filter groups, transfer legs, date/amount boundaries, deterministic sorting and recent-search history; the reset test also asserts that search history is cleared. Search is a pure domain calculation with no schema or repository change, so no migration coverage was needed. Live search interaction, suggestion presentation, large-ledger performance, VoiceOver and Dynamic Type remain manual device checks.
 
 Settings validation on 2026-09-05: **47 tests across nine suites passed serially**, with unsigned iOS Simulator/macOS debug and iOS Simulator release builds passing. Settings tests cover all-data reset and notifications, category reseeding, preference retention/clearing, failure state and appearance mapping. Actual reset, visual theme checks and CloudKit deletion propagation were not exercised against personal/live data.
 

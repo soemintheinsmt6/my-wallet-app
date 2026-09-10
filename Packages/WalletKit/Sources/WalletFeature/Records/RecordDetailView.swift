@@ -8,6 +8,8 @@ struct RecordDetailView: View {
     @State private var editing = false
     @State private var confirmingDelete = false
     @State private var mutationError: String?
+    @State private var photo: Data?
+    @State private var photoError: String?
 
     init(viewModel: RecordsViewModel, record: WalletRecord) {
         self.viewModel = viewModel
@@ -17,38 +19,31 @@ struct RecordDetailView: View {
     private var record: WalletRecord {
         viewModel.records.first { $0.id == initialRecord.id } ?? initialRecord
     }
-    @State private var photo: Data?
-    @State private var photoError: String?
+
+    private var draft: RecordDraft { record.draft }
+    private var labels: [WalletTag] { viewModel.tags.filter { draft.tagIDs.contains($0.id) } }
 
     var body: some View {
-        Form {
-            Section("General") {
-                LabeledContent("Type", value: record.draft.kind.title)
-                LabeledContent("Amount", value: record.draft.amount.formatted(.currency(code: record.currencyCode).precision(.fractionLength(0...8))))
-                LabeledContent(record.draft.kind == .transfer ? "From account" : "Account", value: viewModel.account(record.draft.accountID)?.name ?? "Archived / unlinked")
-                if record.draft.kind == .transfer {
-                    LabeledContent("To account", value: viewModel.account(record.draft.destinationAccountID)?.name ?? "Archived / unlinked")
-                    LabeledContent("Received", value: (record.draft.receivedAmount ?? record.draft.amount).formatted(.currency(code: record.destinationCurrencyCode ?? record.currencyCode).precision(.fractionLength(0...8))))
-                }
-                LabeledContent("Category", value: viewModel.categoryTitle(record.draft.categoryID))
-                LabeledContent("Date and time", value: record.draft.date.formatted(date: .abbreviated, time: .shortened))
-                let labels = viewModel.tags.filter { record.draft.tagIDs.contains($0.id) }
-                LabeledContent("Labels", value: labels.isEmpty ? "None" : labels.map(\.name).joined(separator: ", "))
-            }
-            Section("More Details") {
-                LabeledContent("Payee", value: record.draft.payee.isEmpty ? "None" : record.draft.payee)
-                LabeledContent("Payment type", value: record.draft.paymentType.title)
-                Text(record.draft.note.isEmpty ? "No note" : record.draft.note)
-                if let photo { RecordPhotoView(data: photo) }
-                else if let photoError { Text(photoError).foregroundStyle(.red) }
-                else if record.hasPhoto { ProgressView("Loading photo…") }
-            }
+        List {
+            headerSection
+            generalSection
+            detailsSection
+            if record.hasPhoto || photo != nil || photoError != nil { photoSection }
         }
-        .formStyle(.grouped)
-        .navigationTitle(record.draft.kind.title)
+        .navigationTitle(draft.kind.title)
+        #if !os(macOS)
+            .navigationBarTitleDisplayMode(.inline)
+        #endif
         .toolbar {
-            Button("Edit") { editing = true }.disabled(viewModel.isSaving)
-            Button("Delete", role: .destructive) { confirmingDelete = true }.disabled(viewModel.isSaving)
+            ToolbarItem {
+                Button("Edit") { editing = true }.disabled(viewModel.isSaving)
+            }
+            ToolbarItem {
+                Button(role: .destructive) { confirmingDelete = true } label: {
+                    Label("Delete", systemImage: "trash")
+                }
+                .disabled(viewModel.isSaving)
+            }
         }
         .sheet(isPresented: $editing, onDismiss: { Task { await loadPhoto() } }) {
             RecordEditorView(viewModel: viewModel, record: record)
@@ -68,6 +63,86 @@ struct RecordDetailView: View {
         .task { await loadPhoto() }
     }
 
+    // MARK: - Sections
+
+    private var headerSection: some View {
+        Section {
+            VStack(spacing: WalletMetrics.medium) {
+                if let category = viewModel.category(draft.categoryID) {
+                    CategoryIcon(category: category).scaleEffect(1.25)
+                } else {
+                    WalletIconTile(symbol: draft.kind.symbol, color: draft.kind.tint, large: true)
+                }
+                WalletAmountText(amount: draft.amount, currencyCode: record.currencyCode, kind: draft.kind,
+                                 font: .system(.largeTitle, design: .rounded, weight: .semibold))
+                VStack(spacing: WalletMetrics.tight) {
+                    Text(draft.kind == .transfer && draft.categoryID == nil
+                         ? draft.kind.title
+                         : viewModel.categoryTitle(draft.categoryID))
+                        .font(.headline)
+                        .multilineTextAlignment(.center)
+                    Text(draft.date.formatted(date: .complete, time: .shortened))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                }
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, WalletMetrics.large)
+            .listRowBackground(Color.clear)
+            .accessibilityElement(children: .combine)
+        }
+    }
+
+    private var generalSection: some View {
+        Section("Accounts") {
+            LabeledContent(draft.kind == .transfer ? "From" : "Account",
+                           value: viewModel.account(draft.accountID)?.name ?? "Archived / unlinked")
+            if draft.kind == .transfer {
+                LabeledContent("To", value: viewModel.account(draft.destinationAccountID)?.name ?? "Archived / unlinked")
+                LabeledContent("Received") {
+                    Text((draft.receivedAmount ?? draft.amount)
+                        .walletFormatted(record.destinationCurrencyCode ?? record.currencyCode))
+                        .monospacedDigit()
+                }
+            }
+        }
+    }
+
+    private var detailsSection: some View {
+        Section("Details") {
+            if labels.isEmpty {
+                LabeledContent("Labels", value: "None")
+            } else {
+                VStack(alignment: .leading, spacing: WalletMetrics.small) {
+                    Text("Labels").font(.subheadline).foregroundStyle(.secondary)
+                    WrappingLabels(tags: labels)
+                }
+                .padding(.vertical, WalletMetrics.hair)
+            }
+            LabeledContent("Payee", value: draft.payee.isEmpty ? "None" : draft.payee)
+            LabeledContent("Payment type", value: draft.paymentType.title)
+            VStack(alignment: .leading, spacing: WalletMetrics.tight) {
+                Text("Note").font(.subheadline).foregroundStyle(.secondary)
+                Text(draft.note.isEmpty ? "No note" : draft.note)
+                    .foregroundStyle(draft.note.isEmpty ? Color.secondary : Color.primary)
+            }
+            .padding(.vertical, WalletMetrics.hair)
+        }
+    }
+
+    private var photoSection: some View {
+        Section("Attachment") {
+            if let photo {
+                RecordPhotoView(data: photo)
+            } else if let photoError {
+                Label(photoError, systemImage: "exclamationmark.triangle").foregroundStyle(.red)
+            } else {
+                ProgressView("Loading photo…")
+            }
+        }
+    }
+
     private func loadPhoto() async {
         photo = nil
         photoError = nil
@@ -76,5 +151,31 @@ struct RecordDetailView: View {
             photo = try await viewModel.photo(id: record.id)
             if photo == nil { photoError = "Photo unavailable." }
         } catch { photoError = error.localizedDescription }
+    }
+}
+
+/// Labels shown as colored chips that wrap onto as many lines as they need.
+private struct WrappingLabels: View {
+    let tags: [WalletTag]
+
+    var body: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: WalletMetrics.small) { chips }
+            VStack(alignment: .leading, spacing: WalletMetrics.small) { chips }
+        }
+    }
+
+    @ViewBuilder private var chips: some View {
+        ForEach(tags) { tag in
+            HStack(spacing: WalletMetrics.tight) {
+                Circle().fill(tag.color.tint).frame(width: 8, height: 8)
+                Text(tag.name).font(.caption.weight(.medium))
+            }
+            .padding(.horizontal, WalletMetrics.small)
+            .padding(.vertical, WalletMetrics.tight)
+            .background(.quaternary.opacity(0.5), in: Capsule())
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("Label \(tag.name)")
+        }
     }
 }

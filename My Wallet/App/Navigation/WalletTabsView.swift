@@ -5,23 +5,43 @@ struct WalletTabsView: View {
     let dependencies: AppDependencies
     @Environment(\.scenePhase) private var scenePhase
     @ObservedObject var settings: SettingsViewModel
+    @ObservedObject private var accounts: AccountsViewModel
+    @State private var selection = WalletTab.home
+
+    init(dependencies: AppDependencies, settings: SettingsViewModel) {
+        self.dependencies = dependencies
+        self.settings = settings
+        accounts = dependencies.accountsViewModel
+    }
 
     var body: some View {
-        TabView {
+        TabView(selection: $selection) {
+            HomeView(records: dependencies.recordsViewModel,
+                     planning: dependencies.planningViewModel,
+                     selection: $selection)
+                .tabItem { Label(WalletTab.home.title, systemImage: WalletTab.home.symbol) }
+                .tag(WalletTab.home)
+
             RecordsView(viewModel: dependencies.recordsViewModel)
-                .tabItem { Label("Records", systemImage: "list.bullet.rectangle") }
+                .tabItem { Label(WalletTab.records.title, systemImage: WalletTab.records.symbol) }
+                .tag(WalletTab.records)
+
             StatisticsView(viewModel: dependencies.recordsViewModel, planning: dependencies.planningViewModel)
-                .tabItem { Label("Statistics", systemImage: "chart.pie") }
-            AccountsView(viewModel: dependencies.accountsViewModel)
-                .tabItem { Label("Accounts", systemImage: "wallet.bifold") }
-            CategoriesView(viewModel: dependencies.categoriesViewModel, planning: dependencies.planningViewModel)
-                .tabItem { Label("Categories", systemImage: "folder") }
-            TagsView(viewModel: dependencies.tagsViewModel)
-                .tabItem { Label("Labels", systemImage: "tag") }
+                .tabItem { Label(WalletTab.statistics.title, systemImage: WalletTab.statistics.symbol) }
+                .tag(WalletTab.statistics)
+
             PlanningView(viewModel: dependencies.planningViewModel)
-                .tabItem { Label("Planning", systemImage: "calendar.badge.clock") }
-            SettingsView(viewModel: settings)
-                .tabItem { Label("Settings", systemImage: "gearshape") }
+                .tabItem { Label(WalletTab.planning.title, systemImage: WalletTab.planning.symbol) }
+                .tag(WalletTab.planning)
+
+            MoreView(accounts: dependencies.accountsViewModel,
+                     categories: dependencies.categoriesViewModel,
+                     tags: dependencies.tagsViewModel,
+                     settings: settings,
+                     planning: dependencies.planningViewModel)
+                .tabItem { Label(WalletTab.more.title, systemImage: WalletTab.more.symbol) }
+                .tag(WalletTab.more)
+                .badge(accounts.balanceNotifications.count)
         }
         // Discard open drafts/navigation in every window after a successful reset.
         .id(settings.resetGeneration)
