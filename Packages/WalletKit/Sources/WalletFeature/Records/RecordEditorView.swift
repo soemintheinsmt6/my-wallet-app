@@ -20,6 +20,7 @@ struct RecordEditorView: View {
     /// Empty means "use the downloaded rate"; the draft keeps `nil` in that case.
     @State private var manualRate = ""
     @Environment(\.currencyViewModel) private var currencyModel
+    @Environment(\.receiptUseCases) private var receiptUseCases
     @State private var selectingCategory = false
     @State private var selectingTags = false
     @State private var photoItem: PhotosPickerItem?
@@ -270,6 +271,21 @@ struct RecordEditorView: View {
         }
     }
 
+    /// Scanned receipt pages, with an OCR suggestion the user accepts rather than one applied
+    /// silently over what they typed.
+    @ViewBuilder private var receiptSection: some View {
+        if let receiptUseCases {
+            ReceiptGalleryContent(
+                viewModel: ReceiptsViewModel(useCases: receiptUseCases, recordID: recordID)
+            ) { reading in
+                if let value = reading.amount { amount = AccountAmountInput.text(value) }
+                if let date = reading.date { draft.date = date }
+            }
+            .padding(.horizontal, WalletMetrics.xLarge)
+            .padding(.vertical, WalletMetrics.medium)
+        }
+    }
+
     /// Lets the user pin the rate used to convert this record into the home currency.
     ///
     /// Only shown when converted totals are switched on and this record is not already in the home
@@ -321,6 +337,7 @@ struct RecordEditorView: View {
                 screen: .payment)
         }
         exchangeRateRow
+        receiptSection
         if !originalPhotoLoaded {
             if isLoadingOriginalPhoto { ProgressView("Loading existing photo…") }
             else { Button("Retry Loading Existing Photo") { Task { await loadOriginalPhoto() } } }

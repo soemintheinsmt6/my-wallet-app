@@ -22,6 +22,7 @@ struct AppDependencies {
     /// Refiles dropped records under a category, through the normal record save path.
     let refileRecords: (Set<UUID>, UUID) async -> Void
     let insightsViewModel: InsightsViewModel
+    let receiptUseCases: ReceiptUseCases
 
     static func make() async throws -> AppDependencies {
         let repository = try await SwiftDataWalletRepository.make(
@@ -88,7 +89,8 @@ struct AppDependencies {
             spotlightIndexer: spotlight,
             watchConnector: watch,
             refileRecords: refile,
-            insightsViewModel: insights
+            insightsViewModel: insights,
+            receiptUseCases: ReceiptUseCases(repository: repository)
         )
     }
 }

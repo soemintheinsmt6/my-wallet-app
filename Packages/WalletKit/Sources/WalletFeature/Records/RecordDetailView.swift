@@ -11,6 +11,7 @@ struct RecordDetailView: View {
     @State private var photo: Data?
     @State private var photoError: String?
     @Environment(\.currencyViewModel) private var currencyModel
+    @Environment(\.receiptUseCases) private var receiptUseCases
 
     init(viewModel: RecordsViewModel, record: WalletRecord) {
         self.viewModel = viewModel
@@ -29,6 +30,10 @@ struct RecordDetailView: View {
             headerSection
             generalSection
             detailsSection
+            if let receiptUseCases {
+                ReceiptGallerySection(
+                    viewModel: ReceiptsViewModel(useCases: receiptUseCases, recordID: record.id))
+            }
             if record.hasPhoto || photo != nil || photoError != nil { photoSection }
         }
         .navigationTitle(draft.kind.title)

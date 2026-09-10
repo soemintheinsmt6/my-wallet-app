@@ -29,6 +29,8 @@ extension WalletStore {
             record.photoData = nil
             context.delete(record)
         }
+        // Scanned pages live in their own model, so they must be removed with the record.
+        try deleteReceipts(recordID: id, in: context)
         try context.save()
     }
 

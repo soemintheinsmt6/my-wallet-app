@@ -4,6 +4,8 @@
 <dict>
     <key>UIBackgroundModes</key>
     <array><string>remote-notification</string></array>
+    <key>NSCameraUsageDescription</key>
+    <string>Scan paper receipts to attach them to a record. Scans stay on your device and in your own iCloud account.</string>
     <key>NSFaceIDUsageDescription</key>
     <string>Face ID unlocks My Wallet so your balances and records stay private.</string>
     <key>CFBundleURLTypes</key>

@@ -5,7 +5,7 @@ import SwiftData
 import WalletDomain
 
 @MainActor
-public final class SwiftDataWalletRepository: WalletRepository, AccountRepository, CategoryRepository, TagRepository, RecordRepository, WalletResetRepository, BudgetRepository, RecurringRepository, BillReminderRepository {
+public final class SwiftDataWalletRepository: WalletRepository, AccountRepository, CategoryRepository, TagRepository, RecordRepository, WalletResetRepository, BudgetRepository, RecurringRepository, BillReminderRepository, ReceiptRepository {
     private let store: WalletStore
     private var subscriptions = Set<AnyCancellable>()
     private var observers: [UUID: AsyncStream<Void>.Continuation] = [:]
@@ -94,6 +94,27 @@ public final class SwiftDataWalletRepository: WalletRepository, AccountRepositor
 
     public func updateRecord(id: UUID, draft: RecordDraft) async throws {
         try await store.updateRecord(id: id, draft: draft)
+        notifyChanges()
+    }
+
+    public func fetchReceipts(recordID: UUID) async throws -> [Receipt] {
+        try await store.fetchReceipts(recordID: recordID)
+    }
+
+    public func receiptPageCounts() async throws -> [UUID: Int] { try await store.receiptPageCounts() }
+
+    public func saveReceipts(_ receipts: [Receipt]) async throws {
+        try await store.saveReceipts(receipts)
+        notifyChanges()
+    }
+
+    public func deleteReceipt(id: UUID) async throws {
+        try await store.deleteReceipt(id: id)
+        notifyChanges()
+    }
+
+    public func deleteReceipts(recordID: UUID) async throws {
+        try await store.deleteReceipts(recordID: recordID)
         notifyChanges()
     }
 

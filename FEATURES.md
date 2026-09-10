@@ -392,15 +392,26 @@ Every notice is off until switched on, and the settings footer says so. Unusual-
 
 ### 4.5 Camera Receipt Capture
 
-> **Modules:** `WalletFeature/Records` (extend photo handling)
+> **Status:** Implemented locally; camera and OCR device verification pending
+> **Modules:** `WalletDomain` (new `Receipts/`), `WalletData`, `WalletFeature` (new `Receipts/`)
 
 Capture receipts directly from the camera and optionally extract data.
 
-- [ ] Camera capture integration (beyond current photo library)
-- [ ] Multi-page receipt scanning with VisionKit
-- [ ] Optional OCR for amount and date extraction (on-device via Vision)
-- [ ] Store receipt images alongside records
-- [ ] Receipt gallery view per record
+- [x] Camera capture integration (beyond current photo library)
+- [x] Multi-page receipt scanning with VisionKit
+- [x] Optional OCR for amount and date extraction (on-device via Vision)
+- [x] Store receipt images alongside records
+- [x] Receipt gallery view per record
+
+Implementation notes (2026-09-11): Scanning uses VisionKit's `VNDocumentCameraViewController`, which already handles edge detection, perspective correction and multi-page capture, so no custom camera UI was built. Pages are downsampled to 2000 px and JPEG-encoded before storage, so a long receipt does not cost several megabytes a page.
+
+Pages live in their own `ReceiptRecord` model rather than as an array on `TransactionRecord`, so fetching the ledger never pulls image bytes. All properties are defaulted, keeping the addition CloudKit-compatible, and the link is a plain `recordID` like the rest of the schema. Deleting a record deletes its pages in the same save, and Reset Wallet Data clears them too — both covered by tests, since orphaned image blobs would otherwise be invisible and permanent. External storage is cleared before deletion, as record photos already do. A record holds at most 12 pages, and an oversized or empty page rejects the whole batch rather than storing part of it.
+
+OCR runs on-device through Vision and is always a **suggestion the user accepts**, never applied silently over what they typed — reading a crumpled receipt is a guess. The interpretation is a pure function over recognized lines, so its rules are tested without Vision: a line naming a total wins, subtotals/tax/change/tip are excluded, and otherwise the largest amount is taken, which is nearly always the total. Amounts must carry two decimals, keeping quantities and phone numbers out, and a future-dated match is rejected because a receipt cannot be for tomorrow.
+
+**A bug the tests caught:** the amount pattern allowed only a space or comma as a group separator, so the European form `1.234,56` parsed as `234.56` — silently wrong by a factor of ten.
+
+Receipt storage reaches the editor and detail through a SwiftUI environment value, as the currency model does. Scanning is offered only where `VNDocumentCameraViewController.isSupported`, so simulators and Macs show the existing pages without a scan button.
 
 ---
 

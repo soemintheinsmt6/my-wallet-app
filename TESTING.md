@@ -315,3 +315,20 @@ Manual checks:
 3. Overspend a category against its history and confirm exactly one unusual-spending alert that month.
 4. Turn a notice off and confirm its pending notification is cancelled.
 5. Log records on consecutive days and confirm the streak on Home; skip a day and confirm it resets.
+
+## Receipt Capture Validation (2026-09-11)
+
+**205 tests across 35 suites passed** serially. `ReceiptTextReaderTests` covers a line naming the total winning over larger numbers, subtotals/tax/change being excluded, the largest amount as fallback, grouped and comma-decimal forms, text with no amount, integers not being mistaken for money, common date formats, and future dates rejected. `ReceiptStorageTests` covers pages stored in order and appended after existing ones, per-record page counts, oversized and empty pages rejecting the whole batch, the 12-page limit, deleting one page leaving the rest, **deleting a record removing its pages**, and **Reset Wallet Data clearing every page** — the last two matter because orphaned image blobs would be invisible and permanent.
+
+**Bug found and fixed:** the amount pattern accepted only a space or comma as a group separator, so `1.234,56` parsed as `234.56`.
+
+**Not verified:** no scan was performed. The camera, VisionKit's scanner, image downsampling, real Vision OCR output and the camera permission prompt all need a physical device — `VNDocumentCameraViewController.isSupported` is false on the simulator, so the scan button does not even appear there.
+
+Manual checks:
+
+1. Scan a single-page and a multi-page receipt; confirm pages keep their order and open full screen.
+2. Confirm the OCR suggestion appears, that accepting it fills the amount and date, and that dismissing it changes nothing.
+3. Scan a receipt with a subtotal larger than the total and confirm the total is chosen.
+4. Delete a page, then delete the record; confirm no pages survive and storage does not grow.
+5. Deny camera permission and confirm the failure is reported rather than the app hanging.
+6. Confirm receipt pages are excluded from PDF and CSV/JSON exports.
