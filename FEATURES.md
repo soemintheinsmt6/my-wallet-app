@@ -230,15 +230,22 @@ Implementation notes (2026-09-10): The passcode is never stored. `PasscodeHasher
 
 ### 3.4 Data Export / Import
 
-> **Modules:** `WalletDomain` (new `DataExchange/`), `WalletFeature/Settings`
+> **Status:** Implemented locally; document-picker and share-sheet device verification pending
+> **Modules:** `WalletDomain` (new `DataExchange/`), `WalletFeature` (new `DataExchange/`), `WalletFeature/Settings`
 
 Let users export their data for backup or migration, and import from external sources.
 
-- [ ] Export all records as CSV with headers (date, type, amount, category, account, tags, note, payee)
-- [ ] Export as JSON for full fidelity (accounts, categories, tags, records)
-- [ ] Import from CSV with column mapping
-- [ ] Import preview and conflict resolution (duplicate detection)
-- [ ] Export/import from Settings screen
+- [x] Export all records as CSV with headers (date, type, amount, category, account, tags, note, payee)
+- [x] Export as JSON for full fidelity (accounts, categories, tags, records)
+- [x] Import from CSV with column mapping
+- [x] Import preview and conflict resolution (duplicate detection)
+- [x] Export/import from Settings screen
+
+Implementation notes (2026-09-10): `CSV` implements RFC 4180 by hand rather than taking a dependency, because the rules worth guaranteeing are narrow: values holding commas, quotes or newlines must survive a round trip, and an export must re-import unchanged. Two bugs surfaced only because the round trip is tested — Swift treats `\r\n` as a single grapheme cluster, so matching on `"\r"` never fired for CRLF files, and `PaymentType`'s camelCase raw values silently lost their type when compared after `lowercased()`.
+
+Export writes amounts as exact decimal strings, never doubles, and keeps the sign in the Type column as the ledger does. Labels are semicolon-separated so a comma never needs escaping inside the field, and the CSV carries a UTF-8 BOM so Excel opens accented names correctly. JSON is a versioned `WalletArchive` keeping identifiers intact; a file written by a newer format is refused rather than half-read. Neither format includes receipt images.
+
+Import is planned before anything is written. Columns are matched by header name, ignoring case, order and extra columns, so only Date, Type, Amount and Account are actually required; amounts accept either decimal separator and stray currency symbols, and dates accept ISO plus common spreadsheet renderings. Rows resolve against existing accounts, categories (by full path or unambiguous name) and labels; unmatched labels are listed for creation. Every row lands in exactly one bucket — importable, duplicate, or problem — so the preview counts always add up. A duplicate is an existing record sharing account, kind, amount and timestamp to the second, which catches re-importing the same export and repeated rows inside one file. Errors name the spreadsheet row number. Rows are saved one at a time through `RecordUseCases`, so a row the domain rejects is reported without discarding those already written.
 
 ---
 

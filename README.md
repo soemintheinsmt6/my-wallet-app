@@ -35,6 +35,7 @@ Update this table whenever a feature is completed.
 | Record search and filtering | Complete locally | Search payee, note, amount, category and label names; combine with type/account/category/label/payment/date/amount filters; relevance, date or amount ordering and local recent searches |
 | Home screen widgets | Complete locally; App Group provisioning and device rendering pending | Balance, this month, recent records, budget progress and quick-add widgets reading a shared snapshot the app writes; `mywallet://` deep links open the matching tab or editor |
 | App lock | Complete locally; device biometric verification pending | Optional 4- or 6-digit passcode held as a salted keychain verifier, Face ID/Touch ID unlock, immediate/1-minute/5-minute auto-lock and throttled retries |
+| Export and import | Complete locally; device file-picker verification pending | RFC 4180 record CSV and a versioned JSON backup, plus CSV import with header matching, a reviewed plan and duplicate detection; receipt images excluded |
 
 ## Getting Started
 

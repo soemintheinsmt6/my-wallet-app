@@ -42,7 +42,8 @@ struct WalletTabsView: View {
                      tags: dependencies.tagsViewModel,
                      settings: settings,
                      planning: dependencies.planningViewModel,
-                     appLock: dependencies.appLockViewModel)
+                     appLock: dependencies.appLockViewModel,
+                     dataExchange: dependencies.dataExchangeViewModel)
                 .tabItem { Label(WalletTab.more.title, systemImage: WalletTab.more.symbol) }
                 .tag(WalletTab.more)
                 .badge(accounts.balanceNotifications.count)

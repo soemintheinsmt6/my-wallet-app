@@ -13,6 +13,7 @@ struct AppDependencies {
     /// Keeps the shared widget snapshot in step with the wallet's data.
     let snapshotCoordinator: WalletSnapshotCoordinator
     let appLockViewModel: AppLockViewModel
+    let dataExchangeViewModel: DataExchangeViewModel
 
     static func make() async throws -> AppDependencies {
         let repository = try await SwiftDataWalletRepository.make(
@@ -32,7 +33,12 @@ struct AppDependencies {
             planningViewModel: planning,
             settingsViewModel: settings,
             snapshotCoordinator: snapshots,
-            appLockViewModel: AppLockViewModel()
+            appLockViewModel: AppLockViewModel(),
+            dataExchangeViewModel: DataExchangeViewModel(
+                records: records,
+                recordUseCases: RecordUseCases(repository: repository),
+                tagUseCases: TagUseCases(repository: repository)
+            )
         )
     }
 }

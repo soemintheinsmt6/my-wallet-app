@@ -200,3 +200,19 @@ Manual checks:
 4. Exercise each auto-lock setting by backgrounding briefly and beyond the interval. Confirm the app-switcher card shows no balances.
 5. Deny or unenroll biometrics and confirm the passcode still unlocks; turn the toggle off and confirm no prompt appears.
 6. Turn the lock off with the wrong passcode, then the right one. Reinstall and confirm the keychain item did not survive as a stale lock.
+
+## Export and Import Validation (2026-09-10)
+
+**144 tests across 25 suites passed.** `CSVTests` covers quoting only where required, round-tripping values with embedded commas, quotes and newlines, CRLF/LF/BOM/trailing-newline handling, preserved empty trailing fields, unterminated quotes and empty files. `RecordCSVTests` round-trips a real export back into rows, checks header matching across case, order and unknown columns, missing required columns, spreadsheet-accurate row numbers in errors, both decimal separators with grouping and currency symbols, common date forms, exact decimal output, and case-insensitive payment types. `WalletArchiveTests` covers the JSON round trip, photo bytes being dropped and a newer format being refused. `ImportPlannerTests` covers name matching for accounts/categories/labels, flagged unknown accounts and malformed transfers, duplicates against the wallet and within one file, near-misses that are not duplicates, and the invariant that every row lands in exactly one bucket.
+
+Two defects were found by these tests and fixed: CRLF files failed to parse because Swift treats `\r\n` as one grapheme cluster, and `PaymentType` was lost on import because its camelCase raw values were compared after lowercasing.
+
+**Not verified:** the share sheet, the document picker and the import preview were not exercised on a device or simulator, so file handoff, security-scoped access to a file outside the sandbox, and Excel's handling of the exported CSV remain outstanding.
+
+Manual checks:
+
+1. Export CSV and JSON, share both, and reopen the CSV in Numbers and Excel. Confirm accented names, embedded commas, quotes and multi-line notes survive.
+2. Re-import the exported CSV and confirm every row is reported as already in your wallet and nothing is written.
+3. Import a file from another app with reordered, renamed and missing optional columns; confirm the preview counts and the errors' row numbers.
+4. Import a file naming unknown accounts and new labels. Confirm the labels are created and the unmatched rows are listed rather than silently skipped.
+5. Import a large file and confirm progress is reported and a rejected row does not discard the rows already saved.

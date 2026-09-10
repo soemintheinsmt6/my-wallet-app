@@ -3,12 +3,15 @@ import SwiftUI
 public struct SettingsView: View {
     @ObservedObject private var viewModel: SettingsViewModel
     private let appLock: AppLockViewModel?
+    private let dataExchange: DataExchangeViewModel?
     @AppStorage(WalletPreferenceKeys.appearance) private var appearance = AppAppearance.system.rawValue
     @State private var confirmingReset = false
 
-    public init(viewModel: SettingsViewModel, appLock: AppLockViewModel? = nil) {
+    public init(viewModel: SettingsViewModel, appLock: AppLockViewModel? = nil,
+                dataExchange: DataExchangeViewModel? = nil) {
         self.viewModel = viewModel
         self.appLock = appLock
+        self.dataExchange = dataExchange
     }
 
     private var version: String {
@@ -34,6 +37,20 @@ public struct SettingsView: View {
             }
 
             if let appLock { AppLockSettingsSection(viewModel: appLock) }
+
+            if let dataExchange {
+                Section {
+                    NavigationLink {
+                        DataExchangeView(viewModel: dataExchange)
+                    } label: {
+                        Label("Export & Import", systemImage: "arrow.up.arrow.down.square")
+                    }
+                } header: {
+                    Text("Data")
+                } footer: {
+                    Text("Back up your wallet or move records in from another app.")
+                }
+            }
 
             Section("About") {
                 LabeledContent("Version", value: version)
