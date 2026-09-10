@@ -36,6 +36,8 @@ struct WalletShellView: View {
         // Reaches the record editor and detail without threading through every presenter.
         .environment(\.currencyViewModel, dependencies.currencyViewModel)
         .environment(\.receiptUseCases, dependencies.receiptUseCases)
+        .environment(\.categorySymbolStore, dependencies.categorySymbolStore)
+        .modifier(WalletThemeModifier(theme: dependencies.themeViewModel))
         // Discard open drafts/navigation in every window after a successful reset.
         .id(settings.resetGeneration)
         .disabled(settings.isResetting)

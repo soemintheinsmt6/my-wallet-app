@@ -1,17 +1,20 @@
+import Charts
 import SwiftUI
 import WalletDomain
 
-/// The landing screen: balance, this month's activity, budget progress, upcoming bills and the
-/// most recent records, each linking through to the tab that owns it.
+/// The landing screen: a dashboard the user arranges, each card linking through to the tab that
+/// owns it.
 ///
-/// Everything here is derived from `RecordsViewModel` and `PlanningViewModel`; the dashboard adds
-/// no persistence of its own.
+/// Everything here is derived from the other view models; the dashboard adds no persistence of its
+/// own beyond the arrangement itself.
 public struct HomeView: View {
     @ObservedObject private var records: RecordsViewModel
     @ObservedObject private var planning: PlanningViewModel
     /// Optional: with no home currency configured the dashboard keeps per-currency totals.
     @ObservedObject private var currency: CurrencyViewModel
     @ObservedObject private var insights: InsightsViewModel
+    @ObservedObject private var dashboard: DashboardViewModel
+    @ObservedObject private var debts: DebtsViewModel
     @Binding private var selection: WalletTab
     /// Set by a widget quick-add deep link; presents the editor with that kind preselected.
     @Binding private var pendingAdd: RecordKind?
@@ -19,24 +22,34 @@ public struct HomeView: View {
     @State private var creating = false
     /// Which currency the balance header shows when more than one is in use.
     @State private var displayedCurrency = ""
+    @State private var isArranging = false
 
     private let recentLimit = 5
     private let previewLimit = 3
 
     public init(records: RecordsViewModel, planning: PlanningViewModel, currency: CurrencyViewModel,
-                insights: InsightsViewModel, selection: Binding<WalletTab>,
-                pendingAdd: Binding<RecordKind?> = .constant(nil)) {
+                insights: InsightsViewModel, dashboard: DashboardViewModel, debts: DebtsViewModel,
+                selection: Binding<WalletTab>, pendingAdd: Binding<RecordKind?> = .constant(nil)) {
         self.records = records
         self.planning = planning
         self.currency = currency
         self.insights = insights
+        self.dashboard = dashboard
+        self.debts = debts
         _selection = selection
         _pendingAdd = pendingAdd
     }
 
     // MARK: - Derived values
 
-    private var includedAccounts: [Account] { records.accounts.filter { !$0.settings.excludeFromStats } }
+    private var configuration: DashboardConfiguration { dashboard.configuration }
+
+    /// Accounts in scope: everything included in statistics, or the one the user picked.
+    private var includedAccounts: [Account] {
+        let included = records.accounts.filter { !$0.settings.excludeFromStats }
+        guard let id = configuration.accountID else { return included }
+        return included.filter { $0.id == id }
+    }
 
     private var currencies: [String] { Array(Set(includedAccounts.map(\.currencyCode))).sorted() }
 
@@ -54,18 +67,22 @@ public struct HomeView: View {
             .reduce(0) { $0 + $1.settings.currentBalance }
     }
 
-    private var monthInterval: DateInterval {
-        Calendar.current.dateInterval(of: .month, for: Date()) ?? DateInterval(start: Date(), duration: 0)
-    }
+    private var interval: DateInterval { configuration.period.interval(containing: Date()) }
 
-    private var monthStatistics: WalletStatistics {
+    private var statistics: WalletStatistics {
         WalletStatistics.calculate(records: records.records, accounts: records.accounts,
                                    categories: records.categories,
-                                   filter: StatisticsFilter(interval: monthInterval, currencyCode: selectedCurrency))
+                                   filter: StatisticsFilter(interval: interval,
+                                                            currencyCode: selectedCurrency,
+                                                            accountID: configuration.accountID))
     }
 
     private var recentRecords: [WalletRecord] {
-        Array(records.records.sorted { $0.draft.date > $1.draft.date }.prefix(recentLimit))
+        let scoped = records.records.filter { record in
+            guard let id = configuration.accountID else { return true }
+            return record.draft.accountID == id || record.draft.destinationAccountID == id
+        }
+        return Array(scoped.sorted { $0.draft.date > $1.draft.date }.prefix(recentLimit))
     }
 
     private var upcomingBills: [BillDue] {
@@ -80,6 +97,10 @@ public struct HomeView: View {
         Array(planning.progress().sorted { $0.ratio > $1.ratio }.prefix(previewLimit))
     }
 
+    private var goalProgress: [GoalProgress] {
+        Array(debts.goals.filter { !$0.isAchieved }.prefix(previewLimit))
+    }
+
     // MARK: - Body
 
     public var body: some View {
@@ -88,12 +109,11 @@ public struct HomeView: View {
                 if includedAccounts.isEmpty {
                     if !records.isLoading { setUpSection }
                 } else {
-                    balanceSection
-                    monthSection
+                    scopeSection
+                    ForEach(configuration.visible) { card in
+                        section(for: card)
+                    }
                     InsightsSection(viewModel: insights) { records.categoryTitle($0) }
-                    budgetSection
-                    billsSection
-                    recentSection
                 }
             }
             .navigationTitle("Home")
@@ -104,6 +124,11 @@ public struct HomeView: View {
             }
             .toolbar {
                 ToolbarItem {
+                    Button { isArranging = true } label: {
+                        Label("Arrange Dashboard", systemImage: "slider.horizontal.3")
+                    }
+                }
+                ToolbarItem {
                     Button { creating = true } label: { Label("Add Record", systemImage: "plus") }
                         .disabled(records.accounts.isEmpty || records.isLoading)
                 }
@@ -111,6 +136,9 @@ public struct HomeView: View {
             .sheet(isPresented: $creating) { RecordEditorView(viewModel: records) }
             .sheet(item: $pendingAdd) { kind in
                 RecordEditorView(viewModel: records, initialKind: kind)
+            }
+            .sheet(isPresented: $isArranging) {
+                DashboardSettingsView(dashboard: dashboard, accounts: records.accounts)
             }
             .refreshable { await planning.refresh(generate: true) }
             .overlay {
@@ -122,12 +150,55 @@ public struct HomeView: View {
         .task { await records.observe() }
         .task { await currency.refresh() }
         .task { insights.start() }
+        .task { await debts.refresh() }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { Task { await records.reload() } }
         }
     }
 
-    // MARK: - Sections
+    @ViewBuilder private func section(for card: DashboardCard) -> some View {
+        switch card {
+        case .balance: balanceSection
+        case .quickActions: quickActionsSection
+        case .summary: summarySection
+        case .spendingChart: spendingChartSection
+        case .budgets: budgetSection
+        case .goals: goalsSection
+        case .bills: billsSection
+        case .recent: recentSection
+        }
+    }
+
+    // MARK: - Scope
+
+    /// Period and account scope, shown above the cards so every figure below has stated limits.
+    private var scopeSection: some View {
+        Section {
+            Picker("Period", selection: Binding(
+                get: { configuration.period },
+                set: { dashboard.configuration.period = $0 }
+            )) {
+                ForEach(DashboardPeriod.allCases) { Text($0.title).tag($0) }
+            }
+            .pickerStyle(.segmented)
+            .listRowInsets(EdgeInsets(top: WalletMetrics.small, leading: WalletMetrics.large,
+                                      bottom: WalletMetrics.small, trailing: WalletMetrics.large))
+
+            if records.accounts.filter({ !$0.settings.excludeFromStats }).count > 1 {
+                Picker("Accounts", selection: Binding(
+                    get: { configuration.accountID },
+                    set: { dashboard.configuration.accountID = $0 }
+                )) {
+                    Text("All accounts").tag(nil as UUID?)
+                    ForEach(records.accounts.filter { !$0.settings.excludeFromStats }) {
+                        Text($0.name).tag(Optional($0.id))
+                    }
+                }
+            }
+        }
+    }
+
+    // MARK: - Cards
 
     private var setUpSection: some View {
         Section {
@@ -191,29 +262,92 @@ public struct HomeView: View {
     }
 
     private var accountSummary: String {
+        if let id = configuration.accountID, let account = records.account(id) { return account.name }
         let matching = includedAccounts.filter { $0.currencyCode == selectedCurrency }.count
         let label = matching == 1 ? "1 account" : "\(matching) accounts"
         return currencies.count > 1 ? "\(label) in \(selectedCurrency)" : label
     }
 
-    private var monthSection: some View {
-        let statistics = monthStatistics
+    private var quickActionsSection: some View {
+        Section {
+            HStack(spacing: WalletMetrics.medium) {
+                ForEach(RecordKind.allCases) { kind in
+                    Button { pendingAdd = kind } label: {
+                        VStack(spacing: WalletMetrics.small) {
+                            WalletIconTile(symbol: kind.symbol, color: kind.tint, large: true)
+                            Text(kind.title)
+                                .font(.caption.weight(.medium))
+                                .foregroundStyle(.primary)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.7)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, WalletMetrics.medium)
+                        .background(.background, in: RoundedRectangle(cornerRadius: WalletMetrics.medium,
+                                                                      style: .continuous))
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(records.accounts.isEmpty)
+                    .accessibilityLabel("Add \(kind.title.lowercased())")
+                }
+            }
+            .listRowInsets(EdgeInsets(top: 0, leading: WalletMetrics.large,
+                                      bottom: WalletMetrics.small, trailing: WalletMetrics.large))
+            .listRowBackground(Color.clear)
+        }
+    }
+
+    private var summarySection: some View {
+        let result = statistics
         return Section {
             HStack(spacing: WalletMetrics.medium) {
-                WalletStatTile(title: "Income", value: statistics.income.walletFormatted(selectedCurrency),
+                WalletStatTile(title: "Income", value: result.income.walletFormatted(selectedCurrency),
                                symbol: "arrow.down.left", tint: .green)
-                WalletStatTile(title: "Expenses", value: statistics.expenses.walletFormatted(selectedCurrency),
+                WalletStatTile(title: "Expenses", value: result.expenses.walletFormatted(selectedCurrency),
                                symbol: "arrow.up.right", tint: .red)
             }
             .listRowInsets(EdgeInsets(top: 0, leading: WalletMetrics.large, bottom: WalletMetrics.small, trailing: WalletMetrics.large))
             .listRowBackground(Color.clear)
-            LabeledContent("Net this month") {
-                WalletAmountText.net(statistics.net, currencyCode: selectedCurrency)
+            LabeledContent("Net") {
+                WalletAmountText.net(result.net, currencyCode: selectedCurrency)
             }
         } header: {
-            WalletSectionHeader(title: Date().formatted(.dateTime.month(.wide).year()), actionTitle: "Details") {
+            WalletSectionHeader(title: configuration.period.title, actionTitle: "Details") {
                 selection = .statistics
             }
+        }
+    }
+
+    @ViewBuilder private var spendingChartSection: some View {
+        let trend = statistics.spendingTrend
+        Section {
+            if trend.allSatisfy({ $0.amount == 0 }) {
+                Text("No spending in this period.").foregroundStyle(.secondary)
+            } else {
+                Chart(trend) { point in
+                    BarMark(x: .value("Date", point.date, unit: .day),
+                            y: .value("Spent", point.amount.doubleValue))
+                        .foregroundStyle(Color.accentColor.gradient)
+                        .cornerRadius(WalletMetrics.tight)
+                        .accessibilityLabel(point.date.formatted(date: .abbreviated, time: .omitted))
+                        .accessibilityValue(point.amount.walletFormatted(selectedCurrency))
+                }
+                .chartYAxis {
+                    AxisMarks(position: .leading) { value in
+                        AxisGridLine()
+                        AxisValueLabel {
+                            if let amount = value.as(Double.self) {
+                                Text(amount.formatted(.number.notation(.compactName).precision(.fractionLength(0...1))))
+                            }
+                        }
+                    }
+                }
+                .chartXAxis { AxisMarks(values: .automatic(desiredCount: 4)) }
+                .frame(height: WalletMetrics.Chart.compactHeight)
+                .padding(.vertical, WalletMetrics.small)
+            }
+        } header: {
+            WalletSectionHeader(title: "Spending", actionTitle: "Details") { selection = .statistics }
         }
     }
 
@@ -223,6 +357,34 @@ public struct HomeView: View {
                 ForEach(budgetProgress) { BudgetProgressRow(progress: $0) }
             } header: {
                 WalletSectionHeader(title: "Budget progress", actionTitle: "All budgets") { selection = .planning }
+            }
+        }
+    }
+
+    @ViewBuilder private var goalsSection: some View {
+        if !goalProgress.isEmpty {
+            Section {
+                ForEach(goalProgress) { progress in
+                    HStack(spacing: WalletMetrics.medium) {
+                        GoalRing(fraction: progress.fraction, isAchieved: progress.isAchieved)
+                            .frame(width: 60)
+                        VStack(alignment: .leading, spacing: WalletMetrics.hair) {
+                            Text(progress.goal.name).font(.body.weight(.medium)).lineLimit(1)
+                            Text("\(progress.saved.walletFormatted(progress.goal.currencyCode)) of \(progress.goal.targetAmount.walletFormatted(progress.goal.currencyCode))")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                        }
+                        Spacer(minLength: WalletMetrics.small)
+                        Text(progress.fraction.formatted(.percent.precision(.fractionLength(0))))
+                            .font(.subheadline.weight(.semibold))
+                            .monospacedDigit()
+                    }
+                    .padding(.vertical, WalletMetrics.tight)
+                    .accessibilityElement(children: .combine)
+                }
+            } header: {
+                WalletSectionHeader(title: "Savings goals", actionTitle: "All goals") { selection = .planning }
             }
         }
     }
@@ -284,7 +446,7 @@ struct BillSummaryRow: View {
                     .lineLimit(1)
                 Text("\(isOverdue ? "Overdue" : "Due") \(due.formatted(.relative(presentation: .named)))")
                     .font(.caption)
-                    .foregroundStyle(isOverdue ? .red : .secondary)
+                    .foregroundStyle(isOverdue ? Color.red : Color.secondary)
             }
             Spacer(minLength: WalletMetrics.small)
             WalletAmountText(amount: bill.amount, currencyCode: bill.currencyCode, tint: .primary)

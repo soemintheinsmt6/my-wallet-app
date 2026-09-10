@@ -481,29 +481,41 @@ Collaborative expense tracking for households or trips.
 
 ### 5.4 Custom Dashboard
 
-> **Modules:** `WalletFeature` (new `Dashboard/`)
+> **Status:** Implemented locally; drag reordering not exercised on a device
+> **Modules:** `WalletFeature/Home/`
 
 A configurable home screen that surfaces the most relevant information.
 
-- [ ] Drag-and-drop widget arrangement
-- [ ] Customizable cards: balance, recent records, budget progress, spending chart, goals
-- [ ] Quick-action buttons (add expense, add income, add transfer)
-- [ ] Per-account or aggregate views
-- [ ] Time period selector (today, this week, this month)
+- [x] Drag-and-drop card arrangement
+- [x] Customizable cards: balance, recent records, budget progress, spending chart, goals
+- [x] Quick-action buttons (add expense, add income, add transfer)
+- [x] Per-account or aggregate views
+- [x] Time period selector (today, this week, this month)
+
+Implementation notes (2026-09-11): Order and visibility are stored **separately from the card list**, so a card added in a later release is appended to the user's arrangement rather than resetting it, and hiding a card keeps its position for when it comes back. A card with nothing to show — no budgets, no bills, no goals — stays out of the way rather than rendering an empty shell.
+
+Period and account scope sit above the cards, so every figure below has its limits stated rather than implied, and both feed the same `StatisticsFilter` the Statistics screen uses. Accounts excluded from statistics never appear in the scope picker. The arrangement is local and cosmetic, so it is stored as encoded JSON in preferences rather than added to the synced schema.
 
 ---
 
 ### 5.5 Theming & Customization
 
-> **Modules:** `WalletFeature/Settings`, design system
+> **Status:** Implemented locally; app icon switching needs a device
+> **Modules:** `WalletFeature` (new `Theming/`), `My Wallet/App/`
 
 Go beyond light/dark with richer visual personalization.
 
-- [ ] Accent color picker (beyond system default)
-- [ ] App icon variants
-- [ ] Custom category icon selection (SF Symbols browser or custom images)
-- [ ] Compact vs. comfortable list density setting
-- [ ] Font size preference (independent of system Dynamic Type)
+- [x] Accent color picker (beyond system default)
+- [x] App icon variants
+- [x] Custom category icon selection (curated SF Symbols browser)
+- [x] Compact vs. comfortable list density setting
+- [x] Text size preference layered on system Dynamic Type
+
+Implementation notes (2026-09-11): "Default" applies **no tint at all**, so it genuinely keeps the asset catalog's accent rather than hard-coding a blue that merely looks like it. Accent swatches are never the only signal — each carries its name and a checkmark, and is marked selected for VoiceOver.
+
+Text size is deliberately a **relative nudge on top of** the system setting rather than a replacement. The roadmap asked for a preference "independent of system Dynamic Type", but overriding it outright would ignore an accessibility choice the user already made at the OS level; Standard therefore applies nothing and lets Dynamic Type through untouched.
+
+Three alternate icons are declared in `Info.plist` with generated placeholder artwork — flat colored tiles, not designed icons, and worth replacing before release. Setting the icon already in use is skipped, since iOS would otherwise show a pointless alert. Category icon overrides are stored locally: the seeded symbols are presentation metadata keyed by stable IDs, and adding a synced field for a purely cosmetic choice would mean a schema change. Clearing an override returns the shipped icon rather than a blank tile. The symbol list is curated rather than the whole SF Symbols catalog, most of which means nothing in a wallet.
 
 ---
 

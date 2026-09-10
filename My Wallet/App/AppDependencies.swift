@@ -24,6 +24,9 @@ struct AppDependencies {
     let insightsViewModel: InsightsViewModel
     let receiptUseCases: ReceiptUseCases
     let debtsViewModel: DebtsViewModel
+    let dashboardViewModel: DashboardViewModel
+    let themeViewModel: ThemeViewModel
+    let categorySymbolStore: CategorySymbolStore
 
     static func make() async throws -> AppDependencies {
         let repository = try await SwiftDataWalletRepository.make(
@@ -93,7 +96,11 @@ struct AppDependencies {
             refileRecords: refile,
             insightsViewModel: insights,
             receiptUseCases: ReceiptUseCases(repository: repository),
-            debtsViewModel: debts
+            debtsViewModel: debts,
+            dashboardViewModel: DashboardViewModel(),
+            themeViewModel: ThemeViewModel(iconReader: { WalletAppIcons.current() },
+                                           iconSetter: { try await WalletAppIcons.apply($0) }),
+            categorySymbolStore: CategorySymbolStore()
         )
     }
 }

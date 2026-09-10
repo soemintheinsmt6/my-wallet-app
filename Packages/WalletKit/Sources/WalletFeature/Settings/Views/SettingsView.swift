@@ -6,17 +6,22 @@ public struct SettingsView: View {
     private let dataExchange: DataExchangeViewModel?
     private let currency: CurrencyViewModel?
     private let insights: InsightsViewModel?
+    private let theme: ThemeViewModel?
+    private let appIcons: [WalletAppIcon]
     @AppStorage(WalletPreferenceKeys.appearance) private var appearance = AppAppearance.system.rawValue
     @State private var confirmingReset = false
 
     public init(viewModel: SettingsViewModel, appLock: AppLockViewModel? = nil,
                 dataExchange: DataExchangeViewModel? = nil, currency: CurrencyViewModel? = nil,
-                insights: InsightsViewModel? = nil) {
+                insights: InsightsViewModel? = nil, theme: ThemeViewModel? = nil,
+                appIcons: [WalletAppIcon] = []) {
         self.viewModel = viewModel
         self.appLock = appLock
         self.dataExchange = dataExchange
         self.currency = currency
         self.insights = insights
+        self.theme = theme
+        self.appIcons = appIcons
     }
 
     private var version: String {
@@ -40,6 +45,8 @@ public struct SettingsView: View {
             } footer: {
                 Text("Applies to every tab and sheet. System follows your device setting.")
             }
+
+            if let theme { ThemeSettingsSection(theme: theme, iconOptions: appIcons) }
 
             if let currency { CurrencySettingsSection(viewModel: currency) }
 

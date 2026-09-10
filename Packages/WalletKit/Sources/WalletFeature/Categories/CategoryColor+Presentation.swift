@@ -10,11 +10,24 @@ public extension CategoryColor {
     }
 }
 
+/// Reaches every category tile so a custom icon applies everywhere at once.
+private struct CategorySymbolStoreKey: EnvironmentKey {
+    static let defaultValue: CategorySymbolStore? = nil
+}
+
+public extension EnvironmentValues {
+    var categorySymbolStore: CategorySymbolStore? {
+        get { self[CategorySymbolStoreKey.self] }
+        set { self[CategorySymbolStoreKey.self] = newValue }
+    }
+}
+
 struct CategoryIcon: View {
     let category: WalletCategory
+    @Environment(\.categorySymbolStore) private var symbols
 
     var body: some View {
-        Image(systemName: category.symbol)
+        Image(systemName: symbols?.symbol(for: category) ?? category.symbol)
             .font(.system(size: 18))
             .foregroundStyle(.white)
             .frame(width: 36, height: 36)

@@ -26,6 +26,8 @@ struct WalletTabsView: View {
                      planning: dependencies.planningViewModel,
                      currency: dependencies.currencyViewModel,
                      insights: dependencies.insightsViewModel,
+                     dashboard: dependencies.dashboardViewModel,
+                     debts: dependencies.debtsViewModel,
                      selection: $selection,
                      pendingAdd: $pendingAdd)
                 .tabItem { Label(WalletTab.home.title, systemImage: WalletTab.home.symbol) }
@@ -52,6 +54,8 @@ struct WalletTabsView: View {
                      dataExchange: dependencies.dataExchangeViewModel,
                      currency: dependencies.currencyViewModel,
                      insights: dependencies.insightsViewModel,
+                     theme: dependencies.themeViewModel,
+                     appIcons: WalletAppIcons.options,
                      refile: dependencies.refileRecords)
                 .tabItem { Label(WalletTab.more.title, systemImage: WalletTab.more.symbol) }
                 .tag(WalletTab.more)

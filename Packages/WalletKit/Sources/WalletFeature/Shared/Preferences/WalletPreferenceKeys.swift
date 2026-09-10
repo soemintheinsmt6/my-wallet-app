@@ -16,4 +16,11 @@ public enum WalletPreferenceKeys {
     static let insightMonthly = "insights.monthlyComparison"
     static let insightWeekday = "insights.weekday"
     static let insightHour = "insights.hour"
+    /// The dashboard arrangement, stored as encoded JSON.
+    static let dashboard = "dashboard.configuration"
+    /// Visual personalization; cosmetic and local, so deliberately not synced.
+    static let accent = "theme.accent"
+    static let density = "theme.density"
+    static let textSize = "theme.textSize"
+    static let categorySymbols = "theme.categorySymbols"
 }

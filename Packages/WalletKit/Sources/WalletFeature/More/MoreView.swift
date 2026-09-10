@@ -15,6 +15,8 @@ public struct MoreView: View {
     private let dataExchange: DataExchangeViewModel?
     private let currency: CurrencyViewModel?
     private let insights: InsightsViewModel?
+    private let theme: ThemeViewModel?
+    private let appIcons: [WalletAppIcon]
     /// Passed through to the categories list so records can be dropped onto a category.
     private let refile: ((Set<UUID>, UUID) async -> Void)?
 
@@ -22,6 +24,7 @@ public struct MoreView: View {
                 settings: SettingsViewModel, planning: PlanningViewModel? = nil,
                 appLock: AppLockViewModel? = nil, dataExchange: DataExchangeViewModel? = nil,
                 currency: CurrencyViewModel? = nil, insights: InsightsViewModel? = nil,
+                theme: ThemeViewModel? = nil, appIcons: [WalletAppIcon] = [],
                 refile: ((Set<UUID>, UUID) async -> Void)? = nil) {
         self.accounts = accounts
         self.categories = categories
@@ -32,6 +35,8 @@ public struct MoreView: View {
         self.dataExchange = dataExchange
         self.currency = currency
         self.insights = insights
+        self.theme = theme
+        self.appIcons = appIcons
         self.refile = refile
     }
 
@@ -66,7 +71,8 @@ public struct MoreView: View {
                 Section {
                     NavigationLink {
                         SettingsView(viewModel: settings, appLock: appLock, dataExchange: dataExchange,
-                                     currency: currency, insights: insights)
+                                     currency: currency, insights: insights,
+                                     theme: theme, appIcons: appIcons)
                     } label: {
                         MoreRow(title: "Settings", detail: "Appearance, app lock and app data",
                                 symbol: "gearshape", color: .gray)

@@ -45,6 +45,8 @@ Update this table whenever a feature is completed.
 | Receipt scanning | Complete locally; camera and OCR device verification pending | Multi-page VisionKit scanning stored per record with a gallery, plus on-device OCR that suggests an amount and date for you to accept |
 | Debt tracking | Complete locally; notification verification pending | Debts per person netted by currency, partial payments, optional ledger record on settlement and due-date reminders |
 | Savings goals | Complete locally; device verification pending | Targets with a progress ring, contribution and withdrawal history, a rate-based projection against an optional deadline, and a celebration when reached |
+| Custom dashboard | Complete locally; drag reordering not device-tested | Reorderable, toggleable Home cards with quick-add buttons, an account scope and a today/week/month selector |
+| Theming | Complete locally; app icon switching needs a device | Accent colors, three alternate app icons (placeholder artwork), per-category icon overrides, list density and a Dynamic Type nudge |
 
 ## Getting Started
 
