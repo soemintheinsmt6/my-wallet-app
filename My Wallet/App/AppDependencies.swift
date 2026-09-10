@@ -1,3 +1,4 @@
+import Foundation
 import WalletData
 import WalletDomain
 import WalletFeature
@@ -18,6 +19,8 @@ struct AppDependencies {
     let currencyViewModel: CurrencyViewModel
     let spotlightIndexer: WalletSpotlightIndexer
     let watchConnector: PhoneWatchConnector
+    /// Refiles dropped records under a category, through the normal record save path.
+    let refileRecords: (Set<UUID>, UUID) async -> Void
 
     static func make() async throws -> AppDependencies {
         let repository = try await SwiftDataWalletRepository.make(
@@ -52,6 +55,17 @@ struct AppDependencies {
             snapshots?.clear()
             spotlight.clear()
         }
+        let refile: (Set<UUID>, UUID) async -> Void = { [weak records] ids, categoryID in
+            guard let records else { return }
+            let useCases = RecordUseCases(repository: repository)
+            for id in ids {
+                guard var draft = records.records.first(where: { $0.id == id })?.draft,
+                      draft.kind != .transfer || draft.categoryID != nil else { continue }
+                draft.categoryID = categoryID
+                try? await useCases.update(id: id, draft: draft)
+            }
+            await records.reload()
+        }
         return AppDependencies(
             accountsViewModel: accounts,
             categoriesViewModel: CategoriesViewModel(useCases: CategoryUseCases(repository: repository)),
@@ -69,7 +83,8 @@ struct AppDependencies {
             onboardingViewModel: OnboardingViewModel(accounts: accounts, planning: planning),
             currencyViewModel: currency,
             spotlightIndexer: spotlight,
-            watchConnector: watch
+            watchConnector: watch,
+            refileRecords: refile
         )
     }
 }

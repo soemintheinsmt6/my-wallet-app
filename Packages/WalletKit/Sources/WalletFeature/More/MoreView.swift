@@ -14,11 +14,14 @@ public struct MoreView: View {
     private let appLock: AppLockViewModel?
     private let dataExchange: DataExchangeViewModel?
     private let currency: CurrencyViewModel?
+    /// Passed through to the categories list so records can be dropped onto a category.
+    private let refile: ((Set<UUID>, UUID) async -> Void)?
 
     public init(accounts: AccountsViewModel, categories: CategoriesViewModel, tags: TagsViewModel,
                 settings: SettingsViewModel, planning: PlanningViewModel? = nil,
                 appLock: AppLockViewModel? = nil, dataExchange: DataExchangeViewModel? = nil,
-                currency: CurrencyViewModel? = nil) {
+                currency: CurrencyViewModel? = nil,
+                refile: ((Set<UUID>, UUID) async -> Void)? = nil) {
         self.accounts = accounts
         self.categories = categories
         self.tags = tags
@@ -27,6 +30,7 @@ public struct MoreView: View {
         self.appLock = appLock
         self.dataExchange = dataExchange
         self.currency = currency
+        self.refile = refile
     }
 
     private var alertCount: Int { accounts.balanceNotifications.count }
@@ -42,7 +46,7 @@ public struct MoreView: View {
                                 symbol: "wallet.bifold", color: .blue, badge: alertCount)
                     }
                     NavigationLink {
-                        CategoriesView(viewModel: categories, planning: planning)
+                        CategoriesView(viewModel: categories, planning: planning, refile: refile)
                     } label: {
                         MoreRow(title: "Categories", detail: categoriesDetail, symbol: "folder", color: .orange)
                     }

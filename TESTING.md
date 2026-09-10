@@ -283,3 +283,19 @@ Manual checks (all outstanding):
 4. Add an expense from the watch and confirm the record appears on the phone with the right account, category and amount.
 5. Put the phone in airplane mode, capture an expense, and confirm it is queued and delivered once reachable.
 6. Add both complications to a face and confirm they update after a change on the phone.
+
+## iPad and Adaptive Layout Validation (2026-09-11)
+
+**177 tests across 31 suites passed** serially. New coverage is for the parts that are testable without a window: `WalletCommandBus` publishing each new-record request as a counter rather than a flag (so a second ⌘N still opens the editor), search and tab requests, the tab count matching the ⌘1–⌘5 shortcut slots, and `RecordTransfer` carrying only the record identifier under the app's own exported UTI rather than plain text.
+
+Verified on an iPad Pro 13-inch simulator: the regular-width layout renders the sidebar with all five destinations and shows Home beside Statistics in the detail column, with the statistics period control and stepper working in the narrower column.
+
+**Not verified:** keyboard shortcuts (no hardware keyboard could be driven), drag-and-drop of a record onto a category, multi-window, and the compact/regular transition on rotation.
+
+Manual checks:
+
+1. Rotate an iPad between orientations and split-screen widths; confirm the layout switches between tabs and sidebar without losing the selected destination.
+2. With a keyboard attached, try ⌘N, ⇧⌘N, ⇧⌘T, ⌘F and ⌘1–⌘5; confirm each acts on the frontmost window.
+3. Drag a record onto a category in the sidebar's Categories screen; confirm it is refiled and the balance is unchanged. Try dragging a transfer without a category and confirm it is ignored.
+4. Open a second window from the app's Dock menu; confirm each window navigates independently and both refresh after an edit.
+5. Confirm dragging a record into another app does nothing (the type is app-private).

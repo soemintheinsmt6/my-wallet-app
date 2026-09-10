@@ -4,10 +4,19 @@ import WalletDomain
 public struct CategoriesView: View {
     @ObservedObject private var viewModel: CategoriesViewModel
     private let planning: PlanningViewModel?
+    /// Supplied by the app so a record dropped on a category can be refiled through the record
+    /// use cases; this screen has no record view model of its own.
+    private let refile: ((Set<UUID>, UUID) async -> Void)?
     @Environment(\.scenePhase) private var scenePhase
     @State private var editor: CategoryEditorRoute?
+    @State private var dropTarget: UUID?
 
-    public init(viewModel: CategoriesViewModel, planning: PlanningViewModel? = nil) { self.viewModel = viewModel; self.planning = planning }
+    public init(viewModel: CategoriesViewModel, planning: PlanningViewModel? = nil,
+                refile: ((Set<UUID>, UUID) async -> Void)? = nil) {
+        self.viewModel = viewModel
+        self.planning = planning
+        self.refile = refile
+    }
 
     public var body: some View {
         List(viewModel.rootCategories) { category in
@@ -20,6 +29,15 @@ public struct CategoriesView: View {
                 }
                 .frame(minHeight: WalletMetrics.touchTarget)
                 .padding(.vertical, WalletMetrics.hair)
+            }
+            .listRowBackground(dropTarget == category.id ? Color.accentColor.opacity(0.15) : nil)
+            .dropDestination(for: RecordTransfer.self) { items, _ in
+                guard let refile, !items.isEmpty else { return false }
+                let ids = Set(items.map(\.recordID))
+                Task { await refile(ids, category.id) }
+                return true
+            } isTargeted: { targeted in
+                dropTarget = targeted ? category.id : (dropTarget == category.id ? nil : dropTarget)
             }
             .contextMenu {
                 Button("Edit Category") { editor = CategoryEditorRoute(category: category) }

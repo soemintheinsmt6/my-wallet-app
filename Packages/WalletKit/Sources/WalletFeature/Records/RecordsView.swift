@@ -168,6 +168,8 @@ public struct RecordsView: View {
         } label: {
             RecordRow(viewModel: viewModel, record: record)
         }
+        // Drag onto a category to refile the record; iPad and macOS only in practice.
+        .draggable(RecordTransfer(recordID: record.id))
         .swipeActions {
             Button("Delete", role: .destructive) { pendingDelete = record }
         }

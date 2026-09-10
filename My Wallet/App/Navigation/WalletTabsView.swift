@@ -3,25 +3,21 @@ import SwiftUI
 import WalletDomain
 import WalletFeature
 
+/// The compact-width layout: the five tabs.
 struct WalletTabsView: View {
     let dependencies: AppDependencies
-    @Environment(\.scenePhase) private var scenePhase
     @ObservedObject var settings: SettingsViewModel
     @ObservedObject private var accounts: AccountsViewModel
-    @ObservedObject private var records: RecordsViewModel
-    @State private var selection = WalletTab.home
-    @State private var pendingAdd: RecordKind?
+    @Binding var selection: WalletTab
+    @Binding var pendingAdd: RecordKind?
 
-    init(dependencies: AppDependencies, settings: SettingsViewModel) {
+    init(dependencies: AppDependencies, settings: SettingsViewModel,
+         selection: Binding<WalletTab>, pendingAdd: Binding<RecordKind?>) {
         self.dependencies = dependencies
         self.settings = settings
         accounts = dependencies.accountsViewModel
-        records = dependencies.recordsViewModel
-    }
-
-    /// Keeps Spotlight in step with the wallet's names.
-    private func indexSpotlight() {
-        dependencies.spotlightIndexer.index(accounts: records.accounts, categories: records.categories)
+        _selection = selection
+        _pendingAdd = pendingAdd
     }
 
     var body: some View {
@@ -53,44 +49,12 @@ struct WalletTabsView: View {
                      planning: dependencies.planningViewModel,
                      appLock: dependencies.appLockViewModel,
                      dataExchange: dependencies.dataExchangeViewModel,
-                     currency: dependencies.currencyViewModel)
+                     currency: dependencies.currencyViewModel,
+                     refile: dependencies.refileRecords)
                 .tabItem { Label(WalletTab.more.title, systemImage: WalletTab.more.symbol) }
                 .tag(WalletTab.more)
                 .badge(accounts.balanceNotifications.count)
         }
-        // Reaches the record editor and detail without threading through every presenter.
-        .environment(\.currencyViewModel, dependencies.currencyViewModel)
-        // Discard open drafts/navigation in every window after a successful reset.
-        .id(settings.resetGeneration)
-        .disabled(settings.isResetting)
-        .task { await dependencies.planningViewModel.observe() }
-        .task { dependencies.snapshotCoordinator.start() }
-        .task { dependencies.watchConnector.activate() }
-        // Names, not counts: a rename must reindex too. The indexer skips identical passes.
-        .onChange(of: records.accounts.map(\.name)) { _, _ in indexSpotlight() }
-        .onChange(of: records.categories.map(\.name)) { _, _ in indexSpotlight() }
-        .onContinueUserActivity(CSSearchableItemActionType) { activity in
-            guard let identifier = activity.userInfo?[CSSearchableItemActivityIdentifier] as? String,
-                  let tab = WalletSpotlightIndexer.destination(for: identifier) else { return }
-            selection = tab
-        }
-        .onOpenURL { url in open(url) }
-        .onChange(of: scenePhase) { _, phase in
-            if phase == .active { Task { await dependencies.planningViewModel.refresh(generate: true) } }
-        }
     }
 
-    /// Routes a widget deep link. Quick-add lands on Home, which owns the editor sheet.
-    private func open(_ url: URL) {
-        guard let link = WalletDeepLink(url: url) else { return }
-        switch link {
-        case .home: selection = .home
-        case .records: selection = .records
-        case .statistics: selection = .statistics
-        case .planning: selection = .planning
-        case .addRecord(let kind):
-            selection = .home
-            pendingAdd = kind
-        }
-    }
 }

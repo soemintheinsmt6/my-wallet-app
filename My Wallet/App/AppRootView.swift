@@ -3,6 +3,7 @@ import WalletFeature
 
 struct AppRootView: View {
     @ObservedObject var bootstrap: AppBootstrap
+    @ObservedObject var commands: WalletCommandBus
     @State private var attempt = 0
     @State private var hasOnboarded = OnboardingViewModel.hasCompleted()
     @AppStorage(WalletPreferenceKeys.appearance) private var appearance = AppAppearance.system.rawValue
@@ -14,7 +15,9 @@ struct AppRootView: View {
                 // readable — or captured in the app switcher — while locked.
                 AppLockGate(viewModel: dependencies.appLockViewModel) {
                     if hasOnboarded {
-                        WalletTabsView(dependencies: dependencies, settings: dependencies.settingsViewModel)
+                        WalletShellView(dependencies: dependencies,
+                                        settings: dependencies.settingsViewModel,
+                                        commands: commands)
                     } else {
                         OnboardingView(viewModel: dependencies.onboardingViewModel,
                                        categories: dependencies.categoriesViewModel)

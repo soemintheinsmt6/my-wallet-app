@@ -346,15 +346,26 @@ The snapshot gained accounts, most-used expense categories and today's spend so 
 
 ### 4.3 iPad Optimizations
 
-> **Modules:** `WalletFeature` (adaptive layouts)
+> **Status:** Implemented locally; split view verified on an iPad simulator
+> **Modules:** `My Wallet/App/Navigation/`, `WalletFeature/Shared/Navigation/`, `WalletFeature/Records/`
 
 Take advantage of larger screens with richer layouts.
 
-- [ ] Sidebar navigation with split view
-- [ ] Dashboard and statistics side-by-side
-- [ ] Keyboard shortcuts for common actions
-- [ ] Drag-and-drop for record categorization
-- [ ] Multi-window support with independent state
+- [x] Sidebar navigation with split view
+- [x] Dashboard and statistics side-by-side
+- [x] Keyboard shortcuts for common actions
+- [x] Drag-and-drop for record categorization
+- [x] Multi-window support with independent state
+
+Implementation notes (2026-09-11): `WalletShellView` picks the layout from the horizontal size class — tabs when compact, `NavigationSplitView` when regular — and owns the selection and pending-add state so rotating an iPad or resizing a macOS window keeps the user where they were. macOS is always wide. Everything shell-level (deep links, Spotlight continuation, snapshot and watch startup, command handling) moved out of `WalletTabsView`, which is now just the compact layout. On iOS a `List` selection binding must be optional, so a cleared sidebar selection keeps the previous tab rather than emptying the detail.
+
+Selecting Home in the sidebar shows the dashboard and Statistics side by side, because on a wide screen the summary and its charts are read together rather than one after the other.
+
+Commands go through `WalletCommandBus` rather than reaching into a window, since a scene's commands are built once while the windows acting on them come and go: ⌘N/⇧⌘N/⇧⌘T for a new expense, income or transfer, ⌘F to find records, and ⌘1–⌘5 for the five destinations. Each request is a counter, not a flag, so pressing ⌘N twice opens the editor twice.
+
+Records are draggable onto a category to refile them. The payload is `RecordTransfer`, carrying only the record's identifier under the app's own exported type `com.app.My-Wallet.record` — not plain text, which any view would accept — and the drop side re-reads the live record and saves it through `RecordUseCases` rather than writing a copy of stale values. Transfers without a category are skipped, since a transfer is not filed under one.
+
+Multi-window is enabled through `UIApplicationSupportsMultipleScenes`. The composition root stays shared across windows by design, while each window keeps its own selection and navigation state.
 
 ---
 
