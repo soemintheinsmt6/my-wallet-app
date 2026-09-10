@@ -43,6 +43,7 @@ struct WalletSidebarView: View {
                 HomeView(records: dependencies.recordsViewModel,
                          planning: dependencies.planningViewModel,
                          currency: dependencies.currencyViewModel,
+                         insights: dependencies.insightsViewModel,
                          selection: $selection,
                          pendingAdd: $pendingAdd)
                 Divider()
@@ -65,6 +66,7 @@ struct WalletSidebarView: View {
                      appLock: dependencies.appLockViewModel,
                      dataExchange: dependencies.dataExchangeViewModel,
                      currency: dependencies.currencyViewModel,
+                     insights: dependencies.insightsViewModel,
                      refile: dependencies.refileRecords)
         }
     }

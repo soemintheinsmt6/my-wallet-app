@@ -299,3 +299,19 @@ Manual checks:
 3. Drag a record onto a category in the sidebar's Categories screen; confirm it is refiled and the balance is unchanged. Try dragging a transfer without a category and confirm it is ignored.
 4. Open a second window from the app's Dock menu; confirm each window navigates independently and both refresh after an edit.
 5. Confirm dragging a record into another app does nothing (the type is app-private).
+
+## Insights and Notifications Validation (2026-09-11)
+
+**190 tests across 33 suites passed** serially. `InsightsTests` covers week and month comparisons against the preceding period, a withheld percentage when there is no prior spending, transfers/income/excluded accounts never counting as spending, a category flagged only against its own three-month average, steady spending and sub-minimum amounts not being flagged, logging streaks counting back from today, a streak ending yesterday still counting, gaps breaking a streak, several records in one day counting once, and an empty wallet producing nothing. `InsightPreferencesTests` covers every notice defaulting to off and the planning and insight identifier prefixes being disjoint.
+
+**Defect found and fixed:** `synchronize` previously cancelled every pending `wallet.`-prefixed notice not in the batch, so adding a second source of notifications would have silently cancelled all bill and budget alerts. Callers now declare the prefixes they own.
+
+**Not verified:** no notification was scheduled or delivered — authorization, trigger dates, the weekly/monthly schedule and the once-per-month anomaly key all need a device.
+
+Manual checks:
+
+1. Turn on each notice, grant permission, and confirm the weekly summary arrives on the chosen weekday and hour.
+2. Create budgets and bills, then turn insight notices on and off repeatedly; confirm bill and budget alerts are still delivered.
+3. Overspend a category against its history and confirm exactly one unusual-spending alert that month.
+4. Turn a notice off and confirm its pending notification is cancelled.
+5. Log records on consecutive days and confirm the streak on Home; skip a day and confirm it resets.

@@ -115,6 +115,6 @@ public final class PlanningViewModel: ObservableObject {
                                                title: "\(value.budget.name): \(value.status)",
                                                body: "Spent \(value.spent.formatted(.currency(code: value.budget.currencyCode))) of \(value.limit.formatted(.currency(code: value.budget.currencyCode)))."))
         }
-        try await notifications.synchronize(notices)
+        try await notifications.synchronize(notices, managing: type(of: notifications).planningPrefixes)
     }
 }

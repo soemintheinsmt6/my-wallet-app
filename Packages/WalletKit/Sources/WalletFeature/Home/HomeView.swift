@@ -11,6 +11,7 @@ public struct HomeView: View {
     @ObservedObject private var planning: PlanningViewModel
     /// Optional: with no home currency configured the dashboard keeps per-currency totals.
     @ObservedObject private var currency: CurrencyViewModel
+    @ObservedObject private var insights: InsightsViewModel
     @Binding private var selection: WalletTab
     /// Set by a widget quick-add deep link; presents the editor with that kind preselected.
     @Binding private var pendingAdd: RecordKind?
@@ -23,10 +24,12 @@ public struct HomeView: View {
     private let previewLimit = 3
 
     public init(records: RecordsViewModel, planning: PlanningViewModel, currency: CurrencyViewModel,
-                selection: Binding<WalletTab>, pendingAdd: Binding<RecordKind?> = .constant(nil)) {
+                insights: InsightsViewModel, selection: Binding<WalletTab>,
+                pendingAdd: Binding<RecordKind?> = .constant(nil)) {
         self.records = records
         self.planning = planning
         self.currency = currency
+        self.insights = insights
         _selection = selection
         _pendingAdd = pendingAdd
     }
@@ -87,6 +90,7 @@ public struct HomeView: View {
                 } else {
                     balanceSection
                     monthSection
+                    InsightsSection(viewModel: insights) { records.categoryTitle($0) }
                     budgetSection
                     billsSection
                     recentSection
@@ -117,6 +121,7 @@ public struct HomeView: View {
         }
         .task { await records.observe() }
         .task { await currency.refresh() }
+        .task { insights.start() }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { Task { await records.reload() } }
         }

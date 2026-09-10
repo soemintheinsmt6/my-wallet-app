@@ -10,4 +10,10 @@ public enum WalletPreferenceKeys {
     static let onboardingCompleted = "onboarding.completed"
     static let homeCurrency = "currency.home"
     static let convertTotals = "currency.convertTotals"
+    /// Proactive insight notices; all default to off.
+    static let insightWeekly = "insights.weeklySummary"
+    static let insightUnusual = "insights.unusualSpending"
+    static let insightMonthly = "insights.monthlyComparison"
+    static let insightWeekday = "insights.weekday"
+    static let insightHour = "insights.hour"
 }

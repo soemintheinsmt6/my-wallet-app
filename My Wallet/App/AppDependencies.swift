@@ -21,13 +21,16 @@ struct AppDependencies {
     let watchConnector: PhoneWatchConnector
     /// Refiles dropped records under a category, through the normal record save path.
     let refileRecords: (Set<UUID>, UUID) async -> Void
+    let insightsViewModel: InsightsViewModel
 
     static func make() async throws -> AppDependencies {
         let repository = try await SwiftDataWalletRepository.make(
             configuration: .cloud(containerIdentifier: "iCloud.com.app.My-Wallet")
         )
         let records = RecordsViewModel(useCases: RecordUseCases(repository: repository), accounts: AccountUseCases(repository: repository), categories: CategoryUseCases(repository: repository), tags: TagUseCases(repository: repository))
-        let planning = PlanningViewModel(repository: repository, records: records, notifications: LocalWalletNotifications())
+        let notifications = LocalWalletNotifications()
+        let planning = PlanningViewModel(repository: repository, records: records, notifications: notifications)
+        let insights = InsightsViewModel(records: records, planning: planning, notifications: notifications)
         let snapshots = WalletSnapshotCoordinator(records: records, planning: planning)
         let rateCache = ExchangeRateCache()
         let currency = CurrencyViewModel(provider: FrankfurterExchangeRateProvider(),
@@ -84,7 +87,8 @@ struct AppDependencies {
             currencyViewModel: currency,
             spotlightIndexer: spotlight,
             watchConnector: watch,
-            refileRecords: refile
+            refileRecords: refile,
+            insightsViewModel: insights
         )
     }
 }

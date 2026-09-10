@@ -56,7 +56,19 @@ public struct WalletNotification: Sendable {
 }
 
 @MainActor
+/// Schedules local notices.
+///
+/// `managing` names the identifier prefixes the caller owns. Synchronizing replaces the caller's
+/// own pending notices and leaves every other source alone, so planning alerts and insight alerts
+/// cannot cancel each other.
 public protocol WalletNotificationClient: AnyObject {
     func requestAuthorization() async throws -> Bool
-    func synchronize(_ notifications: [WalletNotification]) async throws
+    func synchronize(_ notifications: [WalletNotification], managing prefixes: [String]) async throws
+}
+
+public extension WalletNotificationClient {
+    /// Planning's own notices: bills and budget thresholds.
+    static var planningPrefixes: [String] { ["wallet.bill.", "wallet.budget."] }
+    /// Weekly summaries, unusual spending, streaks and month comparisons.
+    static var insightPrefixes: [String] { ["wallet.insight."] }
 }

@@ -23,7 +23,7 @@ final class LocalWalletNotifications: NSObject, WalletNotificationClient, UNUser
         try await center.requestAuthorization(options: [.alert, .sound, .badge])
     }
 
-    func synchronize(_ notifications: [WalletNotification]) async throws {
+    func synchronize(_ notifications: [WalletNotification], managing prefixes: [String]) async throws {
         let settings = await center.notificationSettings()
         guard settings.authorizationStatus == .authorized || settings.authorizationStatus == .provisional else { return }
         let pending = await center.pendingNotificationRequests()
@@ -40,8 +40,9 @@ final class LocalWalletNotifications: NSObject, WalletNotificationClient, UNUser
         let selected = notifications.filter { !history.contains($0.id) }
             .sorted { ($0.date ?? .distantPast) < ($1.date ?? .distantPast) }.prefix(60)
         let selectedIDs = Set(selected.map(\.id))
-        center.removePendingNotificationRequests(withIdentifiers: pending.filter {
-            $0.identifier.hasPrefix("wallet.") && !selectedIDs.contains($0.identifier)
+        // Only this caller's notices are cleared; other sources keep theirs.
+        center.removePendingNotificationRequests(withIdentifiers: pending.filter { request in
+            prefixes.contains { request.identifier.hasPrefix($0) } && !selectedIDs.contains(request.identifier)
         }.map(\.identifier))
         var nextScheduled: [String: Double] = [:]
         for notice in selected {

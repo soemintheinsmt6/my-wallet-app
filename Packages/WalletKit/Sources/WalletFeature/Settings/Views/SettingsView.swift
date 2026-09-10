@@ -5,15 +5,18 @@ public struct SettingsView: View {
     private let appLock: AppLockViewModel?
     private let dataExchange: DataExchangeViewModel?
     private let currency: CurrencyViewModel?
+    private let insights: InsightsViewModel?
     @AppStorage(WalletPreferenceKeys.appearance) private var appearance = AppAppearance.system.rawValue
     @State private var confirmingReset = false
 
     public init(viewModel: SettingsViewModel, appLock: AppLockViewModel? = nil,
-                dataExchange: DataExchangeViewModel? = nil, currency: CurrencyViewModel? = nil) {
+                dataExchange: DataExchangeViewModel? = nil, currency: CurrencyViewModel? = nil,
+                insights: InsightsViewModel? = nil) {
         self.viewModel = viewModel
         self.appLock = appLock
         self.dataExchange = dataExchange
         self.currency = currency
+        self.insights = insights
     }
 
     private var version: String {
@@ -39,6 +42,8 @@ public struct SettingsView: View {
             }
 
             if let currency { CurrencySettingsSection(viewModel: currency) }
+
+            if let insights { InsightSettingsSection(viewModel: insights) }
 
             if let appLock { AppLockSettingsSection(viewModel: appLock) }
 

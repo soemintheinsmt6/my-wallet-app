@@ -371,15 +371,22 @@ Multi-window is enabled through `UIApplicationSupportsMultipleScenes`. The compo
 
 ### 4.4 Notifications & Insights
 
-> **Modules:** `WalletDomain` (new `Insights/`), push notification infrastructure
+> **Status:** Implemented locally; notification delivery verification pending
+> **Modules:** `WalletDomain` (new `Insights/`), `WalletFeature` (new `Insights/`), `My Wallet/App/`
 
 Proactive financial awareness through smart alerts.
 
-- [ ] Weekly spending summary notification
-- [ ] Unusual spending alerts (above average for a category)
-- [ ] Streak tracking (days of logging, days under budget)
-- [ ] Monthly comparison (spent more/less than last month)
-- [ ] Configurable notification preferences in Settings
+- [x] Weekly spending summary notification
+- [x] Unusual spending alerts (above average for a category)
+- [x] Streak tracking (days of logging, days under budget)
+- [x] Monthly comparison (spent more/less than last month)
+- [x] Configurable notification preferences in Settings
+
+Implementation notes (2026-09-11): `WalletInsightsCalculator` is pure and takes both a clock and a calendar, so week starts, month lengths and "today" can all be tested directly. A category is called unusual only against **its own** recent three-month average — rent and coffee are not comparable — and must clear both a 1.5× multiple and a minimum amount, so a coffee twice over is not reported. A percentage change is withheld entirely when there was no prior spending, because "up 100% from nothing" misleads. Transfers, income and accounts excluded from stats never count as spending, matching every other figure in the app. A logging streak that reaches yesterday still counts: the day is not over.
+
+Every notice is off until switched on, and the settings footer says so. Unusual-spending notices are keyed by category and month, so a category alerts at most once a month.
+
+**A defect this exposed:** `WalletNotificationClient.synchronize` cancelled every pending `wallet.`-prefixed notice that was not in the batch it was given. A second source of notices would therefore have silently cancelled all bill and budget alerts. The protocol now takes the identifier prefixes the caller owns, so each source replaces only its own and leaves the rest alone. Existing identifiers were deliberately left unchanged, so no already-delivered alert can fire a second time.
 
 ---
 

@@ -251,7 +251,11 @@ struct PlanningTests {
 @MainActor
 private final class TestNotifications: WalletNotificationClient {
     var notices: [WalletNotification] = []
+    var managedPrefixes: [String] = []
     var authorized = true
     func requestAuthorization() async throws -> Bool { authorized }
-    func synchronize(_ notifications: [WalletNotification]) async throws { notices = notifications }
+    func synchronize(_ notifications: [WalletNotification], managing prefixes: [String]) async throws {
+        notices = notifications
+        managedPrefixes = prefixes
+    }
 }
