@@ -16,6 +16,7 @@ struct AppDependencies {
     let dataExchangeViewModel: DataExchangeViewModel
     let onboardingViewModel: OnboardingViewModel
     let currencyViewModel: CurrencyViewModel
+    let spotlightIndexer: WalletSpotlightIndexer
 
     static func make() async throws -> AppDependencies {
         let repository = try await SwiftDataWalletRepository.make(
@@ -30,8 +31,12 @@ struct AppDependencies {
                                          store: { rateCache.save($0) })
         let accounts = AccountsViewModel(useCases: AccountUseCases(repository: repository))
         let settings = SettingsViewModel(resetUseCase: ResetWalletUseCase(repository: repository))
-        // Widgets must stop showing balances as soon as the wallet is cleared.
-        settings.onReset = { [weak snapshots] in snapshots?.clear() }
+        let spotlight = WalletSpotlightIndexer()
+        // Widgets and Spotlight must stop showing wallet data as soon as it is cleared.
+        settings.onReset = { [weak snapshots] in
+            snapshots?.clear()
+            spotlight.clear()
+        }
         return AppDependencies(
             accountsViewModel: accounts,
             categoriesViewModel: CategoriesViewModel(useCases: CategoryUseCases(repository: repository)),
@@ -47,7 +52,8 @@ struct AppDependencies {
                 tagUseCases: TagUseCases(repository: repository)
             ),
             onboardingViewModel: OnboardingViewModel(accounts: accounts, planning: planning),
-            currencyViewModel: currency
+            currencyViewModel: currency,
+            spotlightIndexer: spotlight
         )
     }
 }

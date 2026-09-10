@@ -301,15 +301,24 @@ Broader platform integration and ecosystem features.
 
 ### 4.1 Siri Shortcuts / App Intents
 
-> **Modules:** New `AppIntents` integration
+> **Status:** Implemented locally; Siri and Shortcuts device verification pending
+> **Modules:** `My Wallet/App/Intents/` (AppIntents, CoreSpotlight)
 
 Voice-driven and automation-friendly record creation.
 
-- [ ] "Add expense" intent with amount, category, account parameters
-- [ ] "Show balance" intent for a specific account
-- [ ] "Monthly summary" intent
-- [ ] Spotlight indexing for accounts and categories
-- [ ] Shortcuts app integration for custom automations
+- [x] "Add expense" intent with amount, category, account parameters
+- [x] "Show balance" intent for a specific account
+- [x] "Monthly summary" intent
+- [x] Spotlight indexing for accounts and categories
+- [x] Shortcuts app integration for custom automations
+
+Implementation notes (2026-09-10): Intents live in the app target because `ExtractAppIntentsMetadata` runs per target. Add Expense writes through `RecordUseCases`, so a record created by Siri gets exactly the same validation and balance handling as one typed into the editor; with several accounts and none specified it asks rather than guessing, but falls back to the only account when there is just one. Accounts and categories are exposed as `AppEntity` types with queries, so Shortcuts shows real pickers instead of free text, and categories are listed by their full "Parent / Child" path.
+
+Show Balance and Monthly Summary read the widget snapshot rather than opening the store, so they answer instantly without paying for a CloudKit-backed SwiftData container; only a named account's balance needs live data. All three run in the background without opening the app. `IntentWallet` caches the container per process because Shortcuts may run several intents in a row.
+
+Spotlight indexes names and types only — never balances or record details — because Spotlight results are visible on a locked device and the app deliberately hides figures behind its own lock. Indexing replaces the whole domain so deletions disappear too, skips identical passes, reindexes on rename rather than only on count changes, and is cleared by Reset Wallet Data alongside the widget snapshot.
+
+**Verification:** the built app's `Metadata.appintents` was inspected and contains all three actions, the `WalletShortcuts` provider and every Siri phrase template. The intents were not invoked from Siri or the Shortcuts app, and Spotlight results were not exercised on a device.
 
 ---
 

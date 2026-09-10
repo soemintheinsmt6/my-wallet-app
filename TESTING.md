@@ -223,7 +223,7 @@ Manual checks:
 
 Verified on an iPhone 17 Pro simulator: a fresh install shows the welcome step in place of the tabs, with the progress indicator, Skip and the value-proposition rows rendering correctly.
 
-**Known intermittent:** one full test run aborted with `NSUnknownKeyException … entity CategoryRecord is not key value coding-compliant for the key "deletionDate"`. It did not reproduce in eleven subsequent runs, with or without the onboarding changes, so it appears to be a pre-existing race between the parallel suites that each build an in-memory SwiftData container, rather than a defect in a specific feature. Adding suites that build containers increases exposure to it. Worth pinning down before relying on the suite in CI.
+**Known intermittent:** one full test run aborted with `NSUnknownKeyException … entity CategoryRecord is not key value coding-compliant for the key "deletionDate"`. It did not reproduce in eleven subsequent runs, with or without the onboarding changes. This is the same parallel test-store initialization race already recorded above for 2026-09-05 and mitigated by the documented `--no-parallel` command; each added suite that builds an in-memory container increases exposure to it. Still worth pinning down before relying on the parallel suite in CI.
 
 **Not verified:** stepping through account creation, the categories overview, the budget step and Skip on a device or simulator, because simulator UI input could not be driven from this environment.
 
@@ -251,3 +251,18 @@ Manual checks:
 4. Pin a rate on a record in a non-home currency and confirm the detail screen shows the pinned rate and uses it; clear the field and confirm it reverts to the market rate.
 5. Make a cross-currency transfer and confirm the gain or loss reads in the home currency and flips sign correctly.
 6. Deploy the schema change to the CloudKit development environment and confirm records sync both ways between a device with the field and one without.
+
+## Siri and Shortcuts Validation (2026-09-10)
+
+**No automated tests.** The intents live in the app target, which has no test target, so they are not covered by the package suite. Verified instead by inspecting the built app's `Metadata.appintents/extract.actionsdata`: it contains three actions (`AddExpenseIntent`, `ShowBalanceIntent`, `MonthlySummaryIntent`), the `WalletShortcuts` provider, and every Siri phrase template. Before these were added the build logged "Metadata extraction skipped. No AppIntents.framework dependency found"; it now runs `ExtractAppIntentsMetadata`.
+
+**Not verified:** no intent was invoked from Siri, the Shortcuts app or a widget, and no Spotlight result was opened. Adding an expense by voice writes real data, so exercise it on a test wallet first.
+
+Manual checks:
+
+1. Run each action from the Shortcuts app. Confirm the account and category pickers list real entries and that categories show their full path.
+2. Say each Siri phrase. Confirm Add Expense asks which account when several exist and uses the only one when there is just one.
+3. Add an expense by voice and confirm the record, its amount rounding and the account balance in the app.
+4. Search an account and a category name in Spotlight; confirm no balance appears in the result and that opening one lands on More.
+5. Rename an account, then search the old and new names. Delete one and confirm it leaves the index.
+6. Reset wallet data in a debug build and confirm Spotlight results disappear.

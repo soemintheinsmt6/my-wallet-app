@@ -1,3 +1,4 @@
+import CoreSpotlight
 import SwiftUI
 import WalletDomain
 import WalletFeature
@@ -7,6 +8,7 @@ struct WalletTabsView: View {
     @Environment(\.scenePhase) private var scenePhase
     @ObservedObject var settings: SettingsViewModel
     @ObservedObject private var accounts: AccountsViewModel
+    @ObservedObject private var records: RecordsViewModel
     @State private var selection = WalletTab.home
     @State private var pendingAdd: RecordKind?
 
@@ -14,6 +16,12 @@ struct WalletTabsView: View {
         self.dependencies = dependencies
         self.settings = settings
         accounts = dependencies.accountsViewModel
+        records = dependencies.recordsViewModel
+    }
+
+    /// Keeps Spotlight in step with the wallet's names.
+    private func indexSpotlight() {
+        dependencies.spotlightIndexer.index(accounts: records.accounts, categories: records.categories)
     }
 
     var body: some View {
@@ -57,6 +65,14 @@ struct WalletTabsView: View {
         .disabled(settings.isResetting)
         .task { await dependencies.planningViewModel.observe() }
         .task { dependencies.snapshotCoordinator.start() }
+        // Names, not counts: a rename must reindex too. The indexer skips identical passes.
+        .onChange(of: records.accounts.map(\.name)) { _, _ in indexSpotlight() }
+        .onChange(of: records.categories.map(\.name)) { _, _ in indexSpotlight() }
+        .onContinueUserActivity(CSSearchableItemActionType) { activity in
+            guard let identifier = activity.userInfo?[CSSearchableItemActivityIdentifier] as? String,
+                  let tab = WalletSpotlightIndexer.destination(for: identifier) else { return }
+            selection = tab
+        }
         .onOpenURL { url in open(url) }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { Task { await dependencies.planningViewModel.refresh(generate: true) } }

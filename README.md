@@ -38,6 +38,7 @@ Update this table whenever a feature is completed.
 | Export and import | Complete locally; device file-picker verification pending | RFC 4180 record CSV and a versioned JSON backup, plus CSV import with header matching, a reviewed plan and duplicate detection; receipt images excluded |
 | Onboarding | Complete locally; welcome step verified on simulator | First-launch welcome, first account, starter-category overview, optional monthly budget and Skip; completion is per-device and not synced |
 | Multi-currency | Complete locally; live rate download and CloudKit migration verification pending | Optional home currency with ECB-backed rates, converted `≈` totals that never replace per-currency figures, per-record pinned rates and transfer gain/loss |
+| Siri and Shortcuts | Complete locally; Siri and Spotlight device verification pending | Add Expense, Show Balance and Monthly Summary App Intents with account/category pickers, Siri phrases, and Spotlight indexing of names only |
 
 ## Getting Started
 
