@@ -332,3 +332,26 @@ Manual checks:
 4. Delete a page, then delete the record; confirm no pages survive and storage does not grow.
 5. Deny camera permission and confirm the failure is reported rather than the app hanging.
 6. Confirm receipt pages are excluded from PDF and CSV/JSON exports.
+
+## Phase 5 Validation (2026-09-11)
+
+**260 tests across 44 suites passed** serially.
+
+`DebtCalculationTests` and `GoalCalculationTests` cover outstanding balances falling as payments land, a fully paid debt never going negative, per-person netting that keeps currencies apart and matches names case-insensitively, settled debts sinking below outstanding ones, overdue applying only while outstanding, goal progress with withdrawals, rate-based projection, projection withheld without contributions or once achieved, behind-schedule against a deadline, and an achieved goal never being behind. `DebtGoalStorageTests` covers round trips, a payment beyond the outstanding balance being refused, and deleting a debt or goal removing its payments or contributions.
+
+`SplitCalculatorTests` covers equal shares always summing back to the exact total (10 three ways is 3.34/3.33/3.33), zero-decimal currencies, percentage conversion with drift absorbed, validation that shares *and* payments must cover the record, and settlement suggestions — that applying every suggestion leaves all balances at zero, that a mixed group needs few payments, and that the plan is deterministic. `SplitBudgetTests` asserts a 90 bill fronted for three charges only 30 to the payer's budget.
+
+`DashboardConfigurationTests` covers defaults, a card added later being appended rather than resetting the arrangement, toggling keeping position, reordering, period windows, and persistence across a relaunch. `ThemeTests` covers the Default accent applying no tint, Standard text size not overriding Dynamic Type, persistence, and a failed icon change being reported without changing the icon. `CategorySymbolStoreTests` covers the seeded symbol as fallback and clearing restoring it.
+
+**Not verified:** no Phase 5 screen was exercised on a device. Debt reminders were not delivered, drag reordering of dashboard cards was not performed, alternate app icons were not applied (`setAlternateIconName` needs a device), and the goal celebration was not seen. `CKShare` sharing is not implemented at all.
+
+Manual checks:
+
+1. Create debts in both directions for one person; confirm they net into a single balance and that partial payments reduce it.
+2. Settle a debt with and without creating a record; confirm balances change only in the first case.
+3. Split a bill three ways and confirm the shares add to the exact total, including an amount that does not divide evenly.
+4. Confirm the settlement suggestions clear every balance when followed, and that your own budget is charged only your share.
+5. Reorder and hide dashboard cards; relaunch and confirm the arrangement survives.
+6. Change accent, density and text size; confirm text size stacks with the system Dynamic Type setting rather than replacing it.
+7. Switch app icons on a device and confirm the Home Screen updates and the choice persists.
+8. Reach a savings goal and confirm the celebration plays once, and holds still under Reduce Motion.

@@ -528,6 +528,10 @@ Three alternate icons are declared in `Info.plist` with generated placeholder ar
 
 ---
 
+Implementation notes (2026-09-11): Phase 5 is implemented except `CKShare` wallet sharing (5.3), which is blocked on SwiftData not exposing the `NSPersistentCloudKitContainer` sharing APIs; its section states the blocker and what delivering it would take. Everything else compiles on iOS and macOS and is covered by tests. Three additive, defaulted models were added — debts and their payments, goals and their contributions, and record splits — all CloudKit-compatible in shape but **unverified against a deployed CloudKit schema**. Deleting a record now also removes its receipts and its split; deleting a debt or goal removes its payments or contributions; and Reset Wallet Data clears all of it. Each of those cascades is covered by a test, because orphaned rows would otherwise be invisible and permanent.
+
+Two roadmap items were implemented deliberately differently from their wording, both noted in their sections: the text-size preference layers on top of Dynamic Type rather than replacing it, because overriding it would ignore an accessibility choice made at the system level; and savings-goal progress comes from recorded contributions rather than an account balance, so ordinary spending cannot silently undo it.
+
 ## Dependency Graph
 
 Features should generally be implemented in phase order. Key cross-phase dependencies:
