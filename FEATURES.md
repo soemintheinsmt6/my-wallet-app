@@ -415,6 +415,8 @@ Receipt storage reaches the editor and detail through a SwiftUI environment valu
 
 ---
 
+Implementation notes (2026-09-11): Phase 4 is implemented. 4.1, 4.3, 4.4 and 4.5 compile and are covered by tests; **4.2 has never been compiled**, because the watchOS platform is not installed in the build environment — see its section for the two steps to finish it. Three defects were found by the tests written alongside these features: a notification client that would have silently cancelled all bill and budget alerts once a second source existed, an OCR amount pattern that misread the European `1.234,56` as `234.56`, and a watch snapshot that would have failed to decode anything written by an older build. Two schema additions were made, both optional and defaulted so they stay CloudKit-compatible: `manualRateValue` on `TransactionRecord` (Phase 3.6) and the separate `ReceiptRecord` model. Neither has been checked against a deployed CloudKit schema.
+
 ## Phase 5 — Advanced & Long-Term
 
 Features for power users and long-term product differentiation.
