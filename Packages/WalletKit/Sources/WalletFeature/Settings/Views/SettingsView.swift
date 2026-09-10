@@ -4,14 +4,16 @@ public struct SettingsView: View {
     @ObservedObject private var viewModel: SettingsViewModel
     private let appLock: AppLockViewModel?
     private let dataExchange: DataExchangeViewModel?
+    private let currency: CurrencyViewModel?
     @AppStorage(WalletPreferenceKeys.appearance) private var appearance = AppAppearance.system.rawValue
     @State private var confirmingReset = false
 
     public init(viewModel: SettingsViewModel, appLock: AppLockViewModel? = nil,
-                dataExchange: DataExchangeViewModel? = nil) {
+                dataExchange: DataExchangeViewModel? = nil, currency: CurrencyViewModel? = nil) {
         self.viewModel = viewModel
         self.appLock = appLock
         self.dataExchange = dataExchange
+        self.currency = currency
     }
 
     private var version: String {
@@ -35,6 +37,8 @@ public struct SettingsView: View {
             } footer: {
                 Text("Applies to every tab and sheet. System follows your device setting.")
             }
+
+            if let currency { CurrencySettingsSection(viewModel: currency) }
 
             if let appLock { AppLockSettingsSection(viewModel: appLock) }
 

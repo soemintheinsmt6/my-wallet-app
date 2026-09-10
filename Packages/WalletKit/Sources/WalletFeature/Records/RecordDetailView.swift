@@ -10,6 +10,7 @@ struct RecordDetailView: View {
     @State private var mutationError: String?
     @State private var photo: Data?
     @State private var photoError: String?
+    @Environment(\.currencyViewModel) private var currencyModel
 
     init(viewModel: RecordsViewModel, record: WalletRecord) {
         self.viewModel = viewModel
@@ -75,6 +76,9 @@ struct RecordDetailView: View {
                 }
                 WalletAmountText(amount: draft.amount, currencyCode: record.currencyCode, kind: draft.kind,
                                  font: .system(.largeTitle, design: .rounded, weight: .semibold))
+                if let converted = convertedAmount, let home = currencyModel?.homeCurrency {
+                    ConvertedAmountText(amount: converted, currencyCode: home, font: .footnote)
+                }
                 VStack(spacing: WalletMetrics.tight) {
                     Text(draft.kind == .transfer && draft.categoryID == nil
                          ? draft.kind.title
@@ -94,6 +98,22 @@ struct RecordDetailView: View {
         }
     }
 
+    /// This record's amount in the home currency, using its pinned rate when it has one.
+    private var convertedAmount: Decimal? {
+        guard let currencyModel, currencyModel.convertsTotals,
+              record.currencyCode != currencyModel.homeCurrency else { return nil }
+        return currencyModel.convert(draft.amount, from: record.currencyCode, manualRate: draft.manualRate)
+    }
+
+    /// For a cross-currency transfer, what the conversion gained or lost in the home currency.
+    private var transferDifference: Decimal? {
+        guard draft.kind == .transfer, let currencyModel, currencyModel.convertsTotals,
+              let destination = record.destinationCurrencyCode else { return nil }
+        return currencyModel.transferDifference(sent: draft.amount, sentCurrency: record.currencyCode,
+                                                received: draft.receivedAmount ?? draft.amount,
+                                                receivedCurrency: destination)
+    }
+
     private var generalSection: some View {
         Section("Accounts") {
             LabeledContent(draft.kind == .transfer ? "From" : "Account",
@@ -105,6 +125,14 @@ struct RecordDetailView: View {
                         .walletFormatted(record.destinationCurrencyCode ?? record.currencyCode))
                         .monospacedDigit()
                 }
+                if let difference = transferDifference, let home = currencyModel?.homeCurrency {
+                    LabeledContent(difference >= 0 ? "Currency gain" : "Currency loss") {
+                        WalletAmountText.net(difference, currencyCode: home, font: .body.weight(.medium))
+                    }
+                }
+            }
+            if let rate = draft.manualRate, let home = currencyModel?.homeCurrency {
+                LabeledContent("Pinned rate", value: "1 \(record.currencyCode) = \(AccountAmountInput.text(rate)) \(home)")
             }
         }
     }

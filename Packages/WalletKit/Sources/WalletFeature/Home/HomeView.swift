@@ -9,20 +9,24 @@ import WalletDomain
 public struct HomeView: View {
     @ObservedObject private var records: RecordsViewModel
     @ObservedObject private var planning: PlanningViewModel
+    /// Optional: with no home currency configured the dashboard keeps per-currency totals.
+    @ObservedObject private var currency: CurrencyViewModel
     @Binding private var selection: WalletTab
     /// Set by a widget quick-add deep link; presents the editor with that kind preselected.
     @Binding private var pendingAdd: RecordKind?
     @Environment(\.scenePhase) private var scenePhase
     @State private var creating = false
-    @State private var currency = ""
+    /// Which currency the balance header shows when more than one is in use.
+    @State private var displayedCurrency = ""
 
     private let recentLimit = 5
     private let previewLimit = 3
 
-    public init(records: RecordsViewModel, planning: PlanningViewModel, selection: Binding<WalletTab>,
-                pendingAdd: Binding<RecordKind?> = .constant(nil)) {
+    public init(records: RecordsViewModel, planning: PlanningViewModel, currency: CurrencyViewModel,
+                selection: Binding<WalletTab>, pendingAdd: Binding<RecordKind?> = .constant(nil)) {
         self.records = records
         self.planning = planning
+        self.currency = currency
         _selection = selection
         _pendingAdd = pendingAdd
     }
@@ -35,7 +39,7 @@ public struct HomeView: View {
 
     /// The currency holding the most accounts, so a single-currency wallet never sees a picker.
     private var selectedCurrency: String {
-        if currencies.contains(currency) { return currency }
+        if currencies.contains(displayedCurrency) { return displayedCurrency }
         let counts = Dictionary(grouping: includedAccounts, by: \.currencyCode).mapValues(\.count)
         return counts.max { left, right in
             left.value == right.value ? left.key > right.key : left.value < right.value
@@ -112,6 +116,7 @@ public struct HomeView: View {
             }
         }
         .task { await records.observe() }
+        .task { await currency.refresh() }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { Task { await records.reload() } }
         }
@@ -149,15 +154,26 @@ public struct HomeView: View {
                 Text(accountSummary)
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                if let combined = combinedTotal {
+                    ConvertedAmountText(amount: combined, currencyCode: currency.homeCurrency)
+                }
             }
             .padding(.vertical, WalletMetrics.small)
             .accessibilityElement(children: .combine)
         }
     }
 
+    /// Every currency added together in the home currency, shown only when the user asked for
+    /// converted totals, more than one currency is in play, and every one of them can be converted.
+    private var combinedTotal: Decimal? {
+        guard currency.isConversionAvailable, currencies.count > 1 else { return nil }
+        let amounts = includedAccounts.map { (amount: $0.settings.currentBalance, currency: $0.currencyCode) }
+        return currency.total(amounts)
+    }
+
     private var currencyMenu: some View {
         Menu {
-            Picker("Currency", selection: Binding(get: { selectedCurrency }, set: { currency = $0 })) {
+            Picker("Currency", selection: Binding(get: { selectedCurrency }, set: { displayedCurrency = $0 })) {
                 ForEach(currencies, id: \.self) { Text($0).tag($0) }
             }
         } label: {

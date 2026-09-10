@@ -15,6 +15,7 @@ struct AppDependencies {
     let appLockViewModel: AppLockViewModel
     let dataExchangeViewModel: DataExchangeViewModel
     let onboardingViewModel: OnboardingViewModel
+    let currencyViewModel: CurrencyViewModel
 
     static func make() async throws -> AppDependencies {
         let repository = try await SwiftDataWalletRepository.make(
@@ -23,6 +24,10 @@ struct AppDependencies {
         let records = RecordsViewModel(useCases: RecordUseCases(repository: repository), accounts: AccountUseCases(repository: repository), categories: CategoryUseCases(repository: repository), tags: TagUseCases(repository: repository))
         let planning = PlanningViewModel(repository: repository, records: records, notifications: LocalWalletNotifications())
         let snapshots = WalletSnapshotCoordinator(records: records, planning: planning)
+        let rateCache = ExchangeRateCache()
+        let currency = CurrencyViewModel(provider: FrankfurterExchangeRateProvider(),
+                                         load: { rateCache.load() },
+                                         store: { rateCache.save($0) })
         let accounts = AccountsViewModel(useCases: AccountUseCases(repository: repository))
         let settings = SettingsViewModel(resetUseCase: ResetWalletUseCase(repository: repository))
         // Widgets must stop showing balances as soon as the wallet is cleared.
@@ -41,7 +46,8 @@ struct AppDependencies {
                 recordUseCases: RecordUseCases(repository: repository),
                 tagUseCases: TagUseCases(repository: repository)
             ),
-            onboardingViewModel: OnboardingViewModel(accounts: accounts, planning: planning)
+            onboardingViewModel: OnboardingViewModel(accounts: accounts, planning: planning),
+            currencyViewModel: currency
         )
     }
 }

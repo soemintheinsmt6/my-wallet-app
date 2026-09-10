@@ -234,3 +234,20 @@ Manual checks:
 3. Enter an invalid balance and an empty name; confirm the primary button stays disabled.
 4. Turn on the budget step and confirm the budget appears under Planning with the account's currency.
 5. Relaunch after finishing and confirm the tabs appear immediately.
+
+## Multi-Currency Validation (2026-09-10)
+
+**167 tests across 29 suites passed.** `CurrencyConverterTests` covers identity conversion, direct rates against the base, cross-rates through the base for a pair neither of which is the base, a missing currency raising rather than guessing, rounding to the target currency's precision including zero-decimal JPY, explicit rates rejecting zero, and the refresh policy including a backwards clock. `CurrencyViewModelTests` covers conversion staying unavailable until the user opts in and rates exist, a failed refresh keeping cached rates and explaining itself, per-amount conversion returning `nil` for an unknown currency, a pinned rate overriding the market rate and working with no rates at all, combined totals refusing to guess when one currency is missing, and transfer gain/loss including the same-currency case. `ManualRateValidationTests` covers rejecting non-positive pinned rates and a round trip of the new persisted field, including records saved without one.
+
+All existing migration suites still pass with the added `manualRateValue` field.
+
+**Not verified:** no request was made against the live Frankfurter endpoint from this environment, so the real response shape, historical-day queries and failure handling on a metered or offline connection are untested. The added persisted field has not been checked against a deployed CloudKit schema.
+
+Manual checks:
+
+1. Set a home currency, turn on converted totals, and confirm the Home balance shows a combined `≈` figure only when more than one currency is present.
+2. Turn converted totals off and confirm every screen returns to per-currency figures with no estimates anywhere.
+3. Go offline and relaunch; confirm cached rates still convert and the settings screen says which day they are from.
+4. Pin a rate on a record in a non-home currency and confirm the detail screen shows the pinned rate and uses it; clear the field and confirm it reverts to the market rate.
+5. Make a cross-currency transfer and confirm the gain or loss reads in the home currency and flips sign correctly.
+6. Deploy the schema change to the CloudKit development environment and confirm records sync both ways between a device with the field and one without.

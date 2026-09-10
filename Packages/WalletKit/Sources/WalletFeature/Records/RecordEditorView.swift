@@ -17,6 +17,9 @@ struct RecordEditorView: View {
     @State private var recordID = UUID()
     @State private var amount = ""
     @State private var receivedAmount = ""
+    /// Empty means "use the downloaded rate"; the draft keeps `nil` in that case.
+    @State private var manualRate = ""
+    @Environment(\.currencyViewModel) private var currencyModel
     @State private var selectingCategory = false
     @State private var selectingTags = false
     @State private var photoItem: PhotosPickerItem?
@@ -43,6 +46,7 @@ struct RecordEditorView: View {
         _recordID = State(initialValue: record?.id ?? UUID())
         _amount = State(initialValue: record.map { AccountAmountInput.text($0.draft.amount) } ?? "")
         _receivedAmount = State(initialValue: record?.draft.receivedAmount.map { AccountAmountInput.text($0) } ?? "")
+        _manualRate = State(initialValue: record?.draft.manualRate.map { AccountAmountInput.text($0) } ?? "")
         _originalPhotoLoaded = State(initialValue: record?.hasPhoto != true)
     }
 
@@ -266,6 +270,39 @@ struct RecordEditorView: View {
         }
     }
 
+    /// Lets the user pin the rate used to convert this record into the home currency.
+    ///
+    /// Only shown when converted totals are switched on and this record is not already in the home
+    /// currency; otherwise there is nothing to convert and the row would only add noise.
+    @ViewBuilder private var exchangeRateRow: some View {
+        if let currencyModel, currencyModel.convertsTotals, !currency.isEmpty,
+           currency != currencyModel.homeCurrency {
+            recordRow("arrow.left.arrow.right") {
+                Text("Rate to \(currencyModel.homeCurrency)")
+                TextField(marketRatePlaceholder, text: $manualRate)
+                    .multilineTextAlignment(.trailing)
+                    .monospacedDigit()
+                    .accessibilityLabel("Exchange rate to \(currencyModel.homeCurrency)")
+                    #if os(iOS)
+                        .keyboardType(.decimalPad)
+                    #endif
+            }
+            Text("Leave empty to use the downloaded rate. One \(currency) is worth this many \(currencyModel.homeCurrency).")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, WalletMetrics.xLarge)
+                .padding(.bottom, WalletMetrics.small)
+        }
+    }
+
+    /// Shows today's market rate as the placeholder, so a manual entry has something to start from.
+    private var marketRatePlaceholder: String {
+        guard let currencyModel, let rates = currencyModel.rates,
+              let rate = try? CurrencyConverter.rate(from: currency, to: currencyModel.homeCurrency, using: rates)
+        else { return "Market rate" }
+        return AccountAmountInput.text(CurrencyConverter.rounded(rate, currencyCode: "XXX"))
+    }
+
     @ViewBuilder
     private var detailsSection: some View {
         sectionHeader("More Details")
@@ -283,6 +320,7 @@ struct RecordEditorView: View {
                 "Payment type", value: draft.paymentType == .unspecified ? nil : draft.paymentType.title,
                 screen: .payment)
         }
+        exchangeRateRow
         if !originalPhotoLoaded {
             if isLoadingOriginalPhoto { ProgressView("Loading existing photo…") }
             else { Button("Retry Loading Existing Photo") { Task { await loadOriginalPhoto() } } }
@@ -389,6 +427,9 @@ struct RecordEditorView: View {
             var values = draft
             values.amount = try AccountAmountInput.parse(amount)
             values.receivedAmount = crossCurrency ? try AccountAmountInput.parse(receivedAmount) : nil
+            // An empty rate field means "use the downloaded rate", stored as no override at all.
+            values.manualRate = manualRate.trimmingCharacters(in: .whitespaces).isEmpty
+                ? nil : try AccountAmountInput.parse(manualRate)
             if let saveAction { try await saveAction(recordID, values) }
             else { try await viewModel.save(id: recordID, draft: values, editing: record != nil) }
             lastUsedAccountID = values.accountID?.uuidString ?? ""

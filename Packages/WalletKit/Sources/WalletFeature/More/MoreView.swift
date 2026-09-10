@@ -13,10 +13,12 @@ public struct MoreView: View {
     private let planning: PlanningViewModel?
     private let appLock: AppLockViewModel?
     private let dataExchange: DataExchangeViewModel?
+    private let currency: CurrencyViewModel?
 
     public init(accounts: AccountsViewModel, categories: CategoriesViewModel, tags: TagsViewModel,
                 settings: SettingsViewModel, planning: PlanningViewModel? = nil,
-                appLock: AppLockViewModel? = nil, dataExchange: DataExchangeViewModel? = nil) {
+                appLock: AppLockViewModel? = nil, dataExchange: DataExchangeViewModel? = nil,
+                currency: CurrencyViewModel? = nil) {
         self.accounts = accounts
         self.categories = categories
         self.tags = tags
@@ -24,6 +26,7 @@ public struct MoreView: View {
         self.planning = planning
         self.appLock = appLock
         self.dataExchange = dataExchange
+        self.currency = currency
     }
 
     private var alertCount: Int { accounts.balanceNotifications.count }
@@ -56,7 +59,7 @@ public struct MoreView: View {
 
                 Section {
                     NavigationLink {
-                        SettingsView(viewModel: settings, appLock: appLock, dataExchange: dataExchange)
+                        SettingsView(viewModel: settings, appLock: appLock, dataExchange: dataExchange, currency: currency)
                     } label: {
                         MoreRow(title: "Settings", detail: "Appearance, app lock and app data",
                                 symbol: "gearshape", color: .gray)

@@ -8,4 +8,6 @@ public enum WalletPreferenceKeys {
     static let appLockGracePeriod = "security.appLock.gracePeriod"
     /// First-launch setup is per-device, so this is deliberately not synced.
     static let onboardingCompleted = "onboarding.completed"
+    static let homeCurrency = "currency.home"
+    static let convertTotals = "currency.convertTotals"
 }

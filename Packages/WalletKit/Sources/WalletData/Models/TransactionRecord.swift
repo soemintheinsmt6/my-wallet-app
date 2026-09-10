@@ -18,6 +18,9 @@ final class TransactionRecord {
     var note: String = ""
     var payee: String = ""
     var paymentValue: String = "unspecified"
+    /// Optional so the addition is a lightweight, CloudKit-compatible migration; existing records
+    /// simply have no pinned rate and keep using market rates.
+    var manualRateValue: String?
     var hasPhoto: Bool = false
     @Attribute(.externalStorage) var photoData: Data?
 
@@ -40,6 +43,7 @@ final class TransactionRecord {
         note = draft.note.trimmingCharacters(in: .whitespacesAndNewlines)
         payee = draft.payee.trimmingCharacters(in: .whitespacesAndNewlines)
         paymentValue = draft.paymentType.rawValue
+        manualRateValue = draft.manualRate.map { NSDecimalNumber(decimal: $0).stringValue }
         photoData = draft.photoData
         hasPhoto = draft.photoData != nil
     }
@@ -57,6 +61,7 @@ final class TransactionRecord {
         draft.note = note
         draft.payee = payee
         draft.paymentType = PaymentType(rawValue: paymentValue) ?? .unspecified
+        draft.manualRate = manualRateValue.flatMap { Decimal(string: $0, locale: Locale(identifier: "en_US_POSIX")) }
         return WalletRecord(id: id, draft: draft, currencyCode: currencyCode, destinationCurrencyCode: destinationCurrencyCode, hasPhoto: hasPhoto)
     }
 }

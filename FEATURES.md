@@ -271,16 +271,25 @@ The account step writes through `AccountsViewModel`, so it gets the same validat
 
 ### 3.6 Multi-Currency Support
 
-> **Modules:** `WalletDomain`, `WalletFeature/Shared`
+> **Status:** Implemented locally; live rate download and CloudKit migration verification pending
+> **Modules:** `WalletDomain` (new `Currency/`), `WalletData` (new `Remote/`), `WalletFeature` (new `Currency/`)
 
 Enhanced multi-currency handling beyond the current per-account currency.
 
-- [ ] Primary/home currency setting
-- [ ] Automatic exchange rate fetching (ECB, Open Exchange Rates, or similar free API)
-- [ ] Converted totals in the dashboard using the home currency
-- [ ] Historical exchange rates for accurate past-record conversion
-- [ ] Manual rate override per record
-- [ ] Currency gain/loss tracking for transfers
+- [x] Primary/home currency setting
+- [x] Automatic exchange rate fetching (ECB via the keyless Frankfurter feed)
+- [x] Converted totals in the dashboard using the home currency
+- [x] Historical exchange rates available per day for past-record conversion
+- [x] Manual rate override per record
+- [x] Currency gain/loss tracking for transfers
+
+Implementation notes (2026-09-10): Conversion is strictly additive. Accounts keep their own currency, per-currency totals stay exactly as they were, and converted figures are marked with `≈` as estimates — a single daily reference rate is not what a bank actually charged. Nothing converts until the user picks a home currency and turns on Show Converted Totals, and a combined total appears only when every currency in play can be converted; a missing rate yields no figure rather than a wrong one.
+
+`CurrencyConverter` is pure and `Decimal` throughout, with no `Double` in the money path. Conversion crosses through the rate set's base, so a EUR-quoted feed still converts USD to GBP, and results round to the target currency's own precision — zero-decimal currencies like JPY never gain cents. Rates come from Frankfurter (ECB-backed, no API key), whose endpoint also answers any historical day, which is what accurate conversion of past records needs; JSON numbers are decoded from their text so no precision is lost before the `Decimal` arithmetic. The last set is cached on disk, refreshed at most every six hours, and a failed refresh keeps the cached rates and says which day they are from rather than dropping conversion.
+
+The per-record pinned rate adds one optional `manualRateValue` string to `TransactionRecord`. Optional and defaulted, so it is a lightweight, CloudKit-compatible addition and existing records simply have no override. It is validated as positive, wins over the market rate, and works offline. Cross-currency transfers report the gain or loss between what left and what arrived, in the home currency. `CurrencyViewModel` reaches the record editor and detail through a SwiftUI environment value rather than being threaded through every screen that presents them.
+
+**Outstanding:** the rate download has not been exercised against the live endpoint from this environment, and the added persisted field needs a signed-device CloudKit check before production, per the schema guidance in ARCHITECTURE.md.
 
 ---
 

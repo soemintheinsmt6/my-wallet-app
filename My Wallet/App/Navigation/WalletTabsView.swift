@@ -20,6 +20,7 @@ struct WalletTabsView: View {
         TabView(selection: $selection) {
             HomeView(records: dependencies.recordsViewModel,
                      planning: dependencies.planningViewModel,
+                     currency: dependencies.currencyViewModel,
                      selection: $selection,
                      pendingAdd: $pendingAdd)
                 .tabItem { Label(WalletTab.home.title, systemImage: WalletTab.home.symbol) }
@@ -43,11 +44,14 @@ struct WalletTabsView: View {
                      settings: settings,
                      planning: dependencies.planningViewModel,
                      appLock: dependencies.appLockViewModel,
-                     dataExchange: dependencies.dataExchangeViewModel)
+                     dataExchange: dependencies.dataExchangeViewModel,
+                     currency: dependencies.currencyViewModel)
                 .tabItem { Label(WalletTab.more.title, systemImage: WalletTab.more.symbol) }
                 .tag(WalletTab.more)
                 .badge(accounts.balanceNotifications.count)
         }
+        // Reaches the record editor and detail without threading through every presenter.
+        .environment(\.currencyViewModel, dependencies.currencyViewModel)
         // Discard open drafts/navigation in every window after a successful reset.
         .id(settings.resetGeneration)
         .disabled(settings.isResetting)

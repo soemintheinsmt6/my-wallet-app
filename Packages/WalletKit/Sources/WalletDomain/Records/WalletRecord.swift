@@ -24,6 +24,9 @@ public struct RecordDraft: Sendable, Equatable, Codable {
     public var paymentType: PaymentType = .unspecified
     public var photoData: Data?
     public var recurrence: RecurrenceRule?
+    /// Units of the home currency per one unit of this record's currency, when the user pins the
+    /// rate for this record instead of using the downloaded one. `nil` means use market rates.
+    public var manualRate: Decimal?
 
     public init() {}
 
@@ -35,6 +38,7 @@ public struct RecordDraft: Sendable, Equatable, Codable {
             guard let destinationAccountID, destinationAccountID != accountID else { throw RecordValidationError.invalidTransfer }
             if let receivedAmount { try Self.validateAmount(receivedAmount) }
         } else if categoryID == nil && !allowUncategorized { throw RecordValidationError.categoryRequired }
+        if let manualRate { guard manualRate > 0, manualRate.isFinite else { throw RecordValidationError.invalidRate } }
         guard note.count <= 2000, payee.count <= 120 else { throw RecordValidationError.textTooLong }
         guard (photoData?.count ?? 0) <= 5 * 1024 * 1024 else { throw RecordValidationError.photoTooLarge }
         guard date.timeIntervalSince1970.isFinite else { throw RecordValidationError.invalidDate }
@@ -71,6 +75,7 @@ public struct WalletRecord: Identifiable, Sendable, Equatable {
 public enum RecordValidationError: LocalizedError {
     case accountRequired, categoryRequired, invalidTransfer, invalidAmount, missingReference
     case receivedAmountRequired, textTooLong, photoTooLarge, invalidPhoto, invalidDate, saveInProgress
+    case invalidRate
 
     public var errorDescription: String? {
         switch self {
@@ -85,6 +90,7 @@ public enum RecordValidationError: LocalizedError {
         case .invalidPhoto: "This photo could not be loaded. Choose another image."
         case .invalidDate: "Choose a valid date and time."
         case .saveInProgress: "A record is being saved. Please try again."
+        case .invalidRate: "Enter an exchange rate greater than zero."
         }
     }
 }
