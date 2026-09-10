@@ -126,3 +126,41 @@ extension WalletStore {
         try context.save()
     }
 }
+
+extension WalletStore {
+    // MARK: - Splits
+
+    func fetchSplits() throws -> [RecordSplit] {
+        try Task.checkCancellation()
+        let context = ModelContext(modelContainer)
+        return try context.fetch(FetchDescriptor<RecordSplitRecord>()).compactMap(\.split)
+    }
+
+    func saveSplit(_ split: RecordSplit) throws {
+        try Task.checkCancellation()
+        let context = ModelContext(modelContainer)
+        context.autosaveEnabled = false
+        // One split per record, so replace rather than accumulate.
+        let recordID = split.recordID
+        for existing in try context.fetch(FetchDescriptor<RecordSplitRecord>(predicate: #Predicate { $0.recordID == recordID })) {
+            context.delete(existing)
+        }
+        context.insert(RecordSplitRecord(split: split))
+        try context.save()
+    }
+
+    func deleteSplit(recordID: UUID) throws {
+        try Task.checkCancellation()
+        let context = ModelContext(modelContainer)
+        context.autosaveEnabled = false
+        try deleteSplits(recordID: recordID, in: context)
+        try context.save()
+    }
+
+    /// Shared with record deletion so a split never outlives the record it divides.
+    func deleteSplits(recordID: UUID, in context: ModelContext) throws {
+        for existing in try context.fetch(FetchDescriptor<RecordSplitRecord>(predicate: #Predicate { $0.recordID == recordID })) {
+            context.delete(existing)
+        }
+    }
+}

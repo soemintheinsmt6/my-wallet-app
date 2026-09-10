@@ -5,7 +5,7 @@ import SwiftData
 import WalletDomain
 
 @MainActor
-public final class SwiftDataWalletRepository: WalletRepository, AccountRepository, CategoryRepository, TagRepository, RecordRepository, WalletResetRepository, BudgetRepository, RecurringRepository, BillReminderRepository, ReceiptRepository, DebtRepository, GoalRepository {
+public final class SwiftDataWalletRepository: WalletRepository, AccountRepository, CategoryRepository, TagRepository, RecordRepository, WalletResetRepository, BudgetRepository, RecurringRepository, BillReminderRepository, ReceiptRepository, DebtRepository, GoalRepository, SplitRepository {
     private let store: WalletStore
     private var subscriptions = Set<AnyCancellable>()
     private var observers: [UUID: AsyncStream<Void>.Continuation] = [:]
@@ -94,6 +94,18 @@ public final class SwiftDataWalletRepository: WalletRepository, AccountRepositor
 
     public func updateRecord(id: UUID, draft: RecordDraft) async throws {
         try await store.updateRecord(id: id, draft: draft)
+        notifyChanges()
+    }
+
+    public func fetchSplits() async throws -> [RecordSplit] { try await store.fetchSplits() }
+
+    public func saveSplit(_ split: RecordSplit) async throws {
+        try await store.saveSplit(split)
+        notifyChanges()
+    }
+
+    public func deleteSplit(recordID: UUID) async throws {
+        try await store.deleteSplit(recordID: recordID)
         notifyChanges()
     }
 

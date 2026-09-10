@@ -21,6 +21,8 @@ struct RecordEditorView: View {
     @State private var manualRate = ""
     @Environment(\.currencyViewModel) private var currencyModel
     @Environment(\.receiptUseCases) private var receiptUseCases
+    @Environment(\.splitsViewModel) private var splitsViewModel
+    @State private var isSplitting = false
     @State private var selectingCategory = false
     @State private var selectingTags = false
     @State private var photoItem: PhotosPickerItem?
@@ -271,6 +273,32 @@ struct RecordEditorView: View {
         }
     }
 
+    /// Divides this record between people. Only offered once the record has an amount and a saved
+    /// identity to attach the split to.
+    @ViewBuilder private var splitRow: some View {
+        if let splits = splitsViewModel, let value = try? AccountAmountInput.parse(amount), value > 0,
+           draft.kind != .transfer, !currency.isEmpty {
+            recordRow("person.2") {
+                Button {
+                    isSplitting = true
+                } label: {
+                    HStack {
+                        Text("Split with people").foregroundStyle(.primary)
+                        Spacer()
+                        if let existing = splits.split(for: recordID) {
+                            Text("\(existing.participants.count) people").foregroundStyle(.secondary)
+                        }
+                    }
+                }
+                .buttonStyle(.plain)
+            }
+            .sheet(isPresented: $isSplitting) {
+                SplitEditorView(viewModel: splits, recordID: recordID, amount: value,
+                                currencyCode: currency)
+            }
+        }
+    }
+
     /// Scanned receipt pages, with an OCR suggestion the user accepts rather than one applied
     /// silently over what they typed.
     @ViewBuilder private var receiptSection: some View {
@@ -337,6 +365,7 @@ struct RecordEditorView: View {
                 screen: .payment)
         }
         exchangeRateRow
+        splitRow
         receiptSection
         if !originalPhotoLoaded {
             if isLoadingOriginalPhoto { ProgressView("Loading existing photo…") }

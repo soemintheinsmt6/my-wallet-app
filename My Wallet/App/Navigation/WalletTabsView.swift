@@ -41,7 +41,8 @@ struct WalletTabsView: View {
                 .tabItem { Label(WalletTab.statistics.title, systemImage: WalletTab.statistics.symbol) }
                 .tag(WalletTab.statistics)
 
-            PlanningView(viewModel: dependencies.planningViewModel, debts: dependencies.debtsViewModel)
+            PlanningView(viewModel: dependencies.planningViewModel, debts: dependencies.debtsViewModel,
+                         splits: dependencies.splitsViewModel)
                 .tabItem { Label(WalletTab.planning.title, systemImage: WalletTab.planning.symbol) }
                 .tag(WalletTab.planning)
 

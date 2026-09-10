@@ -467,15 +467,24 @@ Contributing can optionally record a real transfer between two of the user's acc
 
 ### 5.3 Shared Wallets / Expense Splitting
 
-> **Modules:** `WalletDomain` (extend), CloudKit sharing
+> **Status:** Splitting implemented locally. **`CKShare` is not implemented** — see the blocker below
+> **Modules:** `WalletDomain` (new `Sharing/`), `WalletData`, `WalletFeature` (new `Sharing/`)
 
 Collaborative expense tracking for households or trips.
 
-- [ ] Share a wallet/account with another iCloud user via `CKShare`
-- [ ] Split an expense equally or by custom amounts
-- [ ] Track who paid and who owes
-- [ ] Settlement suggestions
-- [ ] Shared budget tracking
+- [ ] Share a wallet/account with another iCloud user via `CKShare` — **blocked, see below**
+- [x] Split an expense equally or by custom amounts
+- [x] Track who paid and who owes
+- [x] Settlement suggestions
+- [x] Shared budget tracking
+
+Implementation notes (2026-09-11): A split divides a record between people, recording both what each person owes and what each actually paid, so "who paid and who owes" comes from one consistent picture. Equal division gives the remainder away one minor unit at a time — splitting 10 three ways is 3.34/3.33/3.33, never 3.33 each, which would quietly lose a cent — and respects zero-decimal currencies. Percentages round per share with the last participant absorbing the drift, so the parts always add back to the exact total. A split is refused unless both the shares and the payments sum to the record's amount.
+
+Settlement suggestions net everyone across every split and then repeatedly match the largest creditor with the largest debtor. That is the standard greedy approach: it does not always find the theoretical minimum — that problem is NP-hard — but it never needs more than one payment per person beyond the first, and it is deterministic, so the list never reshuffles. Tests assert that applying every suggestion leaves all balances at zero.
+
+Shared budget tracking means a bill you front for a group counts toward **your** budget only for your own share: `BudgetProgress.calculate` takes an owner-share map, so putting 90 on your card for three people charges 30 against your food budget rather than 90. Splits are removed with their record and by Reset Wallet Data.
+
+**Blocker — `CKShare`:** the app stores everything in SwiftData backed by `NSPersistentCloudKitContainer`'s **private** database. Real sharing needs the shared database as well, `CKShare` creation, share-metadata acceptance and a sharing controller — and SwiftData does not expose the `NSPersistentCloudKitContainer` sharing APIs that this requires. Delivering it means either dropping to Core Data directly for the shared store or running a second, hand-written CloudKit sync path alongside SwiftData. Both are substantial architectural changes, and neither could be verified here: it needs two iCloud accounts on signed devices. Rather than ship a large, unverifiable sync implementation that touches user data, this item is left undone and the local splitting features — which is where the day-to-day value is — are complete.
 
 ---
 

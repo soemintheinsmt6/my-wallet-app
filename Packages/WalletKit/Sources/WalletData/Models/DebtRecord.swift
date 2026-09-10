@@ -73,3 +73,22 @@ final class GoalContributionRecord {
         return try? JSONDecoder().decode(GoalContribution.self, from: payload)
     }
 }
+
+@Model
+final class RecordSplitRecord {
+    var id: UUID = UUID()
+    /// Kept as a column so a record's split can be found and removed with it.
+    var recordID: UUID = UUID()
+    var payload: Data?
+
+    init(split: RecordSplit) {
+        id = split.id
+        recordID = split.recordID
+        payload = try? JSONEncoder().encode(split)
+    }
+
+    var split: RecordSplit? {
+        guard let payload else { return nil }
+        return try? JSONDecoder().decode(RecordSplit.self, from: payload)
+    }
+}

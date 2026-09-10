@@ -27,6 +27,7 @@ struct AppDependencies {
     let dashboardViewModel: DashboardViewModel
     let themeViewModel: ThemeViewModel
     let categorySymbolStore: CategorySymbolStore
+    let splitsViewModel: SplitsViewModel
 
     static func make() async throws -> AppDependencies {
         let repository = try await SwiftDataWalletRepository.make(
@@ -37,6 +38,10 @@ struct AppDependencies {
         let planning = PlanningViewModel(repository: repository, records: records, notifications: notifications)
         let insights = InsightsViewModel(records: records, planning: planning, notifications: notifications)
         let debts = DebtsViewModel(repository: repository, records: records, notifications: notifications)
+        // Budgets must count only the user's own share of a bill they split.
+        let splits = SplitsViewModel(repository: repository, records: records) { [weak planning] shares in
+            planning?.ownerShares = shares
+        }
         let snapshots = WalletSnapshotCoordinator(records: records, planning: planning)
         let rateCache = ExchangeRateCache()
         let currency = CurrencyViewModel(provider: FrankfurterExchangeRateProvider(),
@@ -100,7 +105,8 @@ struct AppDependencies {
             dashboardViewModel: DashboardViewModel(),
             themeViewModel: ThemeViewModel(iconReader: { WalletAppIcons.current() },
                                            iconSetter: { try await WalletAppIcons.apply($0) }),
-            categorySymbolStore: CategorySymbolStore()
+            categorySymbolStore: CategorySymbolStore(),
+            splitsViewModel: splits
         )
     }
 }

@@ -58,7 +58,8 @@ struct WalletSidebarView: View {
             StatisticsView(viewModel: dependencies.recordsViewModel,
                            planning: dependencies.planningViewModel)
         case .planning:
-            PlanningView(viewModel: dependencies.planningViewModel, debts: dependencies.debtsViewModel)
+            PlanningView(viewModel: dependencies.planningViewModel, debts: dependencies.debtsViewModel,
+                         splits: dependencies.splitsViewModel)
         case .more:
             MoreView(accounts: dependencies.accountsViewModel,
                      categories: dependencies.categoriesViewModel,

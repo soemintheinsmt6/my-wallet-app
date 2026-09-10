@@ -52,7 +52,11 @@ public struct BudgetProgress: Identifiable, Sendable {
     public var ratio: Double { limit > 0 ? NSDecimalNumber(decimal: spent / limit).doubleValue : 0 }
     public var status: String { spent >= limit ? "Over budget" : ratio >= 0.8 ? "Approaching limit" : "Within budget" }
 
-    public static func calculate(budget: Budget, records: [WalletRecord], accounts: [Account], categories: [WalletCategory], now: Date) -> BudgetProgress? {
+    /// `ownerShares` maps a split record to the owner's own share, so a bill they fronted for a
+    /// group counts toward their budget only for their part of it.
+    public static func calculate(budget: Budget, records: [WalletRecord], accounts: [Account],
+                                 categories: [WalletCategory], now: Date,
+                                 ownerShares: [UUID: Decimal] = [:]) -> BudgetProgress? {
         guard now >= budget.startDate else { return nil }
         let accountIDs = Set(accounts.filter { !$0.settings.excludeFromStats && $0.currencyCode == budget.currencyCode }.map(\.id))
         let categoryIDs = Set(categories.filter { $0.id == budget.categoryID || $0.parentID == budget.categoryID }.map(\.id))
@@ -64,7 +68,9 @@ public struct BudgetProgress: Identifiable, Sendable {
         for index in 0..<100_000 {
             guard let interval = budget.interval(index: index) else { return nil }
             let spent = expenses.filter { $0.draft.date >= interval.start && $0.draft.date < interval.end && $0.draft.date <= now }
-                .reduce(Decimal.zero) { $0 + $1.draft.amount }
+                .reduce(Decimal.zero) { total, record in
+                    total + (ownerShares[record.id] ?? record.draft.amount)
+                }
             if now < interval.end { return BudgetProgress(budget: budget, interval: interval, spent: spent, carried: carried) }
             carried = budget.rollover ? max(0, budget.amount + carried - spent) : 0
         }

@@ -14,6 +14,7 @@ extension WalletStore {
         for debt in try context.fetch(FetchDescriptor<DebtRecord>()) { context.delete(debt) }
         for contribution in try context.fetch(FetchDescriptor<GoalContributionRecord>()) { context.delete(contribution) }
         for goal in try context.fetch(FetchDescriptor<SavingsGoalRecord>()) { context.delete(goal) }
+        for split in try context.fetch(FetchDescriptor<RecordSplitRecord>()) { context.delete(split) }
         // Clear external storage before deleting, as record photos do.
         for page in try context.fetch(FetchDescriptor<ReceiptRecord>()) {
             page.imageData = nil

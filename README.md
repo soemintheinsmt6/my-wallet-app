@@ -47,6 +47,7 @@ Update this table whenever a feature is completed.
 | Savings goals | Complete locally; device verification pending | Targets with a progress ring, contribution and withdrawal history, a rate-based projection against an optional deadline, and a celebration when reached |
 | Custom dashboard | Complete locally; drag reordering not device-tested | Reorderable, toggleable Home cards with quick-add buttons, an account scope and a today/week/month selector |
 | Theming | Complete locally; app icon switching needs a device | Accent colors, three alternate app icons (placeholder artwork), per-category icon overrides, list density and a Dynamic Type nudge |
+| Expense splitting | Splitting complete locally; iCloud wallet sharing **not implemented** | Split a record equally, by amount or by percentage, track who paid and who owes, get settlement suggestions, and charge only your share to your budget |
 
 ## Getting Started
 

@@ -8,6 +8,8 @@ public final class PlanningViewModel: ObservableObject {
     @Published public private(set) var series: [RecurringSeries] = []
     @Published public private(set) var occurrences: [ScheduledOccurrence] = []
     @Published public private(set) var bills: [BillReminder] = []
+    /// Split records mapped to the owner's own share, so budgets count only their part.
+    @Published public var ownerShares: [UUID: Decimal] = [:]
     @Published public private(set) var isSaving = false
     @Published public private(set) var isLoading = false
     @Published public var errorMessage: String?
@@ -59,7 +61,8 @@ public final class PlanningViewModel: ObservableObject {
 
     public func progress(on date: Date = Date(), categoryID: UUID? = nil) -> [BudgetProgress] {
         budgets.filter { categoryID == nil || $0.categoryID == categoryID }.compactMap {
-            BudgetProgress.calculate(budget: $0, records: records.records, accounts: records.accounts, categories: records.categories, now: date)
+            BudgetProgress.calculate(budget: $0, records: records.records, accounts: records.accounts,
+                                     categories: records.categories, now: date, ownerShares: ownerShares)
         }
     }
 

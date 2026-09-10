@@ -4,10 +4,12 @@ import WalletDomain
 public struct PlanningView: View {
     @ObservedObject var viewModel: PlanningViewModel
     @ObservedObject private var debts: DebtsViewModel
+    @ObservedObject private var splits: SplitsViewModel
 
-    public init(viewModel: PlanningViewModel, debts: DebtsViewModel) {
+    public init(viewModel: PlanningViewModel, debts: DebtsViewModel, splits: SplitsViewModel) {
         self.viewModel = viewModel
         self.debts = debts
+        self.splits = splits
     }
 
     private var progress: [BudgetProgress] { viewModel.progress().sorted { $0.ratio > $1.ratio } }
@@ -50,6 +52,10 @@ public struct PlanningView: View {
                     NavigationLink { GoalsView(viewModel: debts) } label: {
                         PlanningRow(title: "Goals", detail: goalDetail, symbol: "target", color: .pink)
                     }
+                    NavigationLink { SplitsView(viewModel: splits) } label: {
+                        PlanningRow(title: "Shared", detail: splitDetail,
+                                    symbol: "person.2.circle", color: .purple)
+                    }
                 }
 
                 if !progress.isEmpty {
@@ -66,6 +72,7 @@ public struct PlanningView: View {
             }
             .refreshable { await viewModel.refresh(generate: true); await debts.refresh() }
             .task { await debts.refresh() }
+            .task { await splits.refresh() }
             .alert("Unable to Update Planning", isPresented: Binding(get: { viewModel.errorMessage != nil }, set: { if !$0 { viewModel.errorMessage = nil } })) {
                 Button("OK", role: .cancel) { viewModel.errorMessage = nil }
             } message: { Text(viewModel.errorMessage ?? "") }
@@ -86,6 +93,12 @@ public struct PlanningView: View {
         let overdue = outstanding.filter(\.isOverdue).count
         if overdue > 0 { return overdue == 1 ? "1 overdue" : "\(overdue) overdue" }
         return outstanding.count == 1 ? "1 outstanding" : "\(outstanding.count) outstanding"
+    }
+
+    private var splitDetail: String {
+        guard !splits.splits.isEmpty else { return "Split bills with people" }
+        let owing = splits.settlements.count
+        return owing == 0 ? "All settled" : owing == 1 ? "1 payment to settle" : "\(owing) payments to settle"
     }
 
     private var goalDetail: String {
