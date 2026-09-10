@@ -4,6 +4,7 @@ import WalletFeature
 struct AppRootView: View {
     @ObservedObject var bootstrap: AppBootstrap
     @State private var attempt = 0
+    @State private var hasOnboarded = OnboardingViewModel.hasCompleted()
     @AppStorage(WalletPreferenceKeys.appearance) private var appearance = AppAppearance.system.rawValue
 
     var body: some View {
@@ -12,7 +13,13 @@ struct AppRootView: View {
                 // The gate renders the lock screen instead of the tabs, so no balance is
                 // readable — or captured in the app switcher — while locked.
                 AppLockGate(viewModel: dependencies.appLockViewModel) {
-                    WalletTabsView(dependencies: dependencies, settings: dependencies.settingsViewModel)
+                    if hasOnboarded {
+                        WalletTabsView(dependencies: dependencies, settings: dependencies.settingsViewModel)
+                    } else {
+                        OnboardingView(viewModel: dependencies.onboardingViewModel,
+                                       categories: dependencies.categoriesViewModel)
+                            .transition(.opacity)
+                    }
                 }
             } else if let startupError = bootstrap.errorMessage {
                 ContentUnavailableView {
@@ -28,6 +35,9 @@ struct AppRootView: View {
         }
         .task(id: attempt) {
             await bootstrap.load()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .walletOnboardingFinished)) { _ in
+            withAnimation { hasOnboarded = true }
         }
         .preferredColorScheme((AppAppearance(rawValue: appearance) ?? .system).colorScheme)
     }

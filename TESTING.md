@@ -216,3 +216,21 @@ Manual checks:
 3. Import a file from another app with reordered, renamed and missing optional columns; confirm the preview counts and the errors' row numbers.
 4. Import a file naming unknown accounts and new labels. Confirm the labels are created and the unmatched rows are listed rather than silently skipped.
 5. Import a large file and confirm progress is reported and a rejected row does not discard the rows already saved.
+
+## Onboarding Validation (2026-09-10)
+
+**152 tests across 26 suites passed.** `OnboardingTests` covers the completion flag being false until finish, skip recording completion, account-step validation for blank names and unparseable balances, the account actually being created with its name/type/currency/balance, a rejected save keeping the step and draft without completing, the optional budget's validation including a refused zero limit, Back never returning to the already-created account, and reaching the end completing onboarding.
+
+Verified on an iPhone 17 Pro simulator: a fresh install shows the welcome step in place of the tabs, with the progress indicator, Skip and the value-proposition rows rendering correctly.
+
+**Known intermittent:** one full test run aborted with `NSUnknownKeyException … entity CategoryRecord is not key value coding-compliant for the key "deletionDate"`. It did not reproduce in eleven subsequent runs, with or without the onboarding changes, so it appears to be a pre-existing race between the parallel suites that each build an in-memory SwiftData container, rather than a defect in a specific feature. Adding suites that build containers increases exposure to it. Worth pinning down before relying on the suite in CI.
+
+**Not verified:** stepping through account creation, the categories overview, the budget step and Skip on a device or simulator, because simulator UI input could not be driven from this environment.
+
+Manual checks:
+
+1. Install fresh and step through every screen; confirm the account is created with the chosen currency and balance.
+2. Use Skip on each step; confirm onboarding does not return on relaunch and any created account is kept.
+3. Enter an invalid balance and an empty name; confirm the primary button stays disabled.
+4. Turn on the budget step and confirm the budget appears under Planning with the account's currency.
+5. Relaunch after finishing and confirm the tabs appear immediately.

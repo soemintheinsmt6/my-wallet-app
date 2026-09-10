@@ -251,16 +251,21 @@ Import is planned before anything is written. Columns are matched by header name
 
 ### 3.5 Onboarding Flow
 
-> **Modules:** `WalletFeature` (new `Onboarding/`)
+> **Status:** Implemented locally; welcome step verified on simulator, later steps device-verification pending
+> **Modules:** `WalletFeature` (new `Onboarding/`), App entry point
 
 Guide new users through initial setup to reduce friction.
 
-- [ ] Welcome screen with app value proposition
-- [ ] Create first account step
-- [ ] Review starter categories step
-- [ ] Optional: set up a monthly budget
-- [ ] Skip option for experienced users
-- [ ] Show only on first launch (persisted flag)
+- [x] Welcome screen with app value proposition
+- [x] Create first account step
+- [x] Review starter categories step
+- [x] Optional: set up a monthly budget
+- [x] Skip option for experienced users
+- [x] Show only on first launch (persisted flag)
+
+Implementation notes (2026-09-10): Onboarding renders in place of the tabs rather than as a cover or sheet, which keeps it identical on iOS and macOS and guarantees the tabs are never briefly visible behind it. It sits inside `AppLockGate`, so a locked wallet still locks first. Completion is a local preference and deliberately not synced — it records that this device has been set up, not something about the wallet.
+
+The account step writes through `AccountsViewModel`, so it gets the same validation as the account editor; a rejected save keeps the step and the draft rather than advancing. Because the account exists once that step passes, Back stops at the categories overview instead of offering to create it again. The categories step is read-only reassurance that the 60 starter categories are already there. The budget step is off by default and validated only when chosen — a zero limit is refused. Skip finishes immediately and keeps any account already created.
 
 ---
 
