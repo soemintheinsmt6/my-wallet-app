@@ -103,7 +103,7 @@ private struct BudgetEditorView: View {
                             .multilineTextAlignment(.trailing)
                     }
                     LabeledContent("Limit") {
-                        TextField("0", text: $amount)
+                        TextField("0", text: $amount.groupedAmount())
                             .multilineTextAlignment(.trailing)
                             .monospacedDigit()
                             #if os(iOS)

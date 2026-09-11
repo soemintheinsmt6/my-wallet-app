@@ -152,7 +152,7 @@ struct RecordFilterView: View {
     }
 
     private func amountField(_ prompt: String, text: Binding<String>) -> some View {
-        TextField(prompt, text: text)
+        TextField(prompt, text: text.groupedAmount())
             .multilineTextAlignment(.trailing)
             #if !os(macOS)
             .keyboardType(.decimalPad)

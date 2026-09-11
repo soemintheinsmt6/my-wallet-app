@@ -137,7 +137,8 @@ struct RecordDetailView: View {
                 }
             }
             if let rate = draft.manualRate, let home = currencyModel?.homeCurrency {
-                LabeledContent("Pinned rate", value: "1 \(record.currencyCode) = \(AccountAmountInput.text(rate)) \(home)")
+                LabeledContent("Pinned rate",
+                               value: "1 \(record.currencyCode) = \(RecordAmountDisplay.grouped(rate)) \(home)")
             }
         }
     }

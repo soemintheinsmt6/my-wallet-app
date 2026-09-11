@@ -169,7 +169,7 @@ public struct ReceiptGalleryContent: View {
                 .font(.footnote.weight(.medium))
                 .foregroundStyle(.secondary)
             if let amount = reading.amount {
-                Text("Amount: \(AccountAmountInput.text(amount))").font(.callout)
+                Text("Amount: \(RecordAmountDisplay.grouped(amount))").font(.callout)
             }
             if let date = reading.date {
                 Text("Date: \(date.formatted(date: .abbreviated, time: .omitted))").font(.callout)

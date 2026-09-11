@@ -42,7 +42,22 @@ struct AccountEditorView: View {
                     } else {
                         LabeledContent("Currency", value: currencyCode)
                     }
-                    TextField("Current balance (\(currencyCode))", text: $balanceText)
+                    // The opening amount is the number people check before saving, so it gets the
+                    // trailing alignment and larger type the record amount field uses, scaled down
+                    // to fit a form row.
+                    LabeledContent {
+                        TextField("0", text: $balanceText.groupedAmount())
+                            .multilineTextAlignment(.trailing)
+                            .font(.title2.weight(.semibold))
+                            .monospacedDigit()
+                            #if os(iOS)
+                                .keyboardType(.decimalPad)
+                            #endif
+                            .accessibilityLabel("Current balance in \(currencyCode)")
+                    } label: {
+                        Text("Current balance")
+                        Text(currencyCode)
+                    }
                     Picker("Type", selection: $type) {
                         ForEach(AccountType.allCases) { option in
                             Label(option.title, systemImage: option.symbol).tag(option)
@@ -81,11 +96,11 @@ struct AccountEditorView: View {
                 Section {
                     Toggle("Balance below limit", isOn: $settings.notifyBelowMinimum)
                     if settings.notifyBelowMinimum {
-                        TextField("Minimum balance (\(currencyCode))", text: $minimumText)
+                        TextField("Minimum balance (\(currencyCode))", text: $minimumText.groupedAmount())
                     }
                     Toggle("Balance above limit", isOn: $settings.notifyAboveMaximum)
                     if settings.notifyAboveMaximum {
-                        TextField("Maximum balance (\(currencyCode))", text: $maximumText)
+                        TextField("Maximum balance (\(currencyCode))", text: $maximumText.groupedAmount())
                     }
                 } header: {
                     Text("In-app notifications")

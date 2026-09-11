@@ -186,7 +186,7 @@ struct RecordEditorView: View {
             if crossCurrency {
                 HStack {
                     Text("Received \(destinationCurrency)")
-                    TextField("0", text: $receivedAmount).multilineTextAlignment(.trailing).accessibilityLabel(
+                    TextField("0", text: $receivedAmount.groupedAmount()).multilineTextAlignment(.trailing).accessibilityLabel(
                         "Received amount"
                     )
                     .focused($focusedField, equals: .receivedAmount)
@@ -323,7 +323,7 @@ struct RecordEditorView: View {
            currency != currencyModel.homeCurrency {
             recordRow("arrow.left.arrow.right") {
                 Text("Rate to \(currencyModel.homeCurrency)")
-                TextField(marketRatePlaceholder, text: $manualRate)
+                TextField(marketRatePlaceholder, text: $manualRate.groupedAmount())
                     .multilineTextAlignment(.trailing)
                     .monospacedDigit()
                     .accessibilityLabel("Exchange rate to \(currencyModel.homeCurrency)")
@@ -344,7 +344,7 @@ struct RecordEditorView: View {
         guard let currencyModel, let rates = currencyModel.rates,
               let rate = try? CurrencyConverter.rate(from: currency, to: currencyModel.homeCurrency, using: rates)
         else { return "Market rate" }
-        return AccountAmountInput.text(CurrencyConverter.rounded(rate, currencyCode: "XXX"))
+        return RecordAmountDisplay.grouped(CurrencyConverter.rounded(rate, currencyCode: "XXX"))
     }
 
     @ViewBuilder

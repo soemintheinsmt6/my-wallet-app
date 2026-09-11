@@ -21,7 +21,7 @@ struct GoalEditorView: View {
                         TextField("New laptop", text: $goal.name).multilineTextAlignment(.trailing)
                     }
                     LabeledContent("Target") {
-                        TextField("0", text: $target)
+                        TextField("0", text: $target.groupedAmount())
                             .multilineTextAlignment(.trailing)
                             .monospacedDigit()
                             #if os(iOS)
@@ -139,7 +139,7 @@ struct GoalContributionView: View {
                     }
                     .pickerStyle(.segmented)
                     LabeledContent("Amount") {
-                        TextField("0", text: $amount)
+                        TextField("0", text: $amount.groupedAmount())
                             .multilineTextAlignment(.trailing)
                             .monospacedDigit()
                             #if os(iOS)

@@ -148,7 +148,7 @@ private struct BillEditorView: View {
                             .multilineTextAlignment(.trailing)
                     }
                     LabeledContent("Amount") {
-                        TextField("0", text: $amount)
+                        TextField("0", text: $amount.groupedAmount())
                             .multilineTextAlignment(.trailing)
                             .monospacedDigit()
                             #if os(iOS)

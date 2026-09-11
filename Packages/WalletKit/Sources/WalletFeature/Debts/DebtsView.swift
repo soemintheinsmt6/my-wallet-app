@@ -159,7 +159,7 @@ private struct DebtEditorView: View {
                     }
                     .pickerStyle(.segmented)
                     LabeledContent("Amount") {
-                        TextField("0", text: $amount)
+                        TextField("0", text: $amount.groupedAmount())
                             .multilineTextAlignment(.trailing)
                             .monospacedDigit()
                             #if os(iOS)
@@ -267,7 +267,7 @@ private struct DebtSettlementView: View {
                     LabeledContent("Outstanding",
                                    value: progress.outstanding.walletFormatted(progress.debt.currencyCode))
                     LabeledContent("Amount") {
-                        TextField("0", text: $amount)
+                        TextField("0", text: $amount.groupedAmount())
                             .multilineTextAlignment(.trailing)
                             .monospacedDigit()
                             #if os(iOS)

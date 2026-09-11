@@ -186,7 +186,7 @@ public struct OnboardingView: View {
                 }
 
                 field("Starting balance") {
-                    TextField("0", text: $viewModel.startingBalance)
+                    TextField("0", text: $viewModel.startingBalance.groupedAmount())
                         .focused($focusedField, equals: .balance)
                         .multilineTextAlignment(.trailing)
                         .monospacedDigit()
@@ -252,7 +252,7 @@ public struct OnboardingView: View {
                             .focused($focusedField, equals: .budgetName)
                     }
                     field("Limit (\(viewModel.currencyCode))") {
-                        TextField("0", text: $viewModel.budgetAmount)
+                        TextField("0", text: $viewModel.budgetAmount.groupedAmount())
                             .focused($focusedField, equals: .budgetAmount)
                             .multilineTextAlignment(.trailing)
                             .monospacedDigit()
