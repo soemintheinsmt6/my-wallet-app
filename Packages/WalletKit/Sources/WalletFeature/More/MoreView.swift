@@ -81,7 +81,12 @@ public struct MoreView: View {
             }
             .navigationTitle("More")
         }
+        // Each row's subtitle counts what its destination holds, so this screen has to observe all
+        // three view models itself — otherwise the counts read zero until the destination is
+        // visited and starts its own observer. Separate tasks because `observe()` never returns.
         .task { await accounts.observe() }
+        .task { await categories.observe() }
+        .task { await tags.observe() }
     }
 
     private var accountsDetail: String {
