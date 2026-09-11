@@ -20,7 +20,12 @@ public struct CategoriesView: View {
 
     public var body: some View {
         List(viewModel.rootCategories) { category in
-            NavigationLink(value: category.id) {
+            // A destination-based link, not `NavigationLink(value:)`: this screen is itself pushed
+            // onto the More tab's stack, so a `navigationDestination` declared here registers a
+            // push behind the stack and the detail lands one push late.
+            NavigationLink {
+                CategoryDetailView(viewModel: viewModel, categoryID: category.id, planning: planning)
+            } label: {
                 HStack(spacing: WalletMetrics.medium) {
                     CategoryIcon(category: category)
                     Text(category.name)
@@ -55,9 +60,6 @@ public struct CategoriesView: View {
             }
         }
         .navigationTitle("Categories")
-        .navigationDestination(for: UUID.self) { id in
-            CategoryDetailView(viewModel: viewModel, categoryID: id, planning: planning)
-        }
         .toolbar {
             ToolbarItem {
                 Button { editor = CategoryEditorRoute() } label: {
