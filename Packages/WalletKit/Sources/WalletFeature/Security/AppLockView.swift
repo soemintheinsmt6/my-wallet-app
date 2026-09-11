@@ -24,15 +24,17 @@ public struct AppLockView: View {
                     .foregroundStyle(.tint)
                 Text("My Wallet is Locked")
                     .font(.title3.weight(.semibold))
-                Text(isLockedOut ? lockoutText : "Enter your passcode to continue.")
+                Text(prompt)
                     .font(.footnote)
                     .foregroundStyle(isLockedOut ? .red : .secondary)
                     .multilineTextAlignment(.center)
                     .contentTransition(.identity)
             }
 
-            PasscodeDots(entered: entry.count, length: viewModel.passcodeLength.rawValue)
-                .modifier(ShakeEffect(travel: CGFloat(shake)))
+            if !viewModel.isBiometricOnly {
+                PasscodeDots(entered: entry.count, length: viewModel.passcodeLength.rawValue)
+                    .modifier(ShakeEffect(travel: CGFloat(shake)))
+            }
 
             if let message = viewModel.errorMessage, !isLockedOut {
                 Text(message)
@@ -43,10 +45,25 @@ public struct AppLockView: View {
 
             Spacer(minLength: 0)
 
-            PasscodeKeypad(onDigit: append, onDelete: deleteLast,
-                           biometry: viewModel.useBiometrics ? viewModel.biometry : .none,
-                           onBiometry: { Task { await viewModel.authenticateWithBiometrics() } },
-                           isDisabled: isLockedOut || viewModel.isAuthenticating)
+            if viewModel.isBiometricOnly {
+                // Nothing to type: the only way through is the device's own verification, which is
+                // offered on appearance and repeatable here if it was dismissed.
+                Button {
+                    Task { await viewModel.authenticateWithBiometrics() }
+                } label: {
+                    Label("Unlock with \(unlockTitle)", systemImage: viewModel.biometry.symbol)
+                        .font(.body.weight(.medium))
+                        .frame(minHeight: WalletMetrics.touchTarget)
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(viewModel.isAuthenticating)
+            } else {
+                PasscodeKeypad(onDigit: append, onDelete: deleteLast,
+                               biometry: viewModel.useBiometrics ? viewModel.biometry : .none,
+                               onBiometry: { Task { await viewModel.authenticateWithBiometrics() } },
+                               isDisabled: isLockedOut || viewModel.isAuthenticating)
+            }
 
             Spacer(minLength: 0)
         }
@@ -59,6 +76,19 @@ public struct AppLockView: View {
 
     private var lockoutText: String {
         "Too many attempts. Try again in \(Int(viewModel.remainingLockout.rounded(.up)))s."
+    }
+
+    /// Named for the sensor where there is one, and for the device passcode where there is not —
+    /// which is all a biometric-only lock has left once a face or finger stops being recognized.
+    private var unlockTitle: String {
+        viewModel.biometry.isAvailable ? viewModel.biometry.title : "Device Passcode"
+    }
+
+    private var prompt: String {
+        if isLockedOut { return lockoutText }
+        return viewModel.isBiometricOnly
+            ? "Unlock with \(unlockTitle) to continue."
+            : "Enter your passcode to continue."
     }
 
     private func append(_ digit: String) {

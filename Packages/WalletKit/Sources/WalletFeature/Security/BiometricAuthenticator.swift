@@ -31,9 +31,16 @@ public enum BiometryKind: Sendable, Equatable {
 public protocol BiometricAuthenticating: Sendable {
     /// What this device offers right now, or `.none` when biometrics are unavailable or unenrolled.
     func availableBiometry() -> BiometryKind
+    /// Whether the device can verify its owner at all — by biometrics, or failing those by its own
+    /// passcode. False on a device with no passcode set, where there is nothing to verify against.
+    func canVerifyDeviceOwner() -> Bool
     /// Returns `true` on success. Cancellation and fallback return `false` rather than throwing,
     /// so the caller simply keeps showing the passcode entry.
-    func authenticate(reason: String) async -> Bool
+    ///
+    /// `allowingDevicePasscode` widens the check to the device passcode. That is what keeps a
+    /// wallet locked by biometrics alone reachable when a face or finger will not verify, and it
+    /// is why biometrics can stand on their own without a wallet passcode behind them.
+    func authenticate(reason: String, allowingDevicePasscode: Bool) async -> Bool
 }
 
 public struct LocalAuthenticationAuthenticator: BiometricAuthenticating {
@@ -53,13 +60,20 @@ public struct LocalAuthenticationAuthenticator: BiometricAuthenticating {
         }
     }
 
-    public func authenticate(reason: String) async -> Bool {
+    public func canVerifyDeviceOwner() -> Bool {
+        LAContext().canEvaluatePolicy(.deviceOwnerAuthentication, error: nil)
+    }
+
+    public func authenticate(reason: String, allowingDevicePasscode: Bool) async -> Bool {
         let context = LAContext()
-        // The app has its own passcode fallback, so suppress the system's.
-        context.localizedFallbackTitle = ""
+        if !allowingDevicePasscode {
+            // A wallet passcode stands behind this prompt, so suppress the system's own fallback.
+            context.localizedFallbackTitle = ""
+        }
         do {
-            return try await context.evaluatePolicy(.deviceOwnerAuthenticationWithBiometrics,
-                                                    localizedReason: reason)
+            return try await context.evaluatePolicy(
+                allowingDevicePasscode ? .deviceOwnerAuthentication : .deviceOwnerAuthenticationWithBiometrics,
+                localizedReason: reason)
         } catch {
             return false
         }

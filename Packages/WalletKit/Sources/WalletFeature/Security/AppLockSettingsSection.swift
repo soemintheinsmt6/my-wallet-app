@@ -6,6 +6,8 @@ import WalletDomain
 struct AppLockSettingsSection: View {
     @ObservedObject var viewModel: AppLockViewModel
     @State private var sheet: PasscodeSheet?
+    @State private var biometricError: String?
+    @State private var isChangingBiometricLock = false
 
     private enum PasscodeSheet: String, Identifiable {
         case create, change, disable
@@ -14,12 +16,24 @@ struct AppLockSettingsSection: View {
 
     var body: some View {
         Section {
+            // Offered before any passcode exists: biometrics can hold the lock on their own, with
+            // the device passcode as their fallback.
+            if viewModel.biometry.isAvailable, !viewModel.hasPasscode {
+                Toggle(isOn: Binding(
+                    get: { viewModel.isBiometricOnly },
+                    set: { enabled in Task { await setBiometricLock(enabled) } }
+                )) {
+                    Text("Lock with \(viewModel.biometry.title)")
+                }
+                .disabled(isChangingBiometricLock)
+            }
+
             Toggle("Require Passcode", isOn: Binding(
-                get: { viewModel.isEnabled },
+                get: { viewModel.hasPasscode },
                 set: { sheet = $0 ? .create : .disable }
             ))
 
-            if viewModel.isEnabled {
+            if viewModel.hasPasscode {
                 Button {
                     sheet = .change
                 } label: {
@@ -32,12 +46,18 @@ struct AppLockSettingsSection: View {
                         Label("Unlock with \(viewModel.biometry.title)", systemImage: viewModel.biometry.symbol)
                     }
                 }
+            }
 
+            if viewModel.isEnabled {
                 Picker("Auto-Lock", selection: $viewModel.gracePeriod) {
                     ForEach(AppLockGracePeriod.allCases) { Text($0.title).tag($0) }
                 }
+            }
 
-                Button("Lock Now") { viewModel.lockNow() }
+            if let biometricError {
+                Label(biometricError, systemImage: "exclamationmark.triangle")
+                    .font(.footnote)
+                    .foregroundStyle(.red)
             }
         } header: {
             Text("Privacy & Security")
@@ -53,9 +73,27 @@ struct AppLockSettingsSection: View {
         }
     }
 
+    private func setBiometricLock(_ enabled: Bool) async {
+        isChangingBiometricLock = true
+        defer { isChangingBiometricLock = false }
+        do {
+            if enabled {
+                try await viewModel.enableBiometricLock()
+            } else {
+                try await viewModel.disableBiometricLock()
+            }
+            biometricError = nil
+        } catch {
+            biometricError = error.localizedDescription
+        }
+    }
+
     private var footer: String {
         guard viewModel.isEnabled else {
-            return "A passcode hides your balances and records until you unlock the app. It is stored only on this device and never syncs."
+            return "A lock hides your balances and records until you unlock the app. \(viewModel.biometry.isAvailable ? "\(viewModel.biometry.title) can hold it on its own, or set a passcode." : "Set a passcode to turn it on.") Either way it stays on this device and never syncs."
+        }
+        if viewModel.isBiometricOnly {
+            return "Auto-Lock decides how soon leaving the app re-locks it. \(viewModel.biometry.title) unlocks it, with your device passcode as the fallback."
         }
         let biometrics = viewModel.biometry.isAvailable && viewModel.useBiometrics
             ? " \(viewModel.biometry.title) unlocks it, with the passcode as a fallback."

@@ -216,6 +216,7 @@ Protect sensitive financial data with Face ID, Touch ID, or a custom passcode.
 
 - [x] App lock toggle in Settings
 - [x] Face ID / Touch ID authentication via `LocalAuthentication`
+- [x] Biometrics as the whole lock, with no wallet passcode behind them
 - [x] Fallback passcode (4-digit or 6-digit)
 - [x] Auto-lock on app background or after timeout
 - [x] Grace period setting (immediately, after 1 min, after 5 min)
@@ -225,6 +226,8 @@ Implementation notes (2026-09-10): The passcode is never stored. `PasscodeHasher
 `AppLockPolicy` is pure and holds every decision: a fresh launch always locks, a returning app locks once the grace period elapses, and a clock that moved backwards is treated as expired so changing the device clock cannot extend a session. `AppLockGate` wraps the tabs and renders the lock screen instead of them — the content is not merely covered — and treats `.inactive` as backgrounding so the app-switcher snapshot cannot expose balances. Biometrics are offered on appearance with the keypad always available; a cancelled or failed prompt is not counted as a passcode attempt. Turning the lock off requires the current passcode.
 
 `BiometricAuthenticating` and `PasscodeStoring` are protocols so the view model is tested against in-memory doubles rather than the keychain or `LocalAuthentication`. `NSFaceIDUsageDescription` is set; without it the Face ID prompt terminates the app.
+
+Update (2026-09-11): biometrics can now hold the lock on their own. With no wallet passcode set, `isBiometricOnly` evaluates `.deviceOwnerAuthentication` rather than `.deviceOwnerAuthenticationWithBiometrics`, so the device passcode answers when a face or finger will not and the wallet cannot be sealed behind a prompt nothing satisfies; enabling it is refused outright on a device that can verify nobody, and both enabling and disabling require passing that same check. Setting a wallet passcode supersedes the biometric-only lock. Two fixes came with it: the system prompt resigns active, and the return to active that follows a successful unlock was being read as coming back from the background, which put the lock screen straight back up — `applicationDidBecomeActive` now locks only when it has a timestamp from an actual absence. Enrollment is also re-read on activation instead of trusted from launch.
 
 ---
 

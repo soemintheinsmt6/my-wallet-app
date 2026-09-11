@@ -54,6 +54,20 @@ public enum PasscodeError: LocalizedError, Equatable {
     }
 }
 
+/// Failures from locking the wallet with biometrics rather than a passcode of its own.
+public enum AppLockError: LocalizedError, Equatable {
+    case notVerified
+    case deviceOwnerUnavailable
+
+    public var errorDescription: String? {
+        switch self {
+        case .notVerified: "You were not verified, so nothing changed."
+        case .deviceOwnerUnavailable:
+            "This device cannot verify you. Turn on its passcode, or set a wallet passcode instead."
+        }
+    }
+}
+
 /// Pure rules for when the app locks and how failed attempts are throttled.
 ///
 /// Kept free of `LocalAuthentication` and the keychain so the decisions can be tested directly.

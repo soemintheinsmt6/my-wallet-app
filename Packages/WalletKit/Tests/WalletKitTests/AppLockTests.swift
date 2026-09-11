@@ -25,12 +25,30 @@ private final class MemoryPasscodeStore: PasscodeStoring, @unchecked Sendable {
     }
 }
 
-private struct StubAuthenticator: BiometricAuthenticating {
-    var kind: BiometryKind = .faceID
-    var succeeds = true
+private final class StubAuthenticator: BiometricAuthenticating, @unchecked Sendable {
+    private let lock = NSLock()
+    private let kind: BiometryKind
+    private let succeeds: Bool
+    private let verifiesDeviceOwner: Bool
+    private var allowedDevicePasscode: Bool?
+
+    init(kind: BiometryKind = .faceID, succeeds: Bool = true, verifiesDeviceOwner: Bool = true) {
+        self.kind = kind
+        self.succeeds = succeeds
+        self.verifiesDeviceOwner = verifiesDeviceOwner
+    }
+
+    /// What the last prompt was willing to accept, so tests can tell a biometrics-only unlock
+    /// (which must fall back to the device passcode) from one backed by a wallet passcode.
+    var lastAllowedDevicePasscode: Bool? { lock.withLock { allowedDevicePasscode } }
 
     func availableBiometry() -> BiometryKind { kind }
-    func authenticate(reason: String) async -> Bool { succeeds }
+    func canVerifyDeviceOwner() -> Bool { verifiesDeviceOwner }
+
+    func authenticate(reason: String, allowingDevicePasscode: Bool) async -> Bool {
+        lock.withLock { allowedDevicePasscode = allowingDevicePasscode }
+        return succeeds
+    }
 }
 
 struct AppLockPolicyTests {
@@ -117,12 +135,15 @@ struct PasscodeHasherTests {
 struct AppLockViewModelTests {
     private func model(passcode: String? = nil, length: PasscodeLength = .four,
                        authenticator: StubAuthenticator = StubAuthenticator(),
+                       biometricsOnly: Bool = false,
                        now: @escaping () -> Date = Date.init) throws -> (AppLockViewModel, MemoryPasscodeStore) {
         let store = MemoryPasscodeStore()
         if let passcode {
             try store.save(PasscodeHasher.makeVerifier(passcode: passcode, length: length))
         }
         let defaults = UserDefaults(suiteName: "applock.tests.\(UUID().uuidString)")!
+        // Stands in for a lock enabled on a previous launch.
+        if biometricsOnly { defaults.set(true, forKey: WalletPreferenceKeys.appLockBiometricsOnly) }
         let model = AppLockViewModel(store: store, authenticator: authenticator,
                                      preferences: defaults, now: now)
         return (model, store)
@@ -190,6 +211,101 @@ struct AppLockViewModelTests {
         #expect(refusing.isLocked)
         // A cancelled prompt is not a passcode attempt and must not count toward the throttle.
         #expect(refusing.failedAttempts == 0)
+    }
+
+    /// The system biometric prompt takes the app out of the active phase, so a successful unlock is
+    /// immediately followed by a return to active. That must not be read as coming back from the
+    /// background, or the lock screen reappears the instant Face ID dismisses it.
+    @Test func unlockingWithBiometricsSurvivesTheScenePhaseTheirPromptCauses() async throws {
+        let (model, _) = try model(passcode: "1234", authenticator: StubAuthenticator(succeeds: true))
+        model.start()
+
+        // The prompt appears: the app resigns active while still locked.
+        model.applicationDidResignActive()
+        await model.authenticateWithBiometrics()
+        #expect(!model.isLocked)
+
+        // The prompt dismisses and the app becomes active again.
+        model.applicationDidBecomeActive()
+        #expect(!model.isLocked)
+    }
+
+    // MARK: - Biometrics without a wallet passcode
+
+    @Test func biometricsCanHoldTheLockWithNoPasscodeBehindThem() async throws {
+        let authenticator = StubAuthenticator(succeeds: true)
+        let (model, store) = try model(authenticator: authenticator)
+        #expect(!model.isEnabled)
+
+        try await model.enableBiometricLock()
+        #expect(model.isEnabled)
+        #expect(model.isBiometricOnly)
+        #expect(!model.hasPasscode)
+        #expect(try store.load() == nil)
+
+        model.start()
+        #expect(model.isLocked)
+        await model.authenticateWithBiometrics()
+        #expect(!model.isLocked)
+        // Nothing else can let the owner in, so the prompt must accept the device passcode too.
+        #expect(authenticator.lastAllowedDevicePasscode == true)
+    }
+
+    /// A prompt backed by a wallet passcode stays on biometrics, so a refusal falls through to the
+    /// keypad instead of the device passcode.
+    @Test func aWalletPasscodeKeepsThePromptOnBiometricsAlone() async throws {
+        let authenticator = StubAuthenticator(succeeds: true)
+        let (model, _) = try model(passcode: "1234", authenticator: authenticator)
+        model.start()
+        await model.authenticateWithBiometrics()
+        #expect(authenticator.lastAllowedDevicePasscode == false)
+    }
+
+    @Test func aDeviceThatCannotVerifyAnyoneRefusesABiometricLock() async throws {
+        let (model, _) = try model(authenticator: StubAuthenticator(verifiesDeviceOwner: false))
+        await #expect(throws: AppLockError.deviceOwnerUnavailable) {
+            try await model.enableBiometricLock()
+        }
+        #expect(!model.isEnabled)
+    }
+
+    @Test func anUnverifiedAttemptLeavesTheBiometricLockAsItWas() async throws {
+        let (model, _) = try model(authenticator: StubAuthenticator(succeeds: false))
+        await #expect(throws: AppLockError.notVerified) {
+            try await model.enableBiometricLock()
+        }
+        #expect(!model.isEnabled)
+        #expect(!model.isBiometricOnly)
+    }
+
+    @Test func turningTheBiometricLockOffRequiresVerifying() async throws {
+        let (enabled, _) = try model(authenticator: StubAuthenticator(succeeds: true))
+        try await enabled.enableBiometricLock()
+        try await enabled.disableBiometricLock()
+        #expect(!enabled.isEnabled)
+        #expect(!enabled.isBiometricOnly)
+
+        // A refused prompt must leave the lock standing.
+        let (refused, _) = try model(authenticator: StubAuthenticator(succeeds: false),
+                                     biometricsOnly: true)
+        #expect(refused.isBiometricOnly)
+        await #expect(throws: AppLockError.notVerified) { try await refused.disableBiometricLock() }
+        #expect(refused.isBiometricOnly)
+    }
+
+    @Test func aPasscodeSupersedesABiometricOnlyLock() async throws {
+        let (model, _) = try model(authenticator: StubAuthenticator(succeeds: true))
+        try await model.enableBiometricLock()
+
+        try model.setPasscode("1234", confirmation: "1234", length: .four)
+        #expect(model.hasPasscode)
+        #expect(!model.isBiometricOnly)
+        #expect(model.isEnabled)
+
+        // Removing the passcode leaves no lock behind, rather than silently reverting to one.
+        try model.disableLock(currentPasscode: "1234")
+        #expect(!model.isEnabled)
+        #expect(!model.isBiometricOnly)
     }
 
     @Test func biometricsAreSkippedWhenUnavailableOrTurnedOff() async throws {

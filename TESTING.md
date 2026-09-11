@@ -201,6 +201,21 @@ Manual checks:
 5. Deny or unenroll biometrics and confirm the passcode still unlocks; turn the toggle off and confirm no prompt appears.
 6. Turn the lock off with the wrong passcode, then the right one. Reinstall and confirm the keychain item did not survive as a stale lock.
 
+### Biometrics Without a Passcode (2026-09-11)
+
+**271 tests across 44 suites passed.** `AppLockViewModelTests` gained the biometric-only lock: enabling it with no passcode stored, its prompt accepting the device passcode while a passcode-backed prompt does not, a device that can verify nobody refusing the lock outright, an unverified attempt changing nothing in either direction, and a wallet passcode superseding it without reverting when removed. A regression test pins the fix for the re-lock loop: a successful biometric unlock followed by the return to active the system prompt causes must leave the app unlocked.
+
+**Not verified:** the same limits stand — no simulator UI input, so the prompts themselves were not exercised. The Simulator also reports no biometry unless Features → Face ID → Enrolled is set, which hides the toggle entirely.
+
+Manual checks:
+
+1. With no passcode set, turn on Lock with Face ID. Confirm the prompt appears, the toggle stays on only after it succeeds, and cancelling leaves it off.
+2. Relaunch. Confirm the lock screen shows a single unlock button and no keypad, and that Face ID unlocks it and the lock screen does not come back.
+3. Cancel the prompt, then unlock with the button. Confirm the device passcode is offered as the fallback.
+4. Unenroll Face ID while the lock is on. Confirm the device passcode still unlocks and the button names it.
+5. Set a wallet passcode while the biometric lock is on. Confirm the keypad returns and the Lock with Face ID toggle is replaced by Unlock with Face ID.
+6. Turn the lock off. Confirm it requires verifying, and that a cancelled prompt leaves the lock standing.
+
 ## Export and Import Validation (2026-09-10)
 
 **144 tests across 25 suites passed.** `CSVTests` covers quoting only where required, round-tripping values with embedded commas, quotes and newlines, CRLF/LF/BOM/trailing-newline handling, preserved empty trailing fields, unterminated quotes and empty files. `RecordCSVTests` round-trips a real export back into rows, checks header matching across case, order and unknown columns, missing required columns, spreadsheet-accurate row numbers in errors, both decimal separators with grouping and currency symbols, common date forms, exact decimal output, and case-insensitive payment types. `WalletArchiveTests` covers the JSON round trip, photo bytes being dropped and a newer format being refused. `ImportPlannerTests` covers name matching for accounts/categories/labels, flagged unknown accounts and malformed transfers, duplicates against the wallet and within one file, near-misses that are not duplicates, and the invariant that every row lands in exactly one bucket.
