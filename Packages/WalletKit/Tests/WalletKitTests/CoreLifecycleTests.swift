@@ -66,6 +66,33 @@ struct CoreLifecycleTests {
         #expect(try await repository.fetchAccounts().first { $0.id == a.id }?.settings.currentBalance == 100)
     }
 
+    /// The dashboard, the record list and the statistics screen share one records view model. Each
+    /// used to start its own change loop and reload on activation, so a single change cost three
+    /// concurrent loads — and three `isLoading` flips, which read on screen as the spinner
+    /// flashing several times.
+    @Test func screensSharingTheRecordsModelLoadItOnceBetweenThem() async throws {
+        let (repository, _, _, _) = try await setup()
+        let counting = CountingRecords(wrapping: repository)
+        let viewModel = RecordsViewModel(useCases: RecordUseCases(repository: counting),
+                                         accounts: AccountUseCases(repository: repository),
+                                         categories: CategoryUseCases(repository: repository),
+                                         tags: TagUseCases(repository: repository))
+
+        // Three screens appearing at once.
+        let screens = (0..<3).map { _ in Task { await viewModel.observe() } }
+        for screen in screens { await screen.value }
+        // One load for the first caller, and one more pass covering the two that arrived while it
+        // ran, rather than three loads racing each other.
+        #expect(counting.loads == 2)
+        #expect(!viewModel.isLoading)
+
+        // And one change reaches one loop, not three.
+        let before = counting.loads
+        counting.announceChange()
+        try await Task.sleep(for: .milliseconds(50))
+        #expect(counting.loads == before + 1)
+    }
+
     @Test func editingSameCurrencyTransferUsesSentAmountAndPublishesUpdatedBalances() async throws {
         let (repository, a, _, category) = try await setup()
         let b = Account(name: "Second USD", type: .cash)
@@ -255,6 +282,33 @@ struct CoreLifecycleTests {
         #expect(viewModel.records == [record])
         #expect(!viewModel.isSaving)
     }
+}
+
+/// Counts the loads a view model actually performs, passing everything else through.
+@MainActor
+private final class CountingRecords: RecordRepository {
+    private let wrapped: any RecordRepository
+    private(set) var loads = 0
+    private let stream: AsyncStream<Void>
+    private let continuation: AsyncStream<Void>.Continuation
+
+    init(wrapping wrapped: any RecordRepository) {
+        self.wrapped = wrapped
+        (stream, continuation) = AsyncStream<Void>.makeStream()
+    }
+
+    func announceChange() { continuation.yield() }
+
+    func fetchRecords() async throws -> [WalletRecord] {
+        loads += 1
+        return try await wrapped.fetchRecords()
+    }
+
+    func createRecord(id: UUID, draft: RecordDraft) async throws { try await wrapped.createRecord(id: id, draft: draft) }
+    func updateRecord(id: UUID, draft: RecordDraft) async throws { try await wrapped.updateRecord(id: id, draft: draft) }
+    func deleteRecord(id: UUID) async throws { try await wrapped.deleteRecord(id: id) }
+    func recordPhoto(id: UUID) async throws -> Data? { try await wrapped.recordPhoto(id: id) }
+    func changes() -> AsyncStream<Void> { stream }
 }
 
 @MainActor

@@ -16,6 +16,9 @@ public final class RecordsViewModel: ObservableObject {
     private let categoryUseCases: CategoryUseCases
     private let tagUseCases: TagUseCases
     private var generation = 0
+    private var observation: Task<Void, Never>?
+    private var isReloading = false
+    private var needsReload = false
 
     public init(useCases: RecordUseCases, accounts: AccountUseCases, categories: CategoryUseCases, tags: TagUseCases) {
         self.useCases = useCases
@@ -24,16 +27,39 @@ public final class RecordsViewModel: ObservableObject {
         tagUseCases = tags
     }
 
+    /// Watches for changes, once, however many screens ask.
+    ///
+    /// The dashboard, the record list and the statistics screen all share this view model. A loop
+    /// per screen meant one save fanned out into three concurrent loads, each raising `isLoading` —
+    /// which the dashboard showed as its spinner flashing several times over. The loop also outlives
+    /// the screen that started it, so leaving a tab no longer stops the others being kept current.
     public func observe() async {
-        let changes = useCases.changes()
-        await reload()
-        for await _ in changes {
-            guard !Task.isCancelled else { break }
-            await reload()
+        if observation == nil {
+            // Subscribed before the first load so a change during it is not missed.
+            let changes = useCases.changes()
+            observation = Task { [weak self] in
+                for await _ in changes {
+                    guard let self, !Task.isCancelled else { break }
+                    await reload()
+                }
+            }
         }
+        await reload()
     }
 
+    /// Folds into the load already running rather than racing it, and runs once more afterwards if
+    /// something changed while it was in flight.
     public func reload() async {
+        guard !isReloading else { needsReload = true; return }
+        isReloading = true
+        defer { isReloading = false }
+        repeat {
+            needsReload = false
+            await load()
+        } while needsReload
+    }
+
+    private func load() async {
         generation += 1
         let version = generation
         isLoading = true
