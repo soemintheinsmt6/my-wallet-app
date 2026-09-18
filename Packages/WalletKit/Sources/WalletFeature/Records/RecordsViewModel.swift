@@ -8,6 +8,13 @@ public final class RecordsViewModel: ObservableObject {
     @Published public private(set) var accounts: [Account] = []
     @Published public private(set) var categories: [WalletCategory] = []
     @Published public private(set) var tags: [WalletTag] = []
+    /// True until the wallet has been read once, and false from then on.
+    ///
+    /// Screens use it to choose between a spinner and their content, so it deliberately does not
+    /// rise again for later loads: a launch runs several of them — the dashboard appearing, the
+    /// recurring generator writing, the scene becoming active — and raising it each time flashed
+    /// the spinner over content that was already on screen. A background load now leaves the
+    /// screen as it is and swaps the data in when it lands.
     @Published public private(set) var isLoading = true
     @Published public private(set) var isSaving = false
     @Published public var errorMessage: String?
@@ -62,8 +69,8 @@ public final class RecordsViewModel: ObservableObject {
     private func load() async {
         generation += 1
         let version = generation
-        isLoading = true
-        defer { if generation == version { isLoading = false } }
+        // Assigning `false` over `false` would still publish, and redraw every screen with it.
+        defer { if generation == version, isLoading { isLoading = false } }
         do {
             let accounts = try await accountUseCases.load()
             let categories = try await categoryUseCases.load()
@@ -71,10 +78,13 @@ public final class RecordsViewModel: ObservableObject {
             let records = try await useCases.load()
             try Task.checkCancellation()
             guard version == generation else { return }
-            self.accounts = accounts
-            self.categories = categories
-            self.tags = tags
-            self.records = records
+            // Only what actually changed is published: the repeated loads a launch makes read the
+            // same rows back, and republishing them redrew every dashboard card — charts and
+            // progress bars animating from nothing — for no change at all.
+            if self.accounts != accounts { self.accounts = accounts }
+            if self.categories != categories { self.categories = categories }
+            if self.tags != tags { self.tags = tags }
+            if self.records != records { self.records = records }
         } catch is CancellationError {
         } catch { if version == generation { errorMessage = error.localizedDescription } }
     }

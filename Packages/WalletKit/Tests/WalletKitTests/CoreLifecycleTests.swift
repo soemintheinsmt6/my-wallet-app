@@ -1,3 +1,4 @@
+import Combine
 import Foundation
 import SwiftData
 import Testing
@@ -91,6 +92,38 @@ struct CoreLifecycleTests {
         counting.announceChange()
         try await Task.sleep(for: .milliseconds(50))
         #expect(counting.loads == before + 1)
+    }
+
+    /// A launch still loads more than once — the dashboard appears, the recurring generator writes,
+    /// the scene becomes active — and each pass used to raise `isLoading` and republish rows that
+    /// had not changed, which the home screen showed as its spinner flickering over content that
+    /// was already there.
+    @Test func loadingAgainLeavesTheSpinnerDownAndPublishesNothingWhenTheWalletIsUnchanged() async throws {
+        let (repository, account, _, category) = try await setup()
+        let viewModel = RecordsViewModel(useCases: RecordUseCases(repository: repository),
+                                         accounts: AccountUseCases(repository: repository),
+                                         categories: CategoryUseCases(repository: repository),
+                                         tags: TagUseCases(repository: repository))
+        #expect(viewModel.isLoading)
+        await viewModel.reload()
+        #expect(!viewModel.isLoading)
+        #expect(viewModel.accounts.count == 2)
+
+        var raisedSpinner = false
+        var publishes = 0
+        let spinner = viewModel.$isLoading.dropFirst().sink { if $0 { raisedSpinner = true } }
+        let published = viewModel.objectWillChange.sink { _ in publishes += 1 }
+        defer { spinner.cancel(); published.cancel() }
+        await viewModel.reload()
+        await viewModel.reload()
+        #expect(!raisedSpinner)
+        #expect(publishes == 0)
+
+        // A real change still reaches the screen.
+        try await viewModel.save(id: UUID(), draft: draft(account, category))
+        #expect(viewModel.records.count == 1)
+        #expect(publishes > 0)
+        #expect(!raisedSpinner)
     }
 
     @Test func editingSameCurrencyTransferUsesSentAmountAndPublishesUpdatedBalances() async throws {
