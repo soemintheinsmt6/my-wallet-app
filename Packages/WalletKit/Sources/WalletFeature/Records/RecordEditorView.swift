@@ -190,6 +190,7 @@ struct RecordEditorView: View {
                         "Received amount"
                     )
                     .focused($focusedField, equals: .receivedAmount)
+                    .groupedAmountOverlay(receivedAmount)
                 }
                 Text("Enter the actual amount received. No exchange rate is assumed.").font(.caption).foregroundStyle(
                     .secondary)
@@ -330,6 +331,7 @@ struct RecordEditorView: View {
                     #if os(iOS)
                         .keyboardType(.decimalPad)
                     #endif
+                    .groupedAmountOverlay(manualRate)
             }
             Text("Leave empty to use the downloaded rate. One \(currency) is worth this many \(currencyModel.homeCurrency).")
                 .font(.caption)

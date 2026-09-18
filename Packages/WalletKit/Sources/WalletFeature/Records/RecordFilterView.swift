@@ -157,6 +157,7 @@ struct RecordFilterView: View {
             #if !os(macOS)
             .keyboardType(.decimalPad)
             #endif
+            .groupedAmountOverlay(text.wrappedValue)
     }
 
     private func toggleRow(_ title: String, symbol: String, tint: Color, detail: String? = nil,

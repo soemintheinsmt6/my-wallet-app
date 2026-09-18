@@ -27,6 +27,7 @@ struct GoalEditorView: View {
                             #if os(iOS)
                                 .keyboardType(.decimalPad)
                             #endif
+                            .groupedAmountOverlay(target)
                     }
                     Picker("Currency", selection: $goal.currencyCode) {
                         ForEach(Locale.commonISOCurrencyCodes.sorted(), id: \.self) { Text($0).tag($0) }
@@ -145,6 +146,7 @@ struct GoalContributionView: View {
                             #if os(iOS)
                                 .keyboardType(.decimalPad)
                             #endif
+                            .groupedAmountOverlay(amount)
                     }
                     if !isWithdrawal, progress.remaining > 0 {
                         Button("Finish the Goal") {

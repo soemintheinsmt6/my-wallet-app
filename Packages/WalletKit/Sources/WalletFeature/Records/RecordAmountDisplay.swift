@@ -7,6 +7,12 @@ enum RecordAmountDisplay {
         grouped(AccountAmountInput.text(amount, locale: locale), locale: locale)
     }
 
+    /// What an amount field shows for the text it holds: the grouped digits, or nothing at all
+    /// while it is empty so its placeholder is what the person sees rather than a grouped "0".
+    static func field(_ input: String, locale: Locale = .current) -> String {
+        input.isEmpty ? "" : grouped(input, locale: locale)
+    }
+
     /// Group only the display; preserve the editable decimal and trailing zeros exactly.
     static func grouped(_ input: String, locale: Locale = .current) -> String {
         guard !input.isEmpty else { return "0" }

@@ -54,6 +54,7 @@ struct AccountEditorView: View {
                                 .keyboardType(.decimalPad)
                             #endif
                             .accessibilityLabel("Current balance in \(currencyCode)")
+                            .groupedAmountOverlay(balanceText)
                     } label: {
                         Text("Current balance")
                         Text(currencyCode)
@@ -97,10 +98,12 @@ struct AccountEditorView: View {
                     Toggle("Balance below limit", isOn: $settings.notifyBelowMinimum)
                     if settings.notifyBelowMinimum {
                         TextField("Minimum balance (\(currencyCode))", text: $minimumText.groupedAmount())
+                            .groupedAmountOverlay(minimumText, alignment: .leading)
                     }
                     Toggle("Balance above limit", isOn: $settings.notifyAboveMaximum)
                     if settings.notifyAboveMaximum {
                         TextField("Maximum balance (\(currencyCode))", text: $maximumText.groupedAmount())
+                            .groupedAmountOverlay(maximumText, alignment: .leading)
                     }
                 } header: {
                     Text("In-app notifications")

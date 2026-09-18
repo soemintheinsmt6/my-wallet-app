@@ -193,6 +193,7 @@ public struct OnboardingView: View {
                         #if os(iOS)
                             .keyboardType(.decimalPad)
                         #endif
+                        .groupedAmountOverlay(viewModel.startingBalance)
                 }
             }
 
@@ -259,6 +260,7 @@ public struct OnboardingView: View {
                             #if os(iOS)
                                 .keyboardType(.decimalPad)
                             #endif
+                            .groupedAmountOverlay(viewModel.budgetAmount)
                     }
                 }
                 Text("This covers spending across all categories in \(viewModel.currencyCode), starting today.")

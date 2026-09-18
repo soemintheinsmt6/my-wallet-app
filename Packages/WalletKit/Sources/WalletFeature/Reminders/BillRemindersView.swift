@@ -154,6 +154,7 @@ private struct BillEditorView: View {
                             #if os(iOS)
                                 .keyboardType(.decimalPad)
                             #endif
+                            .groupedAmountOverlay(amount)
                     }
                     Picker("Currency", selection: $bill.currencyCode) {
                         ForEach(Locale.commonISOCurrencyCodes.sorted(), id: \.self) { Text($0).tag($0) }

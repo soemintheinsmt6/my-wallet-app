@@ -165,6 +165,7 @@ private struct DebtEditorView: View {
                             #if os(iOS)
                                 .keyboardType(.decimalPad)
                             #endif
+                            .groupedAmountOverlay(amount)
                     }
                     Picker("Currency", selection: $debt.currencyCode) {
                         ForEach(Locale.commonISOCurrencyCodes.sorted(), id: \.self) { Text($0).tag($0) }
@@ -273,6 +274,7 @@ private struct DebtSettlementView: View {
                             #if os(iOS)
                                 .keyboardType(.decimalPad)
                             #endif
+                            .groupedAmountOverlay(amount)
                     }
                     Button("Pay It All") {
                         amount = AccountAmountInput.text(progress.outstanding)

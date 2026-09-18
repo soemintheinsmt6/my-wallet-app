@@ -109,6 +109,7 @@ private struct BudgetEditorView: View {
                             #if os(iOS)
                                 .keyboardType(.decimalPad)
                             #endif
+                            .groupedAmountOverlay(amount)
                     }
                     Picker("Currency", selection: $budget.currencyCode) {
                         ForEach(Locale.commonISOCurrencyCodes.sorted(), id: \.self) { Text($0).tag($0) }

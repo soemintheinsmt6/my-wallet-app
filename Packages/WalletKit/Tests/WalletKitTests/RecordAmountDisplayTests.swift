@@ -39,6 +39,19 @@ struct RecordAmountDisplayTests {
         #expect(RecordAmountDisplay.ungrouped("1.234.567,89", locale: Locale(identifier: "de_DE")) == "1234567,89")
     }
 
+    /// What the field draws over itself as digits arrive. An empty field draws nothing, so its
+    /// placeholder shows instead of a grouped "0", and every keystroke after that is grouped as it
+    /// is typed rather than waiting for focus to move elsewhere.
+    @Test func drawsGroupedDigitsFromTheFirstKeystrokeAndNothingWhileEmpty() {
+        let locale = Locale(identifier: "en_US")
+        #expect(RecordAmountDisplay.field("", locale: locale) == "")
+        #expect(RecordAmountDisplay.field("1", locale: locale) == "1")
+        #expect(RecordAmountDisplay.field("999", locale: locale) == "999")
+        #expect(RecordAmountDisplay.field("1000", locale: locale) == "1,000")
+        #expect(RecordAmountDisplay.field("1000.5", locale: locale) == "1,000.5")
+        #expect(RecordAmountDisplay.field("-1000", locale: locale) == "-1,000")
+    }
+
     /// What a field types into: every keystroke regroups for display and stores plain digits, so
     /// `AccountAmountInput.parse` keeps reading the same text it always did.
     @Test func roundTripsThroughAField() throws {
