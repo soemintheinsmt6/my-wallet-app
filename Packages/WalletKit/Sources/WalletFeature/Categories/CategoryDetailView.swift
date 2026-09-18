@@ -19,6 +19,7 @@ struct CategoryDetailView: View {
                     header(category)
                     if let planning { BudgetProgressSection(viewModel: planning, categoryID: category.id) }
                     subcategories(category)
+                    appearance(category)
                     actions(category)
                 }
             } else {
@@ -93,6 +94,21 @@ struct CategoryDetailView: View {
         }
     }
 
+    /// The colour is something the category has, not something to tap, so it is kept out of the
+    /// rows that act.
+    private func appearance(_ category: WalletCategory) -> some View {
+        Section {
+            LabeledContent("Color") {
+                Circle()
+                    .fill(category.colorToken.color)
+                    .frame(width: 20, height: 20)
+                    .accessibilityLabel("Fixed category color \(category.colorToken.hex)")
+            }
+        } footer: {
+            Text("The category color is fixed and stays the same across renames and devices.")
+        }
+    }
+
     private func actions(_ category: WalletCategory) -> some View {
         Section {
             Button { editor = CategoryEditorRoute(category: category) } label: {
@@ -103,17 +119,7 @@ struct CategoryDetailView: View {
                     Label("Change Icon", systemImage: "square.grid.2x2")
                 }
             }
-            LabeledContent("Color") {
-                Circle()
-                    .fill(category.colorToken.color)
-                    .frame(width: 20, height: 20)
-                    .accessibilityLabel("Fixed category color \(category.colorToken.hex)")
-            }
-            Button(role: .destructive) { deleting = category } label: {
-                Label("Delete Category", systemImage: "trash")
-            }
-        } footer: {
-            Text("The category color is fixed and stays the same across renames and devices.")
+            WalletDestructiveRow(title: "Delete Category") { deleting = category }
         }
     }
 }

@@ -75,10 +75,8 @@ public struct SettingsView: View {
 
             #if DEBUG
             Section {
-                Button(role: .destructive) { confirmingReset = true } label: {
-                    Label("Reset Wallet Data", systemImage: "trash")
-                }
-                .disabled(viewModel.isResetting)
+                WalletDestructiveRow(title: "Reset Wallet Data") { confirmingReset = true }
+                    .disabled(viewModel.isResetting)
                 if viewModel.isResetting { ProgressView("Resetting wallet…") }
             } header: {
                 Text("Temporary Development Tools")

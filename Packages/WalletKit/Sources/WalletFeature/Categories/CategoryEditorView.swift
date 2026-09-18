@@ -14,6 +14,7 @@ struct CategoryEditorView: View {
     @State private var name: String
     @State private var nature: CategoryNature
     @State private var errorMessage: String?
+    @State private var confirmingDelete = false
 
     init(viewModel: CategoriesViewModel, route: CategoryEditorRoute) {
         self.viewModel = viewModel
@@ -26,6 +27,14 @@ struct CategoryEditorView: View {
         if route.category != nil { return "Edit" }
         let noun = route.parent == nil ? "Category" : "Subcategory"
         return "Create \(noun)"
+    }
+
+    /// The subcategory this sheet is editing, if that is what it is editing.
+    ///
+    /// Only a subcategory offers deletion here: a category is deleted from its own screen, which
+    /// has the room to ask what should become of the subcategories under it.
+    private var deletable: WalletCategory? {
+        route.parent == nil ? nil : route.category
     }
 
     var body: some View {
@@ -58,6 +67,13 @@ struct CategoryEditorView: View {
                 if let errorMessage {
                     Section { Text(errorMessage).foregroundStyle(.red).accessibilityLabel("Error: \(errorMessage)") }
                 }
+                if deletable != nil {
+                    Section {
+                        WalletDestructiveRow(title: "Delete Subcategory") { confirmingDelete = true }
+                    } footer: {
+                        Text("Records using it become Uncategorized. No financial records or balances are removed.")
+                    }
+                }
             }
             .formStyle(.grouped)
             .disabled(viewModel.isSaving)
@@ -80,6 +96,23 @@ struct CategoryEditorView: View {
                     }
                     .disabled(viewModel.isSaving || name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || name.trimmingCharacters(in: .whitespacesAndNewlines).count > 80)
                 }
+            }
+            .alert("Delete Subcategory?", isPresented: $confirmingDelete) {
+                Button("Cancel", role: .cancel) {}
+                Button("Delete", role: .destructive) {
+                    guard let deletable else { return }
+                    Task {
+                        errorMessage = nil
+                        do {
+                            // A subcategory is the bottom of the hierarchy, so there is nothing
+                            // underneath it for the strategy to decide about.
+                            try await viewModel.delete(id: deletable.id, strategy: .deleteSubcategories)
+                            dismiss()
+                        } catch { errorMessage = error.localizedDescription }
+                    }
+                }
+            } message: {
+                Text("This cannot be undone. Records using \(deletable?.name ?? "it") become Uncategorized.")
             }
             .interactiveDismissDisabled(viewModel.isSaving)
         }

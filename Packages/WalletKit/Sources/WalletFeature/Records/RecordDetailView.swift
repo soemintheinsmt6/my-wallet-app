@@ -46,8 +46,11 @@ struct RecordDetailView: View {
             }
             ToolbarItem {
                 Button(role: .destructive) { confirmingDelete = true } label: {
-                    Label("Delete", systemImage: "trash")
+                    // A destructive role colours a row's title and nothing else, so the icon is
+                    // said outright; the tint is what a toolbar button takes its colour from.
+                    Label("Delete", systemImage: "trash").foregroundStyle(.red)
                 }
+                .tint(.red)
                 .disabled(viewModel.isSaving)
             }
         }
