@@ -148,13 +148,13 @@ private struct BillEditorView: View {
                             .multilineTextAlignment(.trailing)
                     }
                     LabeledContent("Amount") {
-                        TextField("0", text: $amount.groupedAmount())
-                            .multilineTextAlignment(.trailing)
-                            .monospacedDigit()
-                            #if os(iOS)
-                                .keyboardType(.decimalPad)
-                            #endif
-                            .groupedAmountOverlay(amount)
+                        WalletAmountField(amount: amount) {
+                            TextField("", text: $amount.groupedAmount())
+                                #if os(iOS)
+                                    .keyboardType(.decimalPad)
+                                #endif
+                        }
+                        .monospacedDigit()
                     }
                     Picker("Currency", selection: $bill.currencyCode) {
                         ForEach(Locale.commonISOCurrencyCodes.sorted(), id: \.self) { Text($0).tag($0) }

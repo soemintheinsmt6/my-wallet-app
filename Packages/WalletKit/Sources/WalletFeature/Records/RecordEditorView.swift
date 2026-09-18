@@ -186,11 +186,11 @@ struct RecordEditorView: View {
             if crossCurrency {
                 HStack {
                     Text("Received \(destinationCurrency)")
-                    TextField("0", text: $receivedAmount.groupedAmount()).multilineTextAlignment(.trailing).accessibilityLabel(
-                        "Received amount"
-                    )
-                    .focused($focusedField, equals: .receivedAmount)
-                    .groupedAmountOverlay(receivedAmount)
+                    WalletAmountField(amount: receivedAmount) {
+                        TextField("", text: $receivedAmount.groupedAmount())
+                            .accessibilityLabel("Received amount")
+                            .focused($focusedField, equals: .receivedAmount)
+                    }
                 }
                 Text("Enter the actual amount received. No exchange rate is assumed.").font(.caption).foregroundStyle(
                     .secondary)
@@ -324,14 +324,14 @@ struct RecordEditorView: View {
            currency != currencyModel.homeCurrency {
             recordRow("arrow.left.arrow.right") {
                 Text("Rate to \(currencyModel.homeCurrency)")
-                TextField(marketRatePlaceholder, text: $manualRate.groupedAmount())
-                    .multilineTextAlignment(.trailing)
-                    .monospacedDigit()
-                    .accessibilityLabel("Exchange rate to \(currencyModel.homeCurrency)")
-                    #if os(iOS)
-                        .keyboardType(.decimalPad)
-                    #endif
-                    .groupedAmountOverlay(manualRate)
+                WalletAmountField(amount: manualRate, placeholder: marketRatePlaceholder) {
+                    TextField("", text: $manualRate.groupedAmount())
+                        .accessibilityLabel("Exchange rate to \(currencyModel.homeCurrency)")
+                        #if os(iOS)
+                            .keyboardType(.decimalPad)
+                        #endif
+                }
+                .monospacedDigit()
             }
             Text("Leave empty to use the downloaded rate. One \(currency) is worth this many \(currencyModel.homeCurrency).")
                 .font(.caption)

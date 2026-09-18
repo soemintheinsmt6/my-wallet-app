@@ -186,14 +186,14 @@ public struct OnboardingView: View {
                 }
 
                 field("Starting balance") {
-                    TextField("0", text: $viewModel.startingBalance.groupedAmount())
-                        .focused($focusedField, equals: .balance)
-                        .multilineTextAlignment(.trailing)
-                        .monospacedDigit()
-                        #if os(iOS)
-                            .keyboardType(.decimalPad)
-                        #endif
-                        .groupedAmountOverlay(viewModel.startingBalance)
+                    WalletAmountField(amount: viewModel.startingBalance) {
+                        TextField("", text: $viewModel.startingBalance.groupedAmount())
+                            .focused($focusedField, equals: .balance)
+                            #if os(iOS)
+                                .keyboardType(.decimalPad)
+                            #endif
+                    }
+                    .monospacedDigit()
                 }
             }
 
@@ -253,14 +253,14 @@ public struct OnboardingView: View {
                             .focused($focusedField, equals: .budgetName)
                     }
                     field("Limit (\(viewModel.currencyCode))") {
-                        TextField("0", text: $viewModel.budgetAmount.groupedAmount())
-                            .focused($focusedField, equals: .budgetAmount)
-                            .multilineTextAlignment(.trailing)
-                            .monospacedDigit()
-                            #if os(iOS)
-                                .keyboardType(.decimalPad)
-                            #endif
-                            .groupedAmountOverlay(viewModel.budgetAmount)
+                        WalletAmountField(amount: viewModel.budgetAmount) {
+                            TextField("", text: $viewModel.budgetAmount.groupedAmount())
+                                .focused($focusedField, equals: .budgetAmount)
+                                #if os(iOS)
+                                    .keyboardType(.decimalPad)
+                                #endif
+                        }
+                        .monospacedDigit()
                     }
                 }
                 Text("This covers spending across all categories in \(viewModel.currencyCode), starting today.")

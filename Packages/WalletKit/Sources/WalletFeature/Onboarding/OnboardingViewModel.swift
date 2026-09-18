@@ -51,7 +51,7 @@ public final class OnboardingViewModel: ObservableObject {
 
     public var isAccountValid: Bool {
         !accountName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-            && (try? AccountAmountInput.parse(startingBalance.isEmpty ? "0" : startingBalance)) != nil
+            && (try? AccountAmountInput.parseAllowingEmpty(startingBalance)) != nil
     }
 
     public var isBudgetValid: Bool {
@@ -116,7 +116,7 @@ public final class OnboardingViewModel: ObservableObject {
         isSaving = true
         defer { isSaving = false }
         do {
-            let balance = try AccountAmountInput.parse(startingBalance.isEmpty ? "0" : startingBalance)
+            let balance = try AccountAmountInput.parseAllowingEmpty(startingBalance)
             try await accounts.create(name: accountName.trimmingCharacters(in: .whitespacesAndNewlines),
                                       type: accountType, currencyCode: currencyCode,
                                       settings: AccountSettings(currentBalance: balance))

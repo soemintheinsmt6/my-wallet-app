@@ -77,6 +77,19 @@ struct AccountTests {
         }
     }
 
+    /// The balance field shows a "0" placeholder rather than a zero to clear, so an account opened
+    /// without touching it saves at zero instead of being refused. Anything actually typed is still
+    /// held to the same rules.
+    @Test func anUntouchedAmountFieldIsZeroAndTypedNonsenseIsStillRejected() throws {
+        let locale = Locale(identifier: "en_US")
+        #expect(try AccountAmountInput.parseAllowingEmpty("", locale: locale) == 0)
+        #expect(try AccountAmountInput.parseAllowingEmpty("   ", locale: locale) == 0)
+        #expect(try AccountAmountInput.parseAllowingEmpty("1234.5", locale: locale) == Decimal(string: "1234.5"))
+        #expect(throws: AccountValidationError.self) {
+            try AccountAmountInput.parseAllowingEmpty("12abc", locale: locale)
+        }
+    }
+
     @Test func failedDeletionPreservesAccountsAndReleasesSavingState() async throws {
         let viewModel = AccountsViewModel(useCases: AccountUseCases(repository: FailingAccountRepository()))
         await viewModel.reload()

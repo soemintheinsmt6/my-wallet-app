@@ -21,13 +21,13 @@ struct GoalEditorView: View {
                         TextField("New laptop", text: $goal.name).multilineTextAlignment(.trailing)
                     }
                     LabeledContent("Target") {
-                        TextField("0", text: $target.groupedAmount())
-                            .multilineTextAlignment(.trailing)
-                            .monospacedDigit()
-                            #if os(iOS)
-                                .keyboardType(.decimalPad)
-                            #endif
-                            .groupedAmountOverlay(target)
+                        WalletAmountField(amount: target) {
+                            TextField("", text: $target.groupedAmount())
+                                #if os(iOS)
+                                    .keyboardType(.decimalPad)
+                                #endif
+                        }
+                        .monospacedDigit()
                     }
                     Picker("Currency", selection: $goal.currencyCode) {
                         ForEach(Locale.commonISOCurrencyCodes.sorted(), id: \.self) { Text($0).tag($0) }
@@ -140,13 +140,13 @@ struct GoalContributionView: View {
                     }
                     .pickerStyle(.segmented)
                     LabeledContent("Amount") {
-                        TextField("0", text: $amount.groupedAmount())
-                            .multilineTextAlignment(.trailing)
-                            .monospacedDigit()
-                            #if os(iOS)
-                                .keyboardType(.decimalPad)
-                            #endif
-                            .groupedAmountOverlay(amount)
+                        WalletAmountField(amount: amount) {
+                            TextField("", text: $amount.groupedAmount())
+                                #if os(iOS)
+                                    .keyboardType(.decimalPad)
+                                #endif
+                        }
+                        .monospacedDigit()
                     }
                     if !isWithdrawal, progress.remaining > 0 {
                         Button("Finish the Goal") {

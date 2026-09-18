@@ -152,12 +152,15 @@ struct RecordFilterView: View {
     }
 
     private func amountField(_ prompt: String, text: Binding<String>) -> some View {
-        TextField(prompt, text: text.groupedAmount())
-            .multilineTextAlignment(.trailing)
-            #if !os(macOS)
-            .keyboardType(.decimalPad)
-            #endif
-            .groupedAmountOverlay(text.wrappedValue)
+        WalletAmountField(amount: text.wrappedValue, placeholder: prompt) {
+            // The prompt is drawn by the field above rather than being the placeholder, so it has
+            // to be said here for it to still name the field.
+            TextField("", text: text.groupedAmount())
+                .accessibilityLabel(prompt)
+                #if !os(macOS)
+                .keyboardType(.decimalPad)
+                #endif
+        }
     }
 
     private func toggleRow(_ title: String, symbol: String, tint: Color, detail: String? = nil,

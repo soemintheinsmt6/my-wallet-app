@@ -23,7 +23,10 @@ struct AccountEditorView: View {
         _type = State(initialValue: account?.type ?? .cash)
         _currencyCode = State(initialValue: account?.currencyCode ?? Locale.current.currency?.identifier ?? "USD")
         _settings = State(initialValue: settings)
-        _balanceText = State(initialValue: AccountAmountInput.text(settings.currentBalance))
+        // Nothing to show is left empty so the field's "0" reads as the placeholder it is, rather
+        // than as a zero the person has to clear before typing.
+        _balanceText = State(initialValue: settings.currentBalance == 0 ? ""
+            : AccountAmountInput.text(settings.currentBalance))
         _minimumText = State(initialValue: AccountAmountInput.text(settings.minimumBalance))
         _maximumText = State(initialValue: AccountAmountInput.text(settings.maximumBalance))
     }
@@ -36,28 +39,39 @@ struct AccountEditorView: View {
                 Section {
                     TextField("Name", text: $name)
                     if account == nil {
+                        // Reads as the row it is — a label, the choice, and somewhere to go —
+                        // rather than as a line of button-tinted text.
                         Button { choosingCurrency = true } label: {
-                            LabeledContent("Currency", value: currencyCode)
+                            HStack {
+                                Text("Currency").foregroundStyle(.primary)
+                                Spacer()
+                                Text(currencyCode).foregroundStyle(.secondary)
+                                Image(systemName: "chevron.right")
+                                    .font(.caption.weight(.semibold))
+                                    .foregroundStyle(.tertiary)
+                                    .accessibilityHidden(true)
+                            }
+                            .contentShape(.rect)
                         }
+                        // Without this the form tints the whole label, and the row reads as a line
+                        // of blue text rather than as a setting with a value.
+                        .buttonStyle(.plain)
                     } else {
                         LabeledContent("Currency", value: currencyCode)
                     }
-                    // The opening amount is the number people check before saving, so it gets the
-                    // trailing alignment and larger type the record amount field uses, scaled down
-                    // to fit a form row.
-                    LabeledContent {
-                        TextField("0", text: $balanceText.groupedAmount())
-                            .multilineTextAlignment(.trailing)
-                            .font(.title2.weight(.semibold))
-                            .monospacedDigit()
-                            #if os(iOS)
-                                .keyboardType(.decimalPad)
-                            #endif
-                            .accessibilityLabel("Current balance in \(currencyCode)")
-                            .groupedAmountOverlay(balanceText)
-                    } label: {
-                        Text("Current balance")
-                        Text(currencyCode)
+                    // The opening amount is the number people check before saving, so it is set in
+                    // the rounded balance type the dashboard total uses. The currency is chosen a
+                    // row above, so it is not repeated here.
+                    LabeledContent("Balance") {
+                        WalletAmountField(amount: balanceText) {
+                            TextField("", text: $balanceText.groupedAmount())
+                                #if os(iOS)
+                                    .keyboardType(.decimalPad)
+                                #endif
+                                .accessibilityLabel("Balance in \(currencyCode)")
+                        }
+                        .font(.system(.largeTitle, design: .rounded, weight: .semibold))
+                        .monospacedDigit()
                     }
                     Picker("Type", selection: $type) {
                         ForEach(AccountType.allCases) { option in
@@ -67,7 +81,7 @@ struct AccountEditorView: View {
                 } header: {
                     Text("Account")
                 } footer: {
-                    Text("Currency is chosen once when you create an account. Enter amounts using your local decimal separator, without thousands separators.")
+                    Text("Currency is chosen once when you create an account. Enter amounts using your local decimal separator; thousands are grouped for you. Leave the balance empty to open the account at zero.")
                 }
 
                 Section("Color") {
@@ -97,13 +111,19 @@ struct AccountEditorView: View {
                 Section {
                     Toggle("Balance below limit", isOn: $settings.notifyBelowMinimum)
                     if settings.notifyBelowMinimum {
-                        TextField("Minimum balance (\(currencyCode))", text: $minimumText.groupedAmount())
-                            .groupedAmountOverlay(minimumText, alignment: .leading)
+                        WalletAmountField(amount: minimumText, placeholder: "Minimum balance (\(currencyCode))",
+                                          alignment: .leading) {
+                            TextField("", text: $minimumText.groupedAmount())
+                                .accessibilityLabel("Minimum balance in \(currencyCode)")
+                        }
                     }
                     Toggle("Balance above limit", isOn: $settings.notifyAboveMaximum)
                     if settings.notifyAboveMaximum {
-                        TextField("Maximum balance (\(currencyCode))", text: $maximumText.groupedAmount())
-                            .groupedAmountOverlay(maximumText, alignment: .leading)
+                        WalletAmountField(amount: maximumText, placeholder: "Maximum balance (\(currencyCode))",
+                                          alignment: .leading) {
+                            TextField("", text: $maximumText.groupedAmount())
+                                .accessibilityLabel("Maximum balance in \(currencyCode)")
+                        }
                     }
                 } header: {
                     Text("In-app notifications")
@@ -150,9 +170,13 @@ struct AccountEditorView: View {
         errorMessage = nil
         do {
             var values = settings
-            values.currentBalance = try AccountAmountInput.parse(balanceText)
-            if values.notifyBelowMinimum { values.minimumBalance = try AccountAmountInput.parse(minimumText) }
-            if values.notifyAboveMaximum { values.maximumBalance = try AccountAmountInput.parse(maximumText) }
+            values.currentBalance = try AccountAmountInput.parseAllowingEmpty(balanceText)
+            if values.notifyBelowMinimum {
+                values.minimumBalance = try AccountAmountInput.parseAllowingEmpty(minimumText)
+            }
+            if values.notifyAboveMaximum {
+                values.maximumBalance = try AccountAmountInput.parseAllowingEmpty(maximumText)
+            }
             if let account {
                 try await viewModel.update(id: account.id, name: name, type: type, settings: values)
             } else {
