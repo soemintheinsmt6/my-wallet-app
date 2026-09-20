@@ -23,8 +23,6 @@ struct RecordEditorView: View {
     @Environment(\.receiptUseCases) private var receiptUseCases
     @Environment(\.splitsViewModel) private var splitsViewModel
     @State private var isSplitting = false
-    @State private var selectingCategory = false
-    @State private var selectingTags = false
     @State private var photoItem: PhotosPickerItem?
     @State private var isLoadingPhoto = false
     @State private var choosingPhotoSource = false
@@ -38,7 +36,7 @@ struct RecordEditorView: View {
     private enum InputField: Hashable { case amount, receivedAmount, note, payee }
     @State private var didFocusAmount = false
     @State private var selectionScreen: SelectionScreen?
-    private enum SelectionScreen: String, Hashable { case account, destination, payment }
+    private enum SelectionScreen: String, Hashable { case account, destination, category, tags, payment }
 
     /// `initialKind` preselects the segmented type for a new record; widget quick-add uses it.
     init(viewModel: RecordsViewModel, record: WalletRecord? = nil, title: String? = nil, allowsRecurrence: Bool = true, initialKind: RecordKind? = nil, saveAction: ((UUID, RecordDraft) async throws -> Void)? = nil) {
@@ -87,15 +85,7 @@ struct RecordEditorView: View {
                     amountSection
                     generalSection
                     detailsSection
-                    if record == nil && allowsRecurrence {
-                        VStack(alignment: .leading, spacing: 12) {
-                            RecurrenceFields(rule: $draft.recurrence, start: draft.date)
-                            if draft.recurrence != nil {
-                                Text("This record is saved now. Later occurrences are created when the app opens or becomes active. Manage them under Planning → Recurring.")
-                                    .font(.caption).foregroundStyle(.secondary)
-                            }
-                        }.padding(20)
-                    }
+                    if record == nil && allowsRecurrence { recurrenceSection }
                     if let errorMessage { Text(errorMessage).foregroundStyle(.red).padding(20) }
                 }
                 .background {
@@ -140,12 +130,12 @@ struct RecordEditorView: View {
                         .disabled(isBusy)
                 }
             }
-            .sheet(isPresented: $selectingCategory) {
-                RecordCategoryPicker(viewModel: viewModel, kind: draft.kind, selection: $draft.categoryID)
-            }
-            .sheet(isPresented: $selectingTags) { RecordTagPicker(viewModel: viewModel, selection: $draft.tagIDs) }
             .navigationDestination(item: $selectionScreen) { screen in
                 switch screen {
+                case .category:
+                    RecordCategoryPicker(viewModel: viewModel, kind: draft.kind, selection: $draft.categoryID)
+                case .tags:
+                    RecordTagPicker(viewModel: viewModel, selection: $draft.tagIDs)
                 case .account:
                     RecordAccountSelection(
                         accounts: viewModel.accounts, selection: $draft.accountID,
@@ -225,7 +215,8 @@ struct RecordEditorView: View {
             color: viewModel.category(draft.categoryID)?.colorToken.color ?? .gray, categoryTile: true
         ) {
             Button {
-                selectingCategory = true
+                focusedField = nil
+                selectionScreen = .category
             } label: {
                 HStack {
                     Text("Category").foregroundStyle(.primary)
@@ -266,16 +257,19 @@ struct RecordEditorView: View {
         recordRow("calendar") {
             RecordDateTimeField(date: $draft.date) { focusedField = nil }
         }
-        recordRow("tag") {
+        recordRow("tag", showsDivider: false) {
             Button {
-                selectingTags = true
+                focusedField = nil
+                selectionScreen = .tags
             } label: {
                 HStack {
                     Text("Labels").foregroundStyle(.primary)
                     Spacer()
                     if !draft.tagIDs.isEmpty { Text(selectedLabels).foregroundStyle(.secondary) }
-                    Image(systemName: "plus.circle.fill").font(.title2).foregroundStyle(.blue)
+                    chevron
                 }
+                .frame(maxWidth: .infinity, minHeight: 44)
+                .contentShape(Rectangle())
             }.buttonStyle(.plain)
         }
     }
@@ -389,7 +383,7 @@ struct RecordEditorView: View {
     /// One photo per record. An empty row asks where the photo should come from; a filled one opens
     /// the photo itself, which is where it can be deleted.
     @ViewBuilder private var photoRow: some View {
-        recordRow("photo") {
+        recordRow("photo", showsDivider: false) {
             Button {
                 focusedField = nil
                 if draft.photoData == nil { choosingPhotoSource = true } else { viewingPhoto = true }
@@ -432,6 +426,19 @@ struct RecordEditorView: View {
         #endif
     }
 
+    @ViewBuilder private var recurrenceSection: some View {
+        sectionHeader("Repeat")
+        RecurrenceFields(rule: $draft.recurrence, start: draft.date, style: .rows)
+        if draft.recurrence != nil {
+            Text("This record is saved now. Later occurrences are created when the app opens or becomes active. Manage them under Planning → Recurring.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, WalletMetrics.xLarge)
+                .padding(.vertical, WalletMetrics.medium)
+        }
+    }
+
     private var chevron: some View {
         Image(systemName: "chevron.right").font(.caption.weight(.semibold)).foregroundStyle(.tertiary)
     }
@@ -468,11 +475,11 @@ struct RecordEditorView: View {
 
     private func recordRow<Content: View>(
         _ symbol: String, color: Color = .gray, categoryTile: Bool = false, filledIcon: Bool = false,
-        @ViewBuilder content: @escaping () -> Content
+        showsDivider: Bool = true, @ViewBuilder content: @escaping () -> Content
     ) -> some View {
         RecordFormRow(
             symbol: symbol, color: color, category: viewModel.category(draft.categoryID), categoryTile: categoryTile,
-            filledIcon: filledIcon, content: content)
+            filledIcon: filledIcon, showsDivider: showsDivider, content: content)
     }
 
     private func loadOriginalPhoto() async {

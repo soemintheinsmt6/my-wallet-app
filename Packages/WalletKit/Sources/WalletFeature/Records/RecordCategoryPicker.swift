@@ -9,34 +9,31 @@ struct RecordCategoryPicker: View {
     @State private var search = ""
 
     var body: some View {
-        NavigationStack {
-            List {
-                if kind == .transfer {
-                    Button("No category") { selection = nil; dismiss() }
+        List {
+            if kind == .transfer {
+                Button("No category") { selection = nil; dismiss() }
+            }
+            if search.isEmpty, !viewModel.mostUsedCategories(for: kind).isEmpty {
+                Section("Most used") {
+                    ForEach(viewModel.mostUsedCategories(for: kind)) { category in row(category, fullName: true) }
                 }
-                if search.isEmpty, !viewModel.mostUsedCategories(for: kind).isEmpty {
-                    Section("Most used") {
-                        ForEach(viewModel.mostUsedCategories(for: kind)) { category in row(category, fullName: true) }
-                    }
-                }
-                ForEach(viewModel.categories.filter { $0.parentID == nil }) { root in
-                    let children = viewModel.categories.filter { $0.parentID == root.id }
-                    let matchesRoot = search.isEmpty || root.name.localizedCaseInsensitiveContains(search)
-                    let matches = matchesRoot ? children : children.filter { $0.name.localizedCaseInsensitiveContains(search) }
-                    if matchesRoot || !matches.isEmpty {
-                        Section(root.name) {
-                            if matchesRoot { row(root) }
-                            ForEach(matches) { child in row(child).padding(.leading, 12) }
-                        }
+            }
+            ForEach(viewModel.categories.filter { $0.parentID == nil }) { root in
+                let children = viewModel.categories.filter { $0.parentID == root.id }
+                let matchesRoot = search.isEmpty || root.name.localizedCaseInsensitiveContains(search)
+                let matches = matchesRoot ? children : children.filter { $0.name.localizedCaseInsensitiveContains(search) }
+                if matchesRoot || !matches.isEmpty {
+                    Section(root.name) {
+                        if matchesRoot { row(root) }
+                        ForEach(matches) { child in row(child).padding(.leading, 12) }
                     }
                 }
             }
-            .searchable(text: $search, prompt: "Category or subcategory")
-            .navigationTitle("Category")
-            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } } }
         }
-        #if os(macOS)
-        .frame(minWidth: 460, minHeight: 520)
+        .searchable(text: $search, prompt: "Category or subcategory")
+        .navigationTitle("Category")
+        #if !os(macOS)
+        .navigationBarTitleDisplayMode(.inline)
         #endif
     }
 

@@ -7,6 +7,8 @@ struct RecordFormRow<Content: View>: View {
     var category: WalletCategory?
     var categoryTile = false
     var filledIcon = false
+    /// The last row of a section has nothing to separate it from, so it drops its rule.
+    var showsDivider = true
     @ViewBuilder var content: () -> Content
 
     var body: some View {
@@ -33,7 +35,7 @@ struct RecordFormRow<Content: View>: View {
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 12)
-            Divider().padding(.leading, 66)
+            if showsDivider { Divider().padding(.leading, 66) }
         }
 
     }
