@@ -29,15 +29,51 @@ enum RecordPhoto {
 
 struct RecordPhotoView: View {
     let data: Data
+    /// `nil` lets the image fill whatever space it is given, as the full-screen viewer wants.
+    var maxHeight: CGFloat? = 240
     var body: some View {
         #if os(macOS)
         if let image = NSImage(data: data) {
-            Image(nsImage: image).resizable().scaledToFit().frame(maxHeight: 240).accessibilityLabel("Attached photo")
+            Image(nsImage: image).resizable().scaledToFit().frame(maxHeight: maxHeight).accessibilityLabel("Attached photo")
         }
         #else
         if let image = UIImage(data: data) {
-            Image(uiImage: image).resizable().scaledToFit().frame(maxHeight: 240).accessibilityLabel("Attached photo")
+            Image(uiImage: image).resizable().scaledToFit().frame(maxHeight: maxHeight).accessibilityLabel("Attached photo")
         }
         #endif
+    }
+}
+
+/// The attached photo at full size, with the only way to remove it.
+struct RecordPhotoViewer: View {
+    let data: Data
+    let onDelete: () -> Void
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            // A scroll view proposes no size, so the image would draw at its full pixel width and
+            // open zoomed in. A plain bounded frame fits it to the sheet instead.
+            RecordPhotoView(data: data, maxHeight: nil)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .padding(WalletMetrics.large)
+                .navigationTitle("Photo")
+                #if !os(macOS)
+                    .navigationBarTitleDisplayMode(.inline)
+                #endif
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button { dismiss() } label: { Image(systemName: "xmark") }
+                            .accessibilityLabel("Close")
+                    }
+                    ToolbarItem {
+                        Button("Delete", role: .destructive) {
+                            dismiss()
+                            onDelete()
+                        }
+                        .tint(.red)
+                    }
+                }
+        }
     }
 }

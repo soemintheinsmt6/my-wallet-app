@@ -27,6 +27,10 @@ struct RecordEditorView: View {
     @State private var selectingTags = false
     @State private var photoItem: PhotosPickerItem?
     @State private var isLoadingPhoto = false
+    @State private var choosingPhotoSource = false
+    @State private var pickingPhotoFromLibrary = false
+    @State private var capturingPhoto = false
+    @State private var viewingPhoto = false
     @State private var errorMessage: String?
     @AppStorage(WalletPreferenceKeys.lastUsedAccountID) private var lastUsedAccountID = ""
     @AppStorage(WalletPreferenceKeys.lastUsedPaymentType) private var lastUsedPaymentType = PaymentType.unspecified.rawValue
@@ -131,7 +135,9 @@ struct RecordEditorView: View {
             #endif
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }.disabled(isBusy)
+                    Button { dismiss() } label: { Image(systemName: "xmark") }
+                        .accessibilityLabel("Close")
+                        .disabled(isBusy)
                 }
             }
             .sheet(isPresented: $selectingCategory) {
@@ -304,14 +310,17 @@ struct RecordEditorView: View {
     /// silently over what they typed.
     @ViewBuilder private var receiptSection: some View {
         if let receiptUseCases {
-            ReceiptGalleryContent(
-                viewModel: ReceiptsViewModel(useCases: receiptUseCases, recordID: recordID)
-            ) { reading in
-                if let value = reading.amount { amount = AccountAmountInput.text(value) }
-                if let date = reading.date { draft.date = date }
+            // Wrapped in a row so the scan button starts on the same column as every other field
+            // rather than floating in the middle of the sheet.
+            recordRow("doc.viewfinder") {
+                ReceiptGalleryContent(
+                    viewModel: ReceiptsViewModel(useCases: receiptUseCases, recordID: recordID),
+                    showsScanIcon: false
+                ) { reading in
+                    if let value = reading.amount { amount = AccountAmountInput.text(value) }
+                    if let date = reading.date { draft.date = date }
+                }
             }
-            .padding(.horizontal, WalletMetrics.xLarge)
-            .padding(.vertical, WalletMetrics.medium)
         }
     }
 
@@ -373,22 +382,54 @@ struct RecordEditorView: View {
             if isLoadingOriginalPhoto { ProgressView("Loading existing photo…") }
             else { Button("Retry Loading Existing Photo") { Task { await loadOriginalPhoto() } } }
         }
-        let photoTitle = draft.photoData == nil ? "Attach Photo" : "Replace Photo"
-        recordRow("photo") {
-            PhotosPicker(selection: $photoItem, matching: .images) {
-                Text(photoTitle)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
-        }
-        .disabled(!originalPhotoLoaded)
+        photoRow
         if isLoadingPhoto { ProgressView("Preparing photo…") }
-        if let data = draft.photoData {
-            RecordPhotoView(data: data)
-            Button("Remove Photo", role: .destructive) {
-                draft.photoData = nil
-                photoItem = nil
+    }
+
+    /// One photo per record. An empty row asks where the photo should come from; a filled one opens
+    /// the photo itself, which is where it can be deleted.
+    @ViewBuilder private var photoRow: some View {
+        recordRow("photo") {
+            Button {
+                focusedField = nil
+                if draft.photoData == nil { choosingPhotoSource = true } else { viewingPhoto = true }
+            } label: {
+                HStack {
+                    Text("Photo").foregroundStyle(.primary)
+                    Spacer()
+                    Text(draft.photoData == nil ? "None" : "1").foregroundStyle(.secondary)
+                    chevron
+                }
+                .frame(maxWidth: .infinity, minHeight: 44)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .disabled(!originalPhotoLoaded || isLoadingPhoto)
+        }
+        .confirmationDialog("Add Photo", isPresented: $choosingPhotoSource, titleVisibility: .visible) {
+            if RecordCameraAvailability.isAvailable {
+                Button("Take Photo") { capturingPhoto = true }
+            }
+            Button("Choose from Library") { pickingPhotoFromLibrary = true }
+            Button("Cancel", role: .cancel) {}
+        }
+        .photosPicker(isPresented: $pickingPhotoFromLibrary, selection: $photoItem, matching: .images)
+        .sheet(isPresented: $viewingPhoto) {
+            if let data = draft.photoData {
+                RecordPhotoViewer(data: data) {
+                    draft.photoData = nil
+                    photoItem = nil
+                }
             }
         }
+        #if os(iOS)
+            .fullScreenCover(isPresented: $capturingPhoto) {
+                RecordCameraPicker(
+                    onCapture: { data in Task { await applyCaptured(data) } },
+                    onError: { errorMessage = $0 })
+                    .ignoresSafeArea()
+            }
+        #endif
     }
 
     private var chevron: some View {
@@ -464,6 +505,16 @@ struct RecordEditorView: View {
             if item == photoItem { draft.photoData = prepared }
         } catch is CancellationError {
         } catch { if item == photoItem { errorMessage = error.localizedDescription } }
+    }
+
+    /// Shrinks a freshly taken photo on the same path a picked one takes, so both are stored alike.
+    private func applyCaptured(_ data: Data) async {
+        isLoadingPhoto = true
+        defer { isLoadingPhoto = false }
+        do {
+            draft.photoData = try await Task.detached { try RecordPhoto.prepare(data) }.value
+            errorMessage = nil
+        } catch { errorMessage = error.localizedDescription }
     }
 
     private func save() async {

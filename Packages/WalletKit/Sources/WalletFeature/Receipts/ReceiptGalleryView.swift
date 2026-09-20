@@ -78,11 +78,15 @@ public struct ReceiptGalleryContent: View {
     @ObservedObject private var viewModel: ReceiptsViewModel
     /// Called when the user accepts an OCR suggestion, so the editor can fill its fields.
     private let onAccept: ((ReceiptReading) -> Void)?
+    /// The record editor sits this inside a row that already draws a leading icon.
+    private let showsScanIcon: Bool
     @State private var isScanning = false
     @State private var zoomed: Receipt?
 
-    public init(viewModel: ReceiptsViewModel, onAccept: ((ReceiptReading) -> Void)? = nil) {
+    public init(viewModel: ReceiptsViewModel, showsScanIcon: Bool = true,
+                onAccept: ((ReceiptReading) -> Void)? = nil) {
         self.viewModel = viewModel
+        self.showsScanIcon = showsScanIcon
         self.onAccept = onAccept
     }
 
@@ -98,6 +102,7 @@ public struct ReceiptGalleryContent: View {
                     .foregroundStyle(.red)
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .task { await viewModel.load() }
         #if canImport(VisionKit) && os(iOS)
             .fullScreenCover(isPresented: $isScanning) {
@@ -190,9 +195,26 @@ public struct ReceiptGalleryContent: View {
 
     @ViewBuilder private var scanButton: some View {
         if ReceiptScannerAvailability.isSupported {
-            Button { isScanning = true } label: {
-                Label(viewModel.receipts.isEmpty ? "Scan Receipt" : "Add Pages",
-                      systemImage: "doc.viewfinder")
+            let title = viewModel.receipts.isEmpty ? "Scan Receipt" : "Add Pages"
+            Group {
+                if showsScanIcon {
+                    Button { isScanning = true } label: { Label(title, systemImage: "doc.viewfinder") }
+                } else {
+                    // Reads as a form row like Account or Category, not as a tinted action.
+                    Button { isScanning = true } label: {
+                        HStack {
+                            Text(title).foregroundStyle(.primary)
+                            Spacer()
+                            if !viewModel.receipts.isEmpty {
+                                Text("\(viewModel.receipts.count)").foregroundStyle(.secondary)
+                            }
+                            WalletDisclosure()
+                        }
+                        .frame(maxWidth: .infinity, minHeight: WalletMetrics.touchTarget)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                }
             }
             .disabled(!viewModel.canAddMore || viewModel.isWorking)
             if !viewModel.canAddMore {
