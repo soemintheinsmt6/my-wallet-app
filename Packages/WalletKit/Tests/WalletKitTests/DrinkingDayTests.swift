@@ -91,6 +91,78 @@ struct DrinkingDayTests {
         #expect(DrinkingSummary(days: [], month: today, today: today, calendar: calendar).daysSinceLastDrink == nil)
     }
 
+    @Test func pastYearHeatmapLaysOutWeeksFromTheFirstWeekdayAndEndsToday() {
+        // Sunday-first; 2025-10-06 is a Monday, so the first column has one leading blank.
+        let heatmap = DrinkingHeatmap(days: [], period: .pastYear, today: today, calendar: calendar)
+        #expect(heatmap.first == DayKey(year: 2025, month: 10, day: 6))
+        #expect(heatmap.last == today)
+        #expect(heatmap.weeks.count == 53)
+        #expect(heatmap.weeks.allSatisfy { $0.count == 7 })
+        #expect(heatmap.weeks[0][0] == nil)
+        #expect(heatmap.weeks[0][1]?.day == heatmap.first)
+        #expect(heatmap.weeks[52][1]?.day == today)
+        #expect(heatmap.weeks[52][2] == nil)
+        #expect(heatmap.weeks.flatMap { $0 }.compactMap { $0 }.count == 365)
+        #expect(heatmap.monthLabels.count == 13)
+        #expect(heatmap.monthLabels.first?.week == 0)
+        #expect(heatmap.monthLabels.first?.month == DayKey(year: 2025, month: 10, day: 1))
+        #expect(heatmap.monthLabels.last?.month == DayKey(year: 2026, month: 10, day: 1))
+    }
+
+    @Test func calendarYearHeatmapDropsACrampedFirstMonthLabel() {
+        let full = DrinkingHeatmap(days: [], period: .year(2025), today: today, calendar: calendar)
+        #expect(full.first == DayKey(year: 2025, month: 1, day: 1))
+        #expect(full.last == DayKey(year: 2025, month: 12, day: 31))
+        #expect(full.monthLabels.map(\.month.month) == Array(1...12))
+        // Starting on 2025-10-28 leaves October's label one column before November's.
+        let cramped = DrinkingHeatmap(days: [], period: .pastYear, today: DayKey(year: 2026, month: 10, day: 27), calendar: calendar)
+        #expect(cramped.monthLabels.first?.month == DayKey(year: 2025, month: 11, day: 1))
+    }
+
+    @Test func heatmapShadesByDrinksAndCountsTheLongestAlcoholFreeRun() {
+        #expect(DrinkingHeatmap.level(for: nil) == 0)
+        #expect([nil, 1, 2, 3, 4, 5, 6, 7, 99].map { DrinkingHeatmap.level(for: DrinkingDay(day: today, drinks: $0)) }
+                == [1, 1, 1, 2, 2, 3, 3, 4, 4])
+        let days = [
+            DrinkingDay(day: DayKey(year: 2026, month: 10, day: 1), drinks: 3),
+            DrinkingDay(day: DayKey(year: 2026, month: 10, day: 3)),
+            DrinkingDay(day: DayKey(year: 2024, month: 1, day: 1), drinks: 9),
+        ]
+        let heatmap = DrinkingHeatmap(days: days, period: .pastYear, today: today, calendar: calendar)
+        #expect(heatmap.drinkingDays == 2)
+        #expect(heatmap.totalDrinks == 3)
+        #expect(heatmap.alcoholFreeDays == 363)
+        #expect(heatmap.longestAlcoholFreeStreak == 360)
+        let october = heatmap.weeks.flatMap { $0 }.compactMap { $0 }.first { $0.day == days[0].day }
+        #expect(october?.level == 2)
+        #expect(october?.drinks == 3)
+    }
+
+    @Test func viewModelPagesYearsBackToTheEarliestMarkedDay() async throws {
+        let repository = try await SwiftDataWalletRepository.make(configuration: .inMemory)
+        let now = today.date(in: calendar).addingTimeInterval(3600)
+        let viewModel = DrinkingDaysViewModel(useCases: DrinkingDayUseCases(repository: repository),
+                                              calendar: calendar, now: { now })
+        await viewModel.observe()
+        #expect(viewModel.heatmapPeriod == .pastYear)
+        #expect(!viewModel.canShowEarlierYear)
+        #expect(!viewModel.canShowLaterYear)
+
+        try await viewModel.mark(DayKey(year: 2024, month: 5, day: 1), drinks: 1, note: "")
+        viewModel.showYear(offset: -1)
+        #expect(viewModel.heatmapPeriod == .year(2025))
+        viewModel.showYear(offset: -1)
+        #expect(viewModel.heatmapPeriod == .year(2024))
+        #expect(viewModel.heatmap.drinkingDays == 1)
+        #expect(!viewModel.canShowEarlierYear)
+        viewModel.showYear(offset: -1)
+        #expect(viewModel.heatmapPeriod == .year(2024))
+        viewModel.showYear(offset: 1)
+        viewModel.showYear(offset: 1)
+        #expect(viewModel.heatmapPeriod == .pastYear)
+        #expect(!viewModel.canShowLaterYear)
+    }
+
     @Test func viewModelReflectsMarksAndStopsAtTheCurrentMonth() async throws {
         let repository = try await SwiftDataWalletRepository.make(configuration: .inMemory)
         let now = today.date(in: calendar).addingTimeInterval(3600)

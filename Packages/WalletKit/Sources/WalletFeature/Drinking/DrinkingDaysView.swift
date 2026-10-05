@@ -1,56 +1,33 @@
 import SwiftUI
 import WalletDomain
 
-/// A month calendar of drinking days. Tap a day to mark it, or to change or clear it.
+/// Drinking days as a month calendar or a year chart. Tap a day to mark it, or to change or clear it.
 public struct DrinkingDaysView: View {
+    enum Scope: String, CaseIterable {
+        case month = "Month"
+        case year = "Year"
+    }
+
     @ObservedObject private var viewModel: DrinkingDaysViewModel
     @Environment(\.scenePhase) private var scenePhase
+    @SceneStorage("drinkingDays.scope") private var scope = Scope.month
     @State private var editing: DayKey?
 
     public init(viewModel: DrinkingDaysViewModel) { self.viewModel = viewModel }
 
     public var body: some View {
         List {
-            Section {
-                DrinkingCalendar(viewModel: viewModel) { editing = $0 }
-            } header: {
-                monthHeader
+            Picker("View", selection: $scope) {
+                ForEach(Scope.allCases, id: \.self) { Text($0.rawValue) }
             }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .listRowInsets(EdgeInsets())
+            .listRowBackground(Color.clear)
 
-            Section {
-                let summary = viewModel.summary
-                HStack(spacing: WalletMetrics.medium) {
-                    WalletStatTile(title: "Drinking", value: daysText(summary.drinkingDays),
-                                   symbol: "wineglass", tint: DrinkingDaysView.tint)
-                    WalletStatTile(title: "Alcohol-free", value: daysText(summary.alcoholFreeDays),
-                                   symbol: "leaf", tint: .green)
-                }
-                .listRowInsets(EdgeInsets())
-                .listRowBackground(Color.clear)
-                HStack(spacing: WalletMetrics.medium) {
-                    WalletStatTile(title: "Drinks", value: "\(summary.totalDrinks)",
-                                   symbol: "number", tint: DrinkingDaysView.tint)
-                    WalletStatTile(title: "Since last drink", value: summary.daysSinceLastDrink.map(daysText) ?? "—",
-                                   symbol: "calendar", tint: .blue)
-                }
-                .listRowInsets(EdgeInsets())
-                .listRowBackground(Color.clear)
-            } footer: {
-                Text("Monthly counts include only days up to today. Days you don't mark count as alcohol-free.")
-            }
-
-            let marked = markedDaysInMonth
-            if !marked.isEmpty {
-                Section("This Month") {
-                    ForEach(marked) { day in
-                        Button { editing = day.day } label: { DrinkingDayRow(day: day, calendar: viewModel.calendar) }
-                            .buttonStyle(.plain)
-                            .accessibilityHint("Edit drinking day")
-                            .swipeActions(allowsFullSwipe: false) {
-                                Button("Clear", role: .destructive) { unmark(day.day) }
-                            }
-                    }
-                }
+            switch scope {
+            case .month: monthSections
+            case .year: yearSections
             }
         }
         .navigationTitle("Drinking Days")
@@ -76,6 +53,110 @@ public struct DrinkingDaysView: View {
     }
 
     static let tint = Color.orange
+
+    @ViewBuilder private var yearSections: some View {
+        let heatmap = viewModel.heatmap
+        Section {
+            DrinkingHeatmapView(heatmap: heatmap, today: viewModel.today, calendar: viewModel.calendar,
+                                isDisabled: viewModel.isSaving) { editing = $0 }
+        } header: {
+            yearHeader
+        } footer: {
+            Text("Darker squares mean more drinks. Days marked without a count use the lightest shade.")
+        }
+
+        Section {
+            HStack(spacing: WalletMetrics.medium) {
+                WalletStatTile(title: "Drinking", value: daysText(heatmap.drinkingDays),
+                               symbol: "wineglass", tint: DrinkingDaysView.tint)
+                WalletStatTile(title: "Alcohol-free", value: daysText(heatmap.alcoholFreeDays),
+                               symbol: "leaf", tint: .green)
+            }
+            .listRowInsets(EdgeInsets())
+            .listRowBackground(Color.clear)
+            HStack(spacing: WalletMetrics.medium) {
+                WalletStatTile(title: "Drinks", value: "\(heatmap.totalDrinks)",
+                               symbol: "number", tint: DrinkingDaysView.tint)
+                WalletStatTile(title: "Longest alcohol-free", value: daysText(heatmap.longestAlcoholFreeStreak),
+                               symbol: "flame", tint: .blue)
+            }
+            .listRowInsets(EdgeInsets())
+            .listRowBackground(Color.clear)
+        }
+    }
+
+    private var yearHeader: some View {
+        HStack {
+            Button { viewModel.showYear(offset: -1) } label: {
+                Image(systemName: "chevron.left").frame(minWidth: WalletMetrics.touchTarget, minHeight: WalletMetrics.touchTarget)
+            }
+            .disabled(!viewModel.canShowEarlierYear)
+            .accessibilityLabel("Previous year")
+            Spacer()
+            Text(yearTitle)
+                .font(.headline)
+                .foregroundStyle(.primary)
+            Spacer()
+            Button { viewModel.showYear(offset: 1) } label: {
+                Image(systemName: "chevron.right").frame(minWidth: WalletMetrics.touchTarget, minHeight: WalletMetrics.touchTarget)
+            }
+            .disabled(!viewModel.canShowLaterYear)
+            .accessibilityLabel("Next year")
+        }
+        .buttonStyle(.borderless)
+        .textCase(nil)
+    }
+
+    private var yearTitle: String {
+        switch viewModel.heatmapPeriod {
+        case .pastYear: "Past Year"
+        case .year(let year): String(year)
+        }
+    }
+
+    @ViewBuilder private var monthSections: some View {
+        Section {
+            DrinkingCalendar(viewModel: viewModel) { editing = $0 }
+        } header: {
+            monthHeader
+        }
+
+        Section {
+            let summary = viewModel.summary
+            HStack(spacing: WalletMetrics.medium) {
+                WalletStatTile(title: "Drinking", value: daysText(summary.drinkingDays),
+                               symbol: "wineglass", tint: DrinkingDaysView.tint)
+                WalletStatTile(title: "Alcohol-free", value: daysText(summary.alcoholFreeDays),
+                               symbol: "leaf", tint: .green)
+            }
+            .listRowInsets(EdgeInsets())
+            .listRowBackground(Color.clear)
+            HStack(spacing: WalletMetrics.medium) {
+                WalletStatTile(title: "Drinks", value: "\(summary.totalDrinks)",
+                               symbol: "number", tint: DrinkingDaysView.tint)
+                WalletStatTile(title: "Since last drink", value: summary.daysSinceLastDrink.map(daysText) ?? "—",
+                               symbol: "calendar", tint: .blue)
+            }
+            .listRowInsets(EdgeInsets())
+            .listRowBackground(Color.clear)
+        } footer: {
+            Text("Monthly counts include only days up to today. Days you don't mark count as alcohol-free.")
+        }
+
+        let marked = markedDaysInMonth
+        if !marked.isEmpty {
+            Section("This Month") {
+                ForEach(marked) { day in
+                    Button { editing = day.day } label: { DrinkingDayRow(day: day, calendar: viewModel.calendar) }
+                        .buttonStyle(.plain)
+                        .accessibilityHint("Edit drinking day")
+                        .swipeActions(allowsFullSwipe: false) {
+                            Button("Clear", role: .destructive) { unmark(day.day) }
+                        }
+                }
+            }
+        }
+    }
 
     private var monthHeader: some View {
         HStack {
@@ -113,6 +194,132 @@ public struct DrinkingDaysView: View {
         Task {
             do { try await viewModel.unmark(day) }
             catch { viewModel.errorMessage = error.localizedDescription }
+        }
+    }
+}
+
+/// A contribution-chart year: weeks run left to right, weekdays top to bottom, and it opens
+/// scrolled to the most recent week.
+private struct DrinkingHeatmapView: View {
+    let heatmap: DrinkingHeatmap
+    let today: DayKey
+    let calendar: Calendar
+    let isDisabled: Bool
+    let select: (DayKey) -> Void
+
+    private static let cell: CGFloat = 13
+    private static let gap: CGFloat = 3
+    private static let labelHeight: CGFloat = 14
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: WalletMetrics.small) {
+            HStack(alignment: .top, spacing: Self.gap) {
+                weekdayLabels
+                ScrollViewReader { proxy in
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        VStack(alignment: .leading, spacing: Self.gap) {
+                            monthLabels
+                            HStack(spacing: Self.gap) {
+                                ForEach(heatmap.weeks.indices, id: \.self) { week in
+                                    VStack(spacing: Self.gap) {
+                                        ForEach(0..<7, id: \.self) { row in square(heatmap.weeks[week][row]) }
+                                    }
+                                    .id(week)
+                                }
+                            }
+                        }
+                        .padding(.trailing, Self.gap)
+                    }
+                    .onAppear { proxy.scrollTo(heatmap.weeks.count - 1, anchor: .trailing) }
+                    .onChange(of: heatmap.first) { proxy.scrollTo(heatmap.weeks.count - 1, anchor: .trailing) }
+                }
+            }
+            legend
+        }
+        .padding(.vertical, WalletMetrics.small)
+        // 365 squares are too many to step through; the month view is the accessible way to edit.
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Drinking days chart")
+        .accessibilityValue("\(heatmap.drinkingDays) drinking days, \(heatmap.alcoholFreeDays) alcohol-free days")
+        .accessibilityHint("Switch to Month to review or change individual days.")
+    }
+
+    /// Every other weekday is labelled, as GitHub does, to keep the column narrow.
+    private var weekdayLabels: some View {
+        VStack(alignment: .trailing, spacing: Self.gap) {
+            Color.clear.frame(width: 1, height: Self.labelHeight)
+            ForEach(0..<7, id: \.self) { row in
+                Text(row % 2 == 1 ? calendar.shortWeekdaySymbols[(calendar.firstWeekday - 1 + row) % 7] : "")
+                    .font(.system(size: 9))
+                    .foregroundStyle(.secondary)
+                    .frame(height: Self.cell)
+            }
+        }
+    }
+
+    private var monthLabels: some View {
+        HStack(spacing: Self.gap) {
+            ForEach(heatmap.weeks.indices, id: \.self) { week in
+                let label = heatmap.monthLabels.first { $0.week == week }
+                // Drawn at its natural width, overflowing into the following columns.
+                Text(label.map { $0.month.date(in: calendar).formatted(.dateTime.month(.abbreviated)) } ?? "")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .fixedSize()
+                    .frame(width: Self.cell, height: Self.labelHeight, alignment: .leading)
+            }
+        }
+    }
+
+    @ViewBuilder private func square(_ cell: DrinkingHeatmap.Cell?) -> some View {
+        if let cell {
+            Button { select(cell.day) } label: {
+                RoundedRectangle(cornerRadius: 3, style: .continuous)
+                    .fill(Self.color(level: cell.level))
+                    .overlay {
+                        if cell.day == today {
+                            RoundedRectangle(cornerRadius: 3, style: .continuous).strokeBorder(.primary, lineWidth: 1)
+                        }
+                    }
+                    .frame(width: Self.cell, height: Self.cell)
+            }
+            .buttonStyle(.plain)
+            .disabled(isDisabled)
+            .help(helpText(cell))
+        } else {
+            Color.clear.frame(width: Self.cell, height: Self.cell)
+        }
+    }
+
+    private var legend: some View {
+        HStack(spacing: Self.gap) {
+            Spacer()
+            Text("Less").padding(.trailing, WalletMetrics.tight)
+            ForEach(0..<5, id: \.self) { level in
+                RoundedRectangle(cornerRadius: 3, style: .continuous)
+                    .fill(Self.color(level: level))
+                    .frame(width: Self.cell, height: Self.cell)
+            }
+            Text("More").padding(.leading, WalletMetrics.tight)
+        }
+        .font(.caption2)
+        .foregroundStyle(.secondary)
+    }
+
+    private func helpText(_ cell: DrinkingHeatmap.Cell) -> String {
+        let date = cell.day.date(in: calendar).formatted(.dateTime.month(.abbreviated).day().year())
+        guard cell.level > 0 else { return "\(date): alcohol-free" }
+        guard let drinks = cell.drinks else { return "\(date): drinking day" }
+        return "\(date): \(drinks == 1 ? "1 drink" : "\(drinks) drinks")"
+    }
+
+    static func color(level: Int) -> Color {
+        switch level {
+        case 0: Color.secondary.opacity(0.18)
+        case 1: DrinkingDaysView.tint.opacity(0.35)
+        case 2: DrinkingDaysView.tint.opacity(0.55)
+        case 3: DrinkingDaysView.tint.opacity(0.78)
+        default: DrinkingDaysView.tint
         }
     }
 }

@@ -46,6 +46,35 @@ public final class DrinkingDaysViewModel: ObservableObject {
         month = DayKey(year: today.year, month: today.month, day: 1)
     }
 
+    // MARK: Year
+
+    @Published public private(set) var heatmapPeriod: DrinkingHeatmap.Period = .pastYear
+
+    public var heatmap: DrinkingHeatmap {
+        DrinkingHeatmap(days: Array(days.values), period: heatmapPeriod, today: today, calendar: calendar)
+    }
+
+    /// The past year covers the current calendar year, so stepping back starts at last year.
+    private var heatmapYear: Int {
+        if case .year(let year) = heatmapPeriod { return year }
+        return today.year
+    }
+
+    /// Stops at the earliest year anything was marked, so there are no empty years to page through.
+    public var canShowEarlierYear: Bool {
+        guard let earliest = days.keys.min() else { return false }
+        return heatmapYear - 1 >= earliest.year
+    }
+
+    public var canShowLaterYear: Bool { heatmapPeriod != .pastYear }
+
+    public func showYear(offset: Int) {
+        if offset < 0, !canShowEarlierYear { return }
+        if offset > 0, !canShowLaterYear { return }
+        let year = heatmapYear + offset
+        heatmapPeriod = year >= today.year ? .pastYear : .year(year)
+    }
+
     /// Watched once however many screens ask — the calendar and the More screen both do.
     public func observe() async {
         if observation == nil {
