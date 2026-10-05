@@ -1,0 +1,120 @@
+import Foundation
+import SwiftData
+import Testing
+@testable import WalletData
+import WalletDomain
+import WalletFeature
+
+@MainActor
+struct DrinkingDayTests {
+    private var calendar: Calendar {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "UTC")!
+        return calendar
+    }
+
+    private let today = DayKey(year: 2026, month: 10, day: 5)
+
+    @Test func dayKeyRoundTripsItsStoredFormAndOrdersByDate() {
+        let key = DayKey(year: 2026, month: 3, day: 9)
+        #expect(key.rawValue == "2026-03-09")
+        #expect(DayKey(rawValue: "2026-03-09") == key)
+        #expect(DayKey(rawValue: "2026-13-01") == nil)
+        #expect(DayKey(rawValue: "garbage") == nil)
+        #expect(DayKey(year: 2025, month: 12, day: 31) < key)
+        #expect(DayKey(key.date(in: calendar), calendar: calendar) == key)
+    }
+
+    @Test func markingTheSameDayTwiceReplacesItAndUnmarkingIsRepeatable() async throws {
+        let repository = try await SwiftDataWalletRepository.make(configuration: .inMemory)
+        let useCases = DrinkingDayUseCases(repository: repository)
+        try await useCases.mark(today, drinks: 2, note: "  dinner \n", today: today)
+        try await useCases.mark(today, drinks: nil, note: "", today: today)
+        let days = try await useCases.load()
+        #expect(days.count == 1)
+        #expect(days.first?.drinks == nil)
+        #expect(days.first?.note == "")
+        try await useCases.unmark(today)
+        try await useCases.unmark(today)
+        #expect(try await useCases.load().isEmpty)
+    }
+
+    @Test func rejectsFutureDaysOutOfRangeCountsAndLongNotes() async throws {
+        let repository = try await SwiftDataWalletRepository.make(configuration: .inMemory)
+        let useCases = DrinkingDayUseCases(repository: repository)
+        await #expect(throws: DrinkingDayError.futureDay) {
+            try await useCases.mark(today.adding(days: 1, calendar: calendar), drinks: nil, note: "", today: today)
+        }
+        for drinks in [0, -1, DrinkingDay.maximumDrinks + 1] {
+            await #expect(throws: DrinkingDayError.invalidDrinks) {
+                try await useCases.mark(today, drinks: drinks, note: "", today: today)
+            }
+        }
+        await #expect(throws: DrinkingDayError.noteTooLong) {
+            try await useCases.mark(today, drinks: 1, note: String(repeating: "a", count: 501), today: today)
+        }
+        #expect(try await useCases.load().isEmpty)
+    }
+
+    @Test func duplicateRowsFromAnotherDeviceReadAsTheNewestAndFoldOnSave() async throws {
+        let container = try WalletPersistence.makeContainer(configuration: .inMemory)
+        let context = ModelContext(container)
+        context.insert(DrinkingDayRecord(day: DrinkingDay(day: today, drinks: 1, updatedAt: Date(timeIntervalSince1970: 100))))
+        context.insert(DrinkingDayRecord(day: DrinkingDay(day: today, drinks: 3, updatedAt: Date(timeIntervalSince1970: 200))))
+        try context.save()
+        let store = WalletStore(modelContainer: container)
+        #expect(try await store.fetchDrinkingDays().map(\.drinks) == [3])
+        try await store.saveDrinkingDay(DrinkingDay(day: today, drinks: 4))
+        #expect(try ModelContext(container).fetchCount(FetchDescriptor<DrinkingDayRecord>()) == 1)
+        #expect(try await store.fetchDrinkingDays().map(\.drinks) == [4])
+    }
+
+    @Test func summaryCountsOnlyElapsedDaysOfTheMonth() {
+        let days = [
+            DrinkingDay(day: DayKey(year: 2026, month: 10, day: 1), drinks: 2),
+            DrinkingDay(day: DayKey(year: 2026, month: 10, day: 3)),
+            DrinkingDay(day: DayKey(year: 2026, month: 9, day: 30), drinks: 5),
+        ]
+        let current = DrinkingSummary(days: days, month: DayKey(year: 2026, month: 10, day: 1), today: today, calendar: calendar)
+        #expect(current.drinkingDays == 2)
+        #expect(current.totalDrinks == 2)
+        #expect(current.alcoholFreeDays == 3)
+        #expect(current.daysSinceLastDrink == 2)
+
+        let september = DrinkingSummary(days: days, month: DayKey(year: 2026, month: 9, day: 1), today: today, calendar: calendar)
+        #expect(september.drinkingDays == 1)
+        #expect(september.alcoholFreeDays == 29)
+
+        let future = DrinkingSummary(days: days, month: DayKey(year: 2026, month: 11, day: 1), today: today, calendar: calendar)
+        #expect(future.alcoholFreeDays == 0)
+
+        #expect(DrinkingSummary(days: [], month: today, today: today, calendar: calendar).daysSinceLastDrink == nil)
+    }
+
+    @Test func viewModelReflectsMarksAndStopsAtTheCurrentMonth() async throws {
+        let repository = try await SwiftDataWalletRepository.make(configuration: .inMemory)
+        let now = today.date(in: calendar).addingTimeInterval(3600)
+        let viewModel = DrinkingDaysViewModel(useCases: DrinkingDayUseCases(repository: repository),
+                                              calendar: calendar, now: { now })
+        await viewModel.observe()
+        #expect(viewModel.days.isEmpty)
+        #expect(!viewModel.isLoading)
+
+        try await viewModel.mark(today, drinks: 2, note: "")
+        #expect(viewModel.days[today]?.drinks == 2)
+        #expect(viewModel.summary.drinkingDays == 1)
+        #expect(viewModel.summary.daysSinceLastDrink == 0)
+
+        #expect(!viewModel.canShowNextMonth)
+        viewModel.showMonth(offset: 1)
+        #expect(viewModel.month == DayKey(year: 2026, month: 10, day: 1))
+        viewModel.showMonth(offset: -1)
+        #expect(viewModel.month == DayKey(year: 2026, month: 9, day: 1))
+        #expect(viewModel.summary.drinkingDays == 0)
+        viewModel.showCurrentMonth()
+        #expect(viewModel.month == DayKey(year: 2026, month: 10, day: 1))
+
+        try await viewModel.unmark(today)
+        #expect(viewModel.days.isEmpty)
+    }
+}

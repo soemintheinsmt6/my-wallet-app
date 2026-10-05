@@ -16,6 +16,7 @@ public struct MoreView: View {
     private let currency: CurrencyViewModel?
     private let insights: InsightsViewModel?
     private let theme: ThemeViewModel?
+    private let drinking: DrinkingDaysViewModel?
     private let appIcons: [WalletAppIcon]
     /// Passed through to the categories list so records can be dropped onto a category.
     private let refile: ((Set<UUID>, UUID) async -> Void)?
@@ -24,7 +25,8 @@ public struct MoreView: View {
                 settings: SettingsViewModel, planning: PlanningViewModel? = nil,
                 appLock: AppLockViewModel? = nil, dataExchange: DataExchangeViewModel? = nil,
                 currency: CurrencyViewModel? = nil, insights: InsightsViewModel? = nil,
-                theme: ThemeViewModel? = nil, appIcons: [WalletAppIcon] = [],
+                theme: ThemeViewModel? = nil, drinking: DrinkingDaysViewModel? = nil,
+                appIcons: [WalletAppIcon] = [],
                 refile: ((Set<UUID>, UUID) async -> Void)? = nil) {
         self.accounts = accounts
         self.categories = categories
@@ -36,6 +38,7 @@ public struct MoreView: View {
         self.currency = currency
         self.insights = insights
         self.theme = theme
+        self.drinking = drinking
         self.appIcons = appIcons
         self.refile = refile
     }
@@ -66,6 +69,20 @@ public struct MoreView: View {
                     Text("Wallet")
                 } footer: {
                     Text("Accounts hold balances. Categories and labels organize records.")
+                }
+
+                if let drinking {
+                    Section {
+                        NavigationLink {
+                            DrinkingDaysView(viewModel: drinking)
+                        } label: {
+                            DrinkingMoreRow(viewModel: drinking)
+                        }
+                    } header: {
+                        Text("Personal")
+                    } footer: {
+                        Text("Kept apart from your wallet and not counted in its statistics.")
+                    }
                 }
 
                 Section {
@@ -103,6 +120,23 @@ public struct MoreView: View {
     private var tagsDetail: String {
         let count = tags.tags.count
         return count == 1 ? "1 label" : "\(count) labels"
+    }
+}
+
+/// Observes the drinking view model itself, since `MoreView` only holds it optionally.
+private struct DrinkingMoreRow: View {
+    @ObservedObject var viewModel: DrinkingDaysViewModel
+
+    var body: some View {
+        MoreRow(title: "Drinking Days", detail: detail, symbol: "wineglass", color: .orange)
+            .task { await viewModel.observe() }
+    }
+
+    private var detail: String {
+        let summary = DrinkingSummary(days: Array(viewModel.days.values), month: viewModel.today,
+                                      today: viewModel.today, calendar: viewModel.calendar)
+        let count = summary.drinkingDays
+        return count == 1 ? "1 drinking day this month" : "\(count) drinking days this month"
     }
 }
 

@@ -5,7 +5,7 @@ import SwiftData
 import WalletDomain
 
 @MainActor
-public final class SwiftDataWalletRepository: WalletRepository, AccountRepository, CategoryRepository, TagRepository, RecordRepository, WalletResetRepository, BudgetRepository, RecurringRepository, BillReminderRepository, ReceiptRepository, DebtRepository, GoalRepository, SplitRepository {
+public final class SwiftDataWalletRepository: WalletRepository, AccountRepository, CategoryRepository, TagRepository, RecordRepository, WalletResetRepository, BudgetRepository, RecurringRepository, BillReminderRepository, ReceiptRepository, DebtRepository, GoalRepository, SplitRepository, DrinkingDayRepository {
     private let store: WalletStore
     private var subscriptions = Set<AnyCancellable>()
     private var observers: [UUID: AsyncStream<Void>.Continuation] = [:]
@@ -197,6 +197,18 @@ public final class SwiftDataWalletRepository: WalletRepository, AccountRepositor
 
     public func deleteTag(id: UUID) async throws {
         try await store.deleteTag(id: id)
+        notifyChanges()
+    }
+
+    public func fetchDrinkingDays() async throws -> [DrinkingDay] { try await store.fetchDrinkingDays() }
+
+    public func saveDrinkingDay(_ day: DrinkingDay) async throws {
+        try await store.saveDrinkingDay(day)
+        notifyChanges()
+    }
+
+    public func deleteDrinkingDay(_ day: DayKey) async throws {
+        try await store.deleteDrinkingDay(day)
         notifyChanges()
     }
 
