@@ -72,3 +72,53 @@ struct RecordPaymentSelection: View {
         #endif
     }
 }
+
+/// A pushed screen for one piece of text, focused on arrival so the keyboard is already up.
+/// Edits go straight to the binding; Done or Back returns to the form.
+struct RecordTextEntry: View {
+    let title: String
+    @Binding var text: String
+    /// Shown small above the field, in place of a placeholder.
+    let caption: String
+    var multiline = false
+    @Environment(\.dismiss) private var dismiss
+    @FocusState private var focused: Bool
+
+    var body: some View {
+        // No field chrome or placeholder: a small caption above, the text centred and large.
+        ScrollView {
+            VStack(spacing: WalletMetrics.small) {
+                Text(caption)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .accessibilityHidden(true)
+                Group {
+                    if multiline {
+                        TextField("", text: $text, axis: .vertical).lineLimit(1...12)
+                    } else {
+                        TextField("", text: $text).submitLabel(.done).onSubmit { dismiss() }
+                    }
+                }
+                .font(.title.weight(.semibold))
+                .multilineTextAlignment(.center)
+                .textFieldStyle(.plain)
+                .focused($focused)
+                .accessibilityLabel(caption)
+            }
+            .padding(.horizontal, WalletMetrics.large)
+            .padding(.top, 48)
+        }
+        .scrollDismissesKeyboard(.never)
+        .navigationTitle(title)
+        #if !os(macOS)
+        .navigationBarTitleDisplayMode(.inline)
+        #endif
+        .toolbar {
+            ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }
+        }
+        .task {
+            await Task.yield()
+            focused = true
+        }
+    }
+}

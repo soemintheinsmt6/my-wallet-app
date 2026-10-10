@@ -33,10 +33,10 @@ struct RecordEditorView: View {
     @AppStorage(WalletPreferenceKeys.lastUsedAccountID) private var lastUsedAccountID = ""
     @AppStorage(WalletPreferenceKeys.lastUsedPaymentType) private var lastUsedPaymentType = PaymentType.unspecified.rawValue
     @FocusState private var focusedField: InputField?
-    private enum InputField: Hashable { case amount, receivedAmount, note, payee }
+    private enum InputField: Hashable { case amount, receivedAmount }
     @State private var didFocusAmount = false
     @State private var selectionScreen: SelectionScreen?
-    private enum SelectionScreen: String, Hashable { case account, destination, category, tags, payment }
+    private enum SelectionScreen: String, Hashable { case account, destination, category, tags, payment, note, payee }
 
     /// `initialKind` preselects the segmented type for a new record; widget quick-add uses it.
     init(viewModel: RecordsViewModel, record: WalletRecord? = nil, title: String? = nil, allowsRecurrence: Bool = true, initialKind: RecordKind? = nil, saveAction: ((UUID, RecordDraft) async throws -> Void)? = nil) {
@@ -146,6 +146,10 @@ struct RecordEditorView: View {
                         selection: $draft.destinationAccountID, title: "To account")
                 case .payment:
                     RecordPaymentSelection(selection: $draft.paymentType)
+                case .note:
+                    RecordTextEntry(title: "Note", text: $draft.note, caption: "Add note", multiline: true)
+                case .payee:
+                    RecordTextEntry(title: "Payee", text: $draft.payee, caption: "Add payee")
                 }
             }
             .task {
@@ -356,13 +360,10 @@ struct RecordEditorView: View {
     private var detailsSection: some View {
         sectionHeader("More Details")
         recordRow("square.and.pencil") {
-            TextField("Note", text: $draft.note, axis: .vertical).lineLimit(1...6)
-                .focused($focusedField, equals: .note)
+            selectionButton("Note", value: draft.note.isEmpty ? nil : draft.note, screen: .note)
         }
         recordRow("person") {
-            Text("Payee")
-            TextField("Optional", text: $draft.payee).multilineTextAlignment(.trailing).accessibilityLabel("Payee")
-                .focused($focusedField, equals: .payee)
+            selectionButton("Payee", value: draft.payee.isEmpty ? nil : draft.payee, screen: .payee)
         }
         recordRow("creditcard") {
             selectionButton(
@@ -464,7 +465,7 @@ struct RecordEditorView: View {
             HStack {
                 Text(title).foregroundStyle(.primary)
                 Spacer()
-                if let value { Text(value).foregroundStyle(.secondary) }
+                if let value { Text(value).foregroundStyle(.secondary).lineLimit(1) }
                 chevron
             }
             .frame(maxWidth: .infinity, minHeight: 44)
