@@ -6,6 +6,7 @@ struct BudgetsView: View {
     @State private var editing: Budget?
     @State private var deleting: Budget?
     @State private var date = Date()
+    @Environment(\.defaultCurrency) private var defaultCurrency
 
     var body: some View {
         List {
@@ -63,11 +64,11 @@ struct BudgetsView: View {
             if viewModel.budgets.isEmpty {
                 WalletEmptyState(title: "No budgets yet", symbol: "chart.bar",
                                  message: "Create a budget to track a spending limit for a category or for everything.",
-                                 actionTitle: "Add Budget") { editing = Budget() }
+                                 actionTitle: "Add Budget") { editing = Budget(currencyCode: defaultCurrency) }
             }
         }
         .navigationTitle("Budgets")
-        .toolbar { Button("Add Budget", systemImage: "plus") { editing = Budget() } }
+        .toolbar { Button("Add Budget", systemImage: "plus") { editing = Budget(currencyCode: defaultCurrency) } }
         .sheet(item: $editing) { BudgetEditorView(viewModel: viewModel, budget: $0) }
         .alert("Delete Budget?", isPresented: Binding(get: { deleting != nil }, set: { if !$0 { deleting = nil } })) {
             Button("Cancel", role: .cancel) {}

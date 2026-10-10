@@ -21,6 +21,17 @@ public final class CurrencyViewModel: ObservableObject {
         }
     }
 
+    /// The currency new items start in. Separate from the home currency, which drives conversion
+    /// and must be one the rate feed publishes.
+    @Published public var defaultCurrency: String {
+        didSet {
+            guard defaultCurrency != oldValue else { return }
+            preferences.set(defaultCurrency, forKey: WalletPreferenceKeys.defaultCurrency)
+        }
+    }
+
+    public static let fallbackDefaultCurrency = "MMK"
+
     @Published public var convertsTotals: Bool {
         didSet {
             guard convertsTotals != oldValue else { return }
@@ -43,6 +54,7 @@ public final class CurrencyViewModel: ObservableObject {
         self.store = store
         homeCurrency = preferences.string(forKey: WalletPreferenceKeys.homeCurrency)
             ?? Locale.current.currency?.identifier ?? "USD"
+        defaultCurrency = preferences.string(forKey: WalletPreferenceKeys.defaultCurrency) ?? Self.fallbackDefaultCurrency
         convertsTotals = preferences.object(forKey: WalletPreferenceKeys.convertTotals) as? Bool ?? false
         rates = load()
     }

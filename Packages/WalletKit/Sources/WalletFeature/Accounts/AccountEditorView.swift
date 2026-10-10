@@ -14,6 +14,7 @@ struct AccountEditorView: View {
     @State private var maximumText: String
     @State private var errorMessage: String?
     @State private var choosingCurrency = false
+    @Environment(\.defaultCurrency) private var defaultCurrency
 
     init(viewModel: AccountsViewModel, account: Account? = nil) {
         self.viewModel = viewModel
@@ -21,7 +22,8 @@ struct AccountEditorView: View {
         let settings = account?.settings ?? AccountSettings()
         _name = State(initialValue: account?.name ?? "")
         _type = State(initialValue: account?.type ?? .cash)
-        _currencyCode = State(initialValue: account?.currencyCode ?? Locale.current.currency?.identifier ?? "USD")
+        // A new account takes the default currency on appear; the environment isn't readable here.
+        _currencyCode = State(initialValue: account?.currencyCode ?? "")
         _settings = State(initialValue: settings)
         // Nothing to show is left empty so the field's "0" reads as the placeholder it is, rather
         // than as a zero the person has to clear before typing.
@@ -38,6 +40,7 @@ struct AccountEditorView: View {
             Form {
                 Section {
                     TextField("Name", text: $name)
+                        .onAppear { if currencyCode.isEmpty { currencyCode = defaultCurrency } }
                     if account == nil {
                         // Reads as the row it is — a label, the choice, and somewhere to go —
                         // rather than as a line of button-tinted text.

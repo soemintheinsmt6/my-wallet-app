@@ -11,6 +11,8 @@ public enum WalletPreferenceKeys {
     /// First-launch setup is per-device, so this is deliberately not synced.
     static let onboardingCompleted = "onboarding.completed"
     static let homeCurrency = "currency.home"
+    /// Prefills the currency of new accounts, bills, budgets, debts and goals.
+    static let defaultCurrency = "currency.default"
     static let convertTotals = "currency.convertTotals"
     /// Proactive insight notices; all default to off.
     static let insightWeekly = "insights.weeklySummary"

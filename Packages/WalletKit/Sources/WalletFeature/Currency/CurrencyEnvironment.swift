@@ -13,4 +13,9 @@ public extension EnvironmentValues {
         get { self[CurrencyViewModelKey.self] }
         set { self[CurrencyViewModelKey.self] = newValue }
     }
+
+    /// The currency a newly created item starts in.
+    @MainActor var defaultCurrency: String {
+        currencyViewModel?.defaultCurrency ?? CurrencyViewModel.fallbackDefaultCurrency
+    }
 }

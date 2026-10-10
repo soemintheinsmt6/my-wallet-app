@@ -13,6 +13,12 @@ struct CurrencySettingsSection: View {
             }
             .foregroundStyle(.primary)
 
+            NavigationLink {
+                CurrencyPickerView(selection: $viewModel.defaultCurrency, pushed: true)
+            } label: {
+                LabeledContent("Default Currency", value: viewModel.defaultCurrency)
+            }
+
             Toggle("Show Converted Totals", isOn: $viewModel.convertsTotals)
 
             if viewModel.convertsTotals {
@@ -41,7 +47,7 @@ struct CurrencySettingsSection: View {
         } header: {
             Text("Currency")
         } footer: {
-            Text("Accounts keep their own currency. Converted totals are estimates from daily reference rates and never replace the per-currency figures. Rates download from the European Central Bank's public feed.")
+            Text("New accounts, bills, budgets, debts and goals start in the default currency. Accounts keep their own currency. Converted totals are estimates from daily reference rates and never replace the per-currency figures. Rates download from the European Central Bank's public feed.")
         }
         .sheet(isPresented: $isChoosingCurrency) {
             CurrencyPickerView(selection: $viewModel.homeCurrency)

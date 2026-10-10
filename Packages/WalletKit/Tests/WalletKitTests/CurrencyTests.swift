@@ -98,6 +98,15 @@ struct CurrencyViewModelTests {
         #expect(ready.isConversionAvailable)
     }
 
+    @Test func defaultCurrencyStartsAsKyatAndPersistsAChange() {
+        let defaults = UserDefaults(suiteName: "currency.tests.\(UUID().uuidString)")!
+        let first = CurrencyViewModel(provider: StubRateProvider(set: rates), preferences: defaults)
+        #expect(first.defaultCurrency == "MMK")
+        first.defaultCurrency = "THB"
+        let reopened = CurrencyViewModel(provider: StubRateProvider(set: rates), preferences: defaults)
+        #expect(reopened.defaultCurrency == "THB")
+    }
+
     @Test func refreshStoresTheDownloadedSet() async {
         let model = model(provider: StubRateProvider(set: rates))
         await model.refresh(force: true)

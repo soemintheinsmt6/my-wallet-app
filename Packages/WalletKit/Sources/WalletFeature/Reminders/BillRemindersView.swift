@@ -8,6 +8,7 @@ struct BillRemindersView: View {
     @State private var deleting: BillReminder?
     @State private var calendarMode = false
     @State private var selectedDate = Date()
+    @Environment(\.defaultCurrency) private var defaultCurrency
 
     private var visibleBills: [BillReminder] {
         guard calendarMode else { return viewModel.bills }
@@ -53,7 +54,7 @@ struct BillRemindersView: View {
             }
         }
         .navigationTitle("Bills")
-        .toolbar { Button("Add Bill", systemImage: "plus") { editing = BillReminder(currencyCode: "MMK") } }
+        .toolbar { Button("Add Bill", systemImage: "plus") { editing = BillReminder(currencyCode: defaultCurrency) } }
         .sheet(item: $editing) { BillEditorView(viewModel: viewModel, bill: $0) }
         .sheet(item: $paying) { BillPaymentView(viewModel: viewModel, bill: $0) }
         .alert("Delete Bill Reminder?", isPresented: Binding(get: { deleting != nil }, set: { if !$0 { deleting = nil } })) {
