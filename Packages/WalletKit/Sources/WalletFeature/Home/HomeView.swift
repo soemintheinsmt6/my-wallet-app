@@ -300,17 +300,7 @@ public struct HomeView: View {
     private var summarySection: some View {
         let result = statistics
         return Section {
-            HStack(spacing: WalletMetrics.medium) {
-                WalletStatTile(title: "Income", value: result.income.walletFormatted(selectedCurrency),
-                               symbol: "arrow.down.left", tint: .green)
-                WalletStatTile(title: "Expenses", value: result.expenses.walletFormatted(selectedCurrency),
-                               symbol: "arrow.up.right", tint: .red)
-            }
-            .listRowInsets(EdgeInsets(top: 0, leading: WalletMetrics.large, bottom: WalletMetrics.small, trailing: WalletMetrics.large))
-            .listRowBackground(Color.clear)
-            LabeledContent("Net") {
-                WalletAmountText.net(result.net, currencyCode: selectedCurrency)
-            }
+            WalletSummaryCard(income: result.income, expenses: result.expenses, currencyCode: selectedCurrency)
         } header: {
             WalletSectionHeader(title: configuration.period.title, actionTitle: "Details") {
                 selection = .statistics

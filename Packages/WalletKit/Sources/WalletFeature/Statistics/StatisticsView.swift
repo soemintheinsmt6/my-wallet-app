@@ -230,13 +230,7 @@ public struct StatisticsView: View {
 
     private func summarySection(_ result: WalletStatistics) -> some View {
         Section {
-            HStack(spacing: WalletMetrics.medium) {
-                WalletStatTile(title: "Income", value: money(result.income), symbol: "arrow.down.left", tint: .green)
-                WalletStatTile(title: "Expenses", value: money(result.expenses), symbol: "arrow.up.right", tint: .red)
-            }
-            .listRowInsets(EdgeInsets(top: 0, leading: WalletMetrics.large, bottom: WalletMetrics.small, trailing: WalletMetrics.large))
-            .listRowBackground(Color.clear)
-            LabeledContent("Net") { WalletAmountText.net(result.net, currencyCode: selectedCurrency) }
+            WalletSummaryCard(income: result.income, expenses: result.expenses, currencyCode: selectedCurrency)
         } header: {
             Text("Summary · \(selectedCurrency)")
         } footer: {
@@ -262,15 +256,18 @@ public struct StatisticsView: View {
                 .chartLegend(.hidden)
                 .frame(height: WalletMetrics.Chart.donutHeight)
                 .overlay {
+                    let short = total.walletShort(selectedCurrency)
                     VStack(spacing: WalletMetrics.hair) {
                         Text("Total").font(.caption2).foregroundStyle(.secondary)
-                        Text(money(total))
-                            .font(.callout.weight(.semibold))
+                        Text(short.value)
+                            .font(.title2.weight(.bold))
                             .monospacedDigit()
                             .lineLimit(1)
-                            .minimumScaleFactor(0.6)
+                            .minimumScaleFactor(0.5)
+                        Text(short.unit).font(.caption2).foregroundStyle(.secondary).lineLimit(1)
                     }
-                    .padding(.horizontal, WalletMetrics.xxLarge)
+                    // Kept inside the hole: the inner radius ratio of the donut, less a margin.
+                    .frame(maxWidth: WalletMetrics.Chart.donutHeight * 0.62 - WalletMetrics.large)
                     .accessibilityHidden(true)
                 }
                 .padding(.vertical, WalletMetrics.small)

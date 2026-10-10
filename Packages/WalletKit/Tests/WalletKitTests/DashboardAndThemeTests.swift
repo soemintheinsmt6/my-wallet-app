@@ -3,6 +3,15 @@ import Testing
 import WalletDomain
 @testable import WalletFeature
 
+struct ShortAmountTests {
+    @Test func lakhCurrenciesReadInLakhsFromOneLakhUp() {
+        #expect(Decimal(5_270_000).walletShort("MMK") == ("52.7", "lakhs · MMK"))
+        #expect(Decimal(100_000).walletShort("MMK") == ("1", "lakh · MMK"))
+        #expect(Decimal(85_000).walletShort("MMK").unit == "MMK")
+        #expect(Decimal(5_270_000).walletShort("USD").unit == "USD")
+    }
+}
+
 struct DashboardConfigurationTests {
     @Test func defaultsShowTheStarterCardsInOrder() {
         let configuration = DashboardConfiguration()

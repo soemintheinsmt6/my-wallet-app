@@ -43,4 +43,19 @@ extension Decimal {
     }
 
     var doubleValue: Double { NSDecimalNumber(decimal: self).doubleValue }
+
+    /// Currencies whose amounts are usually read in lakhs (100,000).
+    private static let lakhCurrencies: Set<String> = ["MMK", "INR", "PKR", "BDT", "NPR", "LKR"]
+
+    /// A short figure and its unit for tight spaces, e.g. ("52.7", "lakhs · MMK").
+    /// Lakh currencies count in lakhs from one lakh up; others use the compact notation.
+    func walletShort(_ currencyCode: String) -> (value: String, unit: String) {
+        let number = doubleValue
+        if Self.lakhCurrencies.contains(currencyCode), abs(number) >= 100_000 {
+            let lakhs = number / 100_000
+            let value = lakhs.formatted(.number.precision(.fractionLength(0...2)))
+            return (value, "\(lakhs == 1 ? "lakh" : "lakhs") · \(currencyCode)")
+        }
+        return (number.formatted(.number.notation(.compactName).precision(.fractionLength(0...1))), currencyCode)
+    }
 }
