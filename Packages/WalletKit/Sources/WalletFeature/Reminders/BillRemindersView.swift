@@ -122,13 +122,11 @@ struct BillRemindersView: View {
 
 }
 
-/// Account and category rows that push a full list instead of popping up a menu.
+/// Account and category rows that push a full list instead of popping up a menu. Both are required.
 private struct BillSelectionRows: View {
     @ObservedObject var records: RecordsViewModel
     let accounts: [Account]
     @Binding var bill: BillReminder
-    /// The account is always required; the category only when paying.
-    var categoryRequired = true
     @State private var choosingCategory = false
 
     var body: some View {
@@ -140,8 +138,8 @@ private struct BillSelectionRows: View {
         Button { choosingCategory = true } label: {
             LabeledContent("Category") {
                 HStack {
-                    Text(bill.categoryID == nil ? (categoryRequired ? "Choose" : "None")
-                                                : records.categoryTitle(bill.categoryID))
+                    // The chosen category or subcategory by its own name, without its parent.
+                    Text(records.category(bill.categoryID)?.name ?? "Choose")
                     WalletDisclosure()
                 }
             }
@@ -149,8 +147,7 @@ private struct BillSelectionRows: View {
         }
         .buttonStyle(.plain)
         .navigationDestination(isPresented: $choosingCategory) {
-            RecordCategoryPicker(viewModel: records, kind: .expense, selection: $bill.categoryID,
-                                 allowsNone: !categoryRequired) { choosingCategory = false }
+            RecordCategoryPicker(viewModel: records, kind: .expense, selection: $bill.categoryID) { choosingCategory = false }
         }
     }
 }
@@ -252,7 +249,7 @@ private struct BillDetailView: View {
     private func details(_ bill: BillReminder) -> some View {
         Section("Details") {
             LabeledContent("Account", value: viewModel.records.account(bill.accountID)?.name ?? "None")
-            LabeledContent("Category", value: bill.categoryID == nil ? "None" : viewModel.records.categoryTitle(bill.categoryID))
+            LabeledContent("Category", value: viewModel.records.category(bill.categoryID)?.name ?? "None")
             LabeledContent("Repeats", value: bill.recurrence?.frequency.rawValue.capitalized ?? "Never")
             LabeledContent("Reminder", value: !bill.notificationsEnabled ? "Off"
                            : bill.reminderDaysBefore == 0 ? "On due date" : "\(bill.reminderDaysBefore) days before")
@@ -370,12 +367,12 @@ private struct BillEditorView: View {
                 }
 
                 Section {
-                    BillSelectionRows(records: viewModel.records, accounts: accounts, bill: $bill, categoryRequired: false)
+                    BillSelectionRows(records: viewModel.records, accounts: accounts, bill: $bill)
                 } header: {
                     Text("Payment")
                 } footer: {
                     Text(accounts.isEmpty ? "Add a \(bill.currencyCode) account to save this bill."
-                                          : "The account is required. Accounts in the bill's currency are listed.")
+                                          : "Both are required. Accounts in the bill's currency are listed.")
                 }
 
                 Section("Schedule") {
@@ -420,7 +417,7 @@ private struct BillEditorView: View {
                             do { bill.amount = try AccountAmountInput.parse(amount); try await viewModel.save(bill); dismiss() }
                             catch { self.error = error.localizedDescription }
                         }
-                    }.disabled(viewModel.isSaving || bill.accountID == nil)
+                    }.disabled(viewModel.isSaving || bill.accountID == nil || bill.categoryID == nil)
                 }
             }
             .task { amount = bill.amount == 0 ? "" : AccountAmountInput.text(bill.amount) }
