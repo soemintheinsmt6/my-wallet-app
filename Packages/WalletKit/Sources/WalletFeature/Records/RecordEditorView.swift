@@ -133,7 +133,9 @@ struct RecordEditorView: View {
             .navigationDestination(item: $selectionScreen) { screen in
                 switch screen {
                 case .category:
-                    RecordCategoryPicker(viewModel: viewModel, kind: draft.kind, selection: $draft.categoryID)
+                    RecordCategoryPicker(viewModel: viewModel, kind: draft.kind, selection: $draft.categoryID) {
+                        selectionScreen = nil
+                    }
                 case .tags:
                     RecordTagPicker(viewModel: viewModel, selection: $draft.tagIDs)
                 case .account:
@@ -228,35 +230,13 @@ struct RecordEditorView: View {
                     Text(
                         draft.categoryID == nil
                             ? (draft.kind == .transfer ? "Optional" : (record == nil ? "Required" : "Uncategorized"))
-                            : viewModel.categoryTitle(draft.categoryID)
+                            : viewModel.category(draft.categoryID)?.name ?? "Uncategorized"
                     )
                     .foregroundStyle(draft.categoryID == nil && draft.kind != .transfer ? Color.red : Color.secondary)
                     chevron
                 }
             }
             .buttonStyle(.plain)
-        }
-        let frequent = viewModel.mostUsedCategories(for: draft.kind)
-        if !frequent.isEmpty {
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Most used").font(.caption).foregroundStyle(.secondary)
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack {
-                        ForEach(frequent) { category in
-                            Button {
-                                draft.categoryID = category.id
-                            } label: {
-                                Label(category.name, systemImage: category.symbol)
-                            }
-                            .buttonStyle(.bordered)
-                            .tint(category.colorToken.color)
-                            .accessibilityLabel(viewModel.categoryTitle(category.id))
-                            .accessibilityAddTraits(draft.categoryID == category.id ? .isSelected : [])
-                        }
-                    }
-                }
-            }
-            .padding(20)
         }
         recordRow("calendar") {
             RecordDateTimeField(date: $draft.date) { focusedField = nil }

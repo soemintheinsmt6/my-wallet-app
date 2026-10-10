@@ -129,6 +129,7 @@ private struct BillSelectionRows: View {
     @Binding var bill: BillReminder
     /// The account is always required; the category only when paying.
     var categoryRequired = true
+    @State private var choosingCategory = false
 
     var body: some View {
         NavigationLink {
@@ -136,11 +137,20 @@ private struct BillSelectionRows: View {
         } label: {
             LabeledContent("Account", value: records.account(bill.accountID)?.name ?? "Choose")
         }
-        NavigationLink {
-            RecordCategoryPicker(viewModel: records, kind: .expense, selection: $bill.categoryID, allowsNone: !categoryRequired)
-        } label: {
-            LabeledContent("Category", value: bill.categoryID == nil ? (categoryRequired ? "Choose" : "None")
-                                                                     : records.categoryTitle(bill.categoryID))
+        Button { choosingCategory = true } label: {
+            LabeledContent("Category") {
+                HStack {
+                    Text(bill.categoryID == nil ? (categoryRequired ? "Choose" : "None")
+                                                : records.categoryTitle(bill.categoryID))
+                    WalletDisclosure()
+                }
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .navigationDestination(isPresented: $choosingCategory) {
+            RecordCategoryPicker(viewModel: records, kind: .expense, selection: $bill.categoryID,
+                                 allowsNone: !categoryRequired) { choosingCategory = false }
         }
     }
 }
