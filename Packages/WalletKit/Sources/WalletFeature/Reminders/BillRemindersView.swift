@@ -66,37 +66,44 @@ struct BillRemindersView: View {
         .disabled(viewModel.isSaving)
     }
 
+    /// Tapping opens the bill; unpaid bills also carry a visible Pay button so settling one never
+    /// depends on discovering a swipe.
     private func row(_ bill: BillReminder) -> some View {
         let due = bill.nextDueDate
         let isOverdue = due.map { $0 < Date() } ?? false
-        return Button { editing = bill } label: {
+        return NavigationLink { BillDetailView(viewModel: viewModel, billID: bill.id) } label: {
             HStack(spacing: WalletMetrics.medium) {
-                WalletIconTile(symbol: due == nil ? "checkmark.circle" : isOverdue ? "exclamationmark.circle" : "calendar",
-                               color: due == nil ? .green : isOverdue ? .red : .orange)
+                WalletIconTile(symbol: BillStatus.symbol(due: due, isOverdue: isOverdue),
+                               color: BillStatus.color(due: due, isOverdue: isOverdue))
                 VStack(alignment: .leading, spacing: WalletMetrics.hair) {
                     Text(bill.name)
                         .font(.body.weight(.medium))
                         .foregroundStyle(.primary)
                         .lineLimit(1)
-                    Text(status(due: due, isOverdue: isOverdue))
+                    Text(BillStatus.text(due: due, isOverdue: isOverdue))
                         .font(.caption)
                         .foregroundStyle(isOverdue ? Color.red : Color.secondary)
                         .lineLimit(1)
+                    Text(bill.amount.walletFormatted(bill.currencyCode))
+                        .font(.caption.weight(.semibold))
+                        .monospacedDigit()
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
                 }
                 Spacer(minLength: WalletMetrics.small)
-                Text(bill.amount.walletFormatted(bill.currencyCode))
-                    .font(.body.weight(.semibold))
-                    .monospacedDigit()
-                    .foregroundStyle(.primary)
-                    .lineLimit(1)
-                WalletDisclosure()
+                if due != nil {
+                    Button("Pay") { paying = bill }
+                        .buttonStyle(.borderedProminent)
+                        .buttonBorderShape(.capsule)
+                        .controlSize(.small)
+                        .tint(isOverdue ? .red : .green)
+                        .accessibilityLabel("Mark \(bill.name) as paid")
+                }
             }
             .frame(minHeight: WalletMetrics.touchTarget)
             .padding(.vertical, WalletMetrics.tight)
-            .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
-        .accessibilityHint("Edit bill")
+        .accessibilityHint("Show bill details")
         .swipeActions(edge: .leading) {
             if due != nil {
                 Button("Mark Paid", systemImage: "checkmark") { paying = bill }.tint(.green)
@@ -112,10 +119,119 @@ struct BillRemindersView: View {
         }
     }
 
-    private func status(due: Date?, isOverdue: Bool) -> String {
+}
+
+/// Shared wording and colour for a bill's next occurrence.
+private enum BillStatus {
+    static func symbol(due: Date?, isOverdue: Bool) -> String {
+        due == nil ? "checkmark.circle" : isOverdue ? "exclamationmark.circle" : "calendar"
+    }
+
+    static func color(due: Date?, isOverdue: Bool) -> Color {
+        due == nil ? .green : isOverdue ? .red : .orange
+    }
+
+    static func text(due: Date?, isOverdue: Bool) -> String {
         guard let due else { return "Paid · complete" }
         let when = due.formatted(date: .abbreviated, time: .omitted)
         return isOverdue ? "Overdue · \(when)" : "Due \(when)"
+    }
+}
+
+/// One bill at a glance, with paying, editing and deleting as plain rows rather than gestures.
+private struct BillDetailView: View {
+    @ObservedObject var viewModel: PlanningViewModel
+    let billID: UUID
+    @State private var editing: BillReminder?
+    @State private var paying: BillReminder?
+    @State private var confirmingDelete = false
+    @State private var mutationError: String?
+    @Environment(\.dismiss) private var dismiss
+
+    private var bill: BillReminder? { viewModel.bills.first { $0.id == billID } }
+
+    var body: some View {
+        Group {
+            if let bill {
+                List {
+                    header(bill)
+                    details(bill)
+                    actions(bill)
+                }
+            } else {
+                WalletEmptyState(title: "Bill unavailable", symbol: "calendar.badge.exclamationmark",
+                                 message: "Return to Bills and refresh.")
+            }
+        }
+        .navigationTitle(bill?.name ?? "Bill")
+        #if !os(macOS)
+            .navigationBarTitleDisplayMode(.inline)
+        #endif
+        .sheet(item: $editing) { BillEditorView(viewModel: viewModel, bill: $0) }
+        .sheet(item: $paying) { BillPaymentView(viewModel: viewModel, bill: $0) }
+        .alert("Delete Bill?", isPresented: $confirmingDelete) {
+            Button("Cancel", role: .cancel) {}
+            Button("Delete", role: .destructive) {
+                Task {
+                    do { try await viewModel.deleteBill(id: billID); dismiss() }
+                    catch { mutationError = error.localizedDescription }
+                }
+            }
+        } message: { Text("This removes the bill and its reminders. Expenses already recorded for it are kept.") }
+        .alert("Unable to Change Bill", isPresented: Binding(get: { mutationError != nil }, set: { if !$0 { mutationError = nil } })) {
+            Button("OK", role: .cancel) { mutationError = nil }
+        } message: { Text(mutationError ?? "") }
+        .disabled(viewModel.isSaving)
+    }
+
+    private func header(_ bill: BillReminder) -> some View {
+        let due = bill.nextDueDate
+        let isOverdue = due.map { $0 < Date() } ?? false
+        return Section {
+            VStack(spacing: WalletMetrics.medium) {
+                WalletIconTile(symbol: BillStatus.symbol(due: due, isOverdue: isOverdue),
+                               color: BillStatus.color(due: due, isOverdue: isOverdue), large: true)
+                VStack(spacing: WalletMetrics.small) {
+                    Text(bill.amount.walletFormatted(bill.currencyCode))
+                        .font(.title2.weight(.semibold))
+                        .monospacedDigit()
+                    Text(BillStatus.text(due: due, isOverdue: isOverdue))
+                        .font(.subheadline)
+                        .foregroundStyle(isOverdue ? Color.red : Color.secondary)
+                }
+                if due != nil {
+                    Button { paying = bill } label: {
+                        Label("Mark as Paid", systemImage: "checkmark.circle.fill")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.large)
+                    .tint(.green)
+                }
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, WalletMetrics.large)
+            .listRowBackground(Color.clear)
+        }
+    }
+
+    private func details(_ bill: BillReminder) -> some View {
+        Section("Details") {
+            LabeledContent("Account", value: viewModel.records.account(bill.accountID)?.name ?? "None")
+            LabeledContent("Category", value: bill.categoryID == nil ? "None" : viewModel.records.categoryTitle(bill.categoryID))
+            LabeledContent("Repeats", value: bill.recurrence?.frequency.rawValue.capitalized ?? "Never")
+            LabeledContent("Reminder", value: !bill.notificationsEnabled ? "Off"
+                           : bill.reminderDaysBefore == 0 ? "On due date" : "\(bill.reminderDaysBefore) days before")
+        }
+    }
+
+    private func actions(_ bill: BillReminder) -> some View {
+        Section {
+            Button { editing = bill } label: {
+                Label("Edit Bill", systemImage: "square.and.pencil")
+            }
+            WalletDestructiveRow(title: "Delete Bill") { confirmingDelete = true }
+        }
     }
 }
 
