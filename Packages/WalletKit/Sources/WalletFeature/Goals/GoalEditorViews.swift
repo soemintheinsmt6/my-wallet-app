@@ -29,13 +29,16 @@ struct GoalEditorView: View {
                         }
                         .monospacedDigit()
                     }
-                    Picker("Currency", selection: $goal.currencyCode) {
-                        ForEach(Locale.commonISOCurrencyCodes.sorted(), id: \.self) { Text($0).tag($0) }
+                    NavigationLink {
+                        CurrencyPickerView(selection: $goal.currencyCode, pushed: true)
+                    } label: {
+                        LabeledContent("Currency", value: goal.currencyCode)
                     }
                 }
 
                 Section {
-                    Picker("Account", selection: $goal.accountID) {
+                    WalletMenuPicker("Account", selection: $goal.accountID,
+                                     value: viewModel.records.account(goal.accountID)?.name ?? "None") {
                         Text("None").tag(nil as UUID?)
                         ForEach(viewModel.records.accounts.filter { $0.currencyCode == goal.currencyCode }) {
                             Text($0.name).tag(Optional($0.id))
@@ -163,17 +166,20 @@ struct GoalContributionView: View {
                     Section {
                         Toggle("Also move the money", isOn: $movesMoney.animation())
                         if movesMoney {
-                            Picker("From", selection: $fromAccountID) {
+                            WalletMenuPicker("From", selection: $fromAccountID,
+                                             value: viewModel.records.account(fromAccountID)?.name ?? "Choose") {
                                 Text("Choose").tag(nil as UUID?)
                                 ForEach(accounts) { Text($0.name).tag(Optional($0.id)) }
                             }
-                            Picker("To", selection: $toAccountID) {
+                            WalletMenuPicker("To", selection: $toAccountID,
+                                             value: viewModel.records.account(toAccountID)?.name ?? "Choose") {
                                 Text("Choose").tag(nil as UUID?)
                                 ForEach(accounts.filter { $0.id != fromAccountID }) {
                                     Text($0.name).tag(Optional($0.id))
                                 }
                             }
-                            Picker("Category", selection: $categoryID) {
+                            WalletMenuPicker("Category", selection: $categoryID,
+                                             value: categoryID == nil ? "None" : viewModel.records.categoryTitle(categoryID)) {
                                 Text("None").tag(nil as UUID?)
                                 ForEach(viewModel.records.categories) {
                                     Text(viewModel.records.categoryTitle($0.id)).tag(Optional($0.id))

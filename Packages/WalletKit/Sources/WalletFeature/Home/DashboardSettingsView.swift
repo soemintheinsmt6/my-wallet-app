@@ -14,16 +14,16 @@ struct DashboardSettingsView: View {
         NavigationStack {
             List {
                 Section {
-                    Picker("Period", selection: Binding(
+                    WalletMenuPicker("Period", selection: Binding(
                         get: { configuration.period },
                         set: { dashboard.configuration.period = $0 }
-                    )) {
+                    ), value: configuration.period.title) {
                         ForEach(DashboardPeriod.allCases) { Text($0.title).tag($0) }
                     }
-                    Picker("Accounts", selection: Binding(
+                    WalletMenuPicker("Accounts", selection: Binding(
                         get: { configuration.accountID },
                         set: { dashboard.configuration.accountID = $0 }
-                    )) {
+                    ), value: accounts.first { $0.id == configuration.accountID }?.name ?? "All accounts") {
                         Text("All accounts").tag(nil as UUID?)
                         ForEach(accounts.filter { !$0.settings.excludeFromStats }) {
                             Text($0.name).tag(Optional($0.id))

@@ -185,10 +185,10 @@ public struct HomeView: View {
                                       bottom: WalletMetrics.small, trailing: WalletMetrics.large))
 
             if records.accounts.filter({ !$0.settings.excludeFromStats }).count > 1 {
-                Picker("Accounts", selection: Binding(
+                WalletMenuPicker("Accounts", selection: Binding(
                     get: { configuration.accountID },
                     set: { dashboard.configuration.accountID = $0 }
-                )) {
+                ), value: records.account(configuration.accountID)?.name ?? "All accounts") {
                     Text("All accounts").tag(nil as UUID?)
                     ForEach(records.accounts.filter { !$0.settings.excludeFromStats }) {
                         Text($0.name).tag(Optional($0.id))
@@ -255,7 +255,7 @@ public struct HomeView: View {
         } label: {
             HStack(spacing: WalletMetrics.tight) {
                 Text(selectedCurrency).font(.footnote.weight(.semibold))
-                Image(systemName: "chevron.up.chevron.down").font(.caption2)
+                Image(systemName: "chevron.right").font(.caption2.weight(.semibold))
             }
         }
         .accessibilityLabel("Currency \(selectedCurrency)")

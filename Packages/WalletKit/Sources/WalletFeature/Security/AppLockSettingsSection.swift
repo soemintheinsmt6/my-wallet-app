@@ -49,7 +49,7 @@ struct AppLockSettingsSection: View {
             }
 
             if viewModel.isEnabled {
-                Picker("Auto-Lock", selection: $viewModel.gracePeriod) {
+                WalletMenuPicker("Auto-Lock", selection: $viewModel.gracePeriod, value: viewModel.gracePeriod.title) {
                     ForEach(AppLockGracePeriod.allCases) { Text($0.title).tag($0) }
                 }
             }

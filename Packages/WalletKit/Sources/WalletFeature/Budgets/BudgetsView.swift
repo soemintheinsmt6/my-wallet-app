@@ -112,17 +112,20 @@ private struct BudgetEditorView: View {
                         }
                         .monospacedDigit()
                     }
-                    Picker("Currency", selection: $budget.currencyCode) {
-                        ForEach(Locale.commonISOCurrencyCodes.sorted(), id: \.self) { Text($0).tag($0) }
+                    NavigationLink {
+                        CurrencyPickerView(selection: $budget.currencyCode, pushed: true)
+                    } label: {
+                        LabeledContent("Currency", value: budget.currencyCode)
                     }
-                    Picker("Category", selection: $budget.categoryID) {
+                    WalletMenuPicker("Category", selection: $budget.categoryID,
+                                     value: budget.categoryID == nil ? "Overall" : viewModel.records.categoryTitle(budget.categoryID)) {
                         Text("Overall").tag(nil as UUID?)
                         ForEach(viewModel.records.categories) { Text(viewModel.records.categoryTitle($0.id)).tag(Optional($0.id)) }
                     }
                 }
 
                 Section {
-                    Picker("Period", selection: $budget.period) {
+                    WalletMenuPicker("Period", selection: $budget.period, value: budget.period.rawValue.capitalized) {
                         ForEach(BudgetPeriod.allCases, id: \.self) { Text($0.rawValue.capitalized).tag($0) }
                     }
                     DatePicker("Starts", selection: $budget.startDate, displayedComponents: .date)

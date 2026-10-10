@@ -21,7 +21,8 @@ struct AccountDeletionView: View {
                         LabeledContent("Transfers", value: "\(impact.transferCount)")
                     }
                     Section {
-                        Picker("Records", selection: $strategy) {
+                        WalletMenuPicker("Records", selection: $strategy,
+                                         value: strategy == .keepRecords ? "Keep as unlinked records" : "Delete associated records") {
                             Text("Keep as unlinked records").tag(AccountDeletionStrategy.keepRecords)
                             Text("Delete associated records").tag(AccountDeletionStrategy.deleteRecords)
                         }

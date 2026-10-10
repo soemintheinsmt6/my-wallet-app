@@ -22,7 +22,8 @@ struct CategoryDeletionView: View {
                     Toggle("Move subcategories to another category", isOn: $reassign)
                         .disabled(destinations.isEmpty)
                     if reassign {
-                        Picker("Move to", selection: $destination) {
+                        WalletMenuPicker("Move to", selection: $destination,
+                                         value: destinations.first { $0.id == destination }?.name ?? "Choose category") {
                             Text("Choose category").tag(nil as UUID?)
                             ForEach(destinations) { Text($0.name).tag(Optional($0.id)) }
                         }

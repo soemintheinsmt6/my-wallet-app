@@ -43,10 +43,9 @@ struct RecordFilterView: View {
         NavigationStack {
             Form {
                 Section("Sort results by") {
-                    Picker("Sort", selection: $draft.sort) {
+                    WalletMenuPicker("Sort", selection: $draft.sort, value: draft.sort.title) {
                         ForEach(RecordSortOrder.allCases) { Text($0.title).tag($0) }
                     }
-                    .pickerStyle(.menu)
                     if draft.sort == .relevance, !draft.hasText {
                         Text("Without search text, relevance shows the newest records first.")
                             .font(.caption).foregroundStyle(.secondary)

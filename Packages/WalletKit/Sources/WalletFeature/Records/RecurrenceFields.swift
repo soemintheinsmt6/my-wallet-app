@@ -25,7 +25,7 @@ struct RecurrenceFields: View {
     @ViewBuilder private var formFields: some View {
         if allowDisabling { Toggle("Repeat", isOn: isRepeating) }
         if rule != nil {
-            Picker("Frequency", selection: frequency) { frequencyOptions }
+            WalletMenuPicker("Frequency", selection: frequency, value: frequencyTitle) { frequencyOptions }
             Toggle("End after a count", isOn: endsAfterCount)
             if rule?.count != nil {
                 Stepper("Occurrences: \(count.wrappedValue)", value: count, in: Self.countRange)
@@ -47,12 +47,7 @@ struct RecurrenceFields: View {
         }
         if rule != nil {
             RecordFormRow(symbol: "calendar.badge.clock") {
-                Text("Frequency")
-                Spacer()
-                Picker("Frequency", selection: frequency) { frequencyOptions }
-                    .labelsHidden()
-                    .pickerStyle(.menu)
-                    .tint(Color.secondary)
+                WalletMenuPicker("Frequency", selection: frequency, value: frequencyTitle) { frequencyOptions }
             }
             RecordFormRow(symbol: "number") {
                 VStack(spacing: WalletMetrics.small) {
@@ -87,6 +82,8 @@ struct RecurrenceFields: View {
     @ViewBuilder private var frequencyOptions: some View {
         ForEach(RecurrenceFrequency.allCases, id: \.self) { Text($0.rawValue.capitalized).tag($0) }
     }
+
+    private var frequencyTitle: String { frequency.wrappedValue.rawValue.capitalized }
 
     private static let countRange = 1...100_000
 

@@ -204,7 +204,8 @@ public struct SplitEditorView: View {
                 }
 
                 Section {
-                    Picker("Paid by", selection: $payerID) {
+                    WalletMenuPicker("Paid by", selection: $payerID,
+                                     value: participants.first { $0.id == payerID }.map { $0.name.isEmpty ? "Unnamed" : $0.name } ?? "") {
                         ForEach(participants) { Text($0.name.isEmpty ? "Unnamed" : $0.name).tag(Optional($0.id)) }
                     }
                 } header: {

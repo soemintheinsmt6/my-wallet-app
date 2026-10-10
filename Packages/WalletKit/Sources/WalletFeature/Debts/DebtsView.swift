@@ -168,8 +168,10 @@ private struct DebtEditorView: View {
                         }
                         .monospacedDigit()
                     }
-                    Picker("Currency", selection: $debt.currencyCode) {
-                        ForEach(Locale.commonISOCurrencyCodes.sorted(), id: \.self) { Text($0).tag($0) }
+                    NavigationLink {
+                        CurrencyPickerView(selection: $debt.currencyCode, pushed: true)
+                    } label: {
+                        LabeledContent("Currency", value: debt.currencyCode)
                     }
                 }
 
@@ -296,10 +298,12 @@ private struct DebtSettlementView: View {
                                 .font(.footnote)
                                 .foregroundStyle(.orange)
                         } else {
-                            Picker("Account", selection: Binding(get: { account?.id }, set: { accountID = $0 })) {
+                            WalletMenuPicker("Account", selection: Binding(get: { account?.id }, set: { accountID = $0 }),
+                                             value: account?.name ?? "") {
                                 ForEach(accounts) { Text($0.name).tag(Optional($0.id)) }
                             }
-                            Picker("Category", selection: $categoryID) {
+                            WalletMenuPicker("Category", selection: $categoryID,
+                                             value: categoryID == nil ? "None" : viewModel.records.categoryTitle(categoryID)) {
                                 Text("None").tag(nil as UUID?)
                                 ForEach(viewModel.records.categories) {
                                     Text(viewModel.records.categoryTitle($0.id)).tag(Optional($0.id))

@@ -119,7 +119,8 @@ struct InsightSettingsSection: View {
         Section {
             Toggle("Weekly Summary", isOn: $viewModel.preferences.weeklySummary)
             if viewModel.preferences.weeklySummary {
-                Picker("Send On", selection: $viewModel.preferences.weeklyWeekday) {
+                WalletMenuPicker("Send On", selection: $viewModel.preferences.weeklyWeekday,
+                                 value: weekdayNames[viewModel.preferences.weeklyWeekday - 1]) {
                     ForEach(1...7, id: \.self) { day in
                         Text(weekdayNames[day - 1]).tag(day)
                     }
@@ -129,7 +130,8 @@ struct InsightSettingsSection: View {
             Toggle("Monthly Comparison", isOn: $viewModel.preferences.monthlyComparison)
 
             if viewModel.preferences.isAnyEnabled {
-                Picker("Time of Day", selection: $viewModel.preferences.hour) {
+                WalletMenuPicker("Time of Day", selection: $viewModel.preferences.hour,
+                                 value: hourLabel(viewModel.preferences.hour)) {
                     ForEach(6...21, id: \.self) { hour in
                         Text(hourLabel(hour)).tag(hour)
                     }

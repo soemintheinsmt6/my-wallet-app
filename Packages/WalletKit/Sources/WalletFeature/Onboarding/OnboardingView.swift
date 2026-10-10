@@ -169,18 +169,28 @@ public struct OnboardingView: View {
                 }
 
                 field("Type") {
-                    Picker("Type", selection: $viewModel.accountType) {
-                        ForEach(AccountType.allCases) { Text($0.title).tag($0) }
+                    Menu {
+                        Picker("Type", selection: $viewModel.accountType) {
+                            ForEach(AccountType.allCases) { Text($0.title).tag($0) }
+                        }
+                        .pickerStyle(.inline)
+                        .labelsHidden()
+                    } label: {
+                        HStack {
+                            Text(viewModel.accountType.title).foregroundStyle(.primary)
+                            WalletDisclosure()
+                        }
                     }
-                    .labelsHidden()
-                    .pickerStyle(.menu)
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Type")
+                    .accessibilityValue(viewModel.accountType.title)
                 }
 
                 field("Currency") {
                     Button { isChoosingCurrency = true } label: {
                         HStack {
                             Text(viewModel.currencyCode).foregroundStyle(.primary)
-                            Image(systemName: "chevron.up.chevron.down").font(.caption2).foregroundStyle(.secondary)
+                            WalletDisclosure()
                         }
                     }
                 }

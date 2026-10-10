@@ -71,7 +71,7 @@ struct CategoryEditorView: View {
                     }
                 } footer: { Text("Use a name with 1 to 80 characters. Names must be distinct within the same category level.") }
                 Section {
-                    Picker("Nature", selection: $nature) {
+                    WalletMenuPicker("Nature", selection: $nature, value: nature.title) {
                         ForEach(CategoryNature.allCases) { nature in
                             Text(nature.title).tag(nature)
                         }

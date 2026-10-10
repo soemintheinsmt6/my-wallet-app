@@ -76,7 +76,7 @@ struct AccountEditorView: View {
                         .font(.system(.largeTitle, design: .rounded, weight: .semibold))
                         .monospacedDigit()
                     }
-                    Picker("Type", selection: $type) {
+                    WalletMenuPicker("Type", selection: $type, value: type.title) {
                         ForEach(AccountType.allCases) { option in
                             Label(option.title, systemImage: option.symbol).tag(option)
                         }

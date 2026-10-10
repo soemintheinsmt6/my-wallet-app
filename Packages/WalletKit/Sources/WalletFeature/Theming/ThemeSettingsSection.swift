@@ -11,11 +11,11 @@ struct ThemeSettingsSection: View {
         Section {
             accentPicker
 
-            Picker("List Density", selection: $theme.density) {
+            WalletMenuPicker("List Density", selection: $theme.density, value: theme.density.title) {
                 ForEach(WalletDensity.allCases) { Text($0.title).tag($0) }
             }
 
-            Picker("Text Size", selection: $theme.textSize) {
+            WalletMenuPicker("Text Size", selection: $theme.textSize, value: theme.textSize.title) {
                 ForEach(WalletTextSize.allCases) { Text($0.title).tag($0) }
             }
         } header: {

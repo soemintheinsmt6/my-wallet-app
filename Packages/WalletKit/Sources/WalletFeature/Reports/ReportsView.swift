@@ -92,12 +92,13 @@ struct ReportsView: View {
                 DatePicker("Date in period", selection: $date, displayedComponents: .date)
             }
 
-            Picker("Report", selection: $accountID) {
+            WalletMenuPicker("Report", selection: $accountID,
+                             value: records.account(accountID).map { "Statement: \($0.name)" } ?? "Financial summary") {
                 Text("Financial summary").tag(nil as UUID?)
                 ForEach(records.accounts) { Text("Statement: \($0.name)").tag(Optional($0.id)) }
             }
             if accountID == nil {
-                Picker("Currency", selection: $currency) {
+                WalletMenuPicker("Currency", selection: $currency, value: currency) {
                     ForEach(Array(Set(records.accounts.map(\.currencyCode) + [currency])).sorted(), id: \.self) { Text($0).tag($0) }
                 }
             }
