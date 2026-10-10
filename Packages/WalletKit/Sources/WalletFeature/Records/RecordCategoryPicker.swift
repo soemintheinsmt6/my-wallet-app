@@ -5,12 +5,14 @@ struct RecordCategoryPicker: View {
     @ObservedObject var viewModel: RecordsViewModel
     let kind: RecordKind
     @Binding var selection: UUID?
+    /// Offers clearing the selection; transfers always may.
+    var allowsNone = false
     @Environment(\.dismiss) private var dismiss
     @State private var search = ""
 
     var body: some View {
         List {
-            if kind == .transfer {
+            if kind == .transfer || allowsNone {
                 Button("No category") { selection = nil; dismiss() }
             }
             if search.isEmpty, !viewModel.mostUsedCategories(for: kind).isEmpty {

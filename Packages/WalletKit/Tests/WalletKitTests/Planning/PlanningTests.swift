@@ -149,8 +149,11 @@ struct PlanningTests {
     }
 
     @Test func invalidBillPaymentDoesNotAdvanceOrChangeBalancesAndDeleteKeepsPayments() async throws {
-        let (repository, _, _) = try await setup()
-        let bill = BillReminder(name: "Unlinked", amount: 20, dueDate: start)
+        let (repository, account, _) = try await setup()
+        await #expect(throws: PlanningError.missingAccount) {
+            try await repository.saveBillReminder(BillReminder(name: "No account", amount: 20, dueDate: start))
+        }
+        let bill = BillReminder(name: "Uncategorized", amount: 20, dueDate: start, accountID: account.id)
         try await repository.saveBillReminder(bill)
         await #expect(throws: RecordValidationError.self) { try await repository.markBillPaid(id: bill.id, occurrenceIndex: 0, createRecord: true, paidAt: start) }
         #expect(try await repository.fetchBillReminders().first?.nextIndex == 0)
@@ -218,7 +221,8 @@ struct PlanningTests {
         try await viewModel.save(budget)
         #expect(viewModel.budgets.count == 1)
         #expect(notifications.notices.contains { $0.id.contains("approaching") })
-        let bill = BillReminder(name: "Utility", amount: 5, dueDate: Date().addingTimeInterval(86400 * 3), notificationsEnabled: true)
+        let bill = BillReminder(name: "Utility", amount: 5, dueDate: Date().addingTimeInterval(86400 * 3),
+                                accountID: account.id, notificationsEnabled: true)
         try await viewModel.save(bill)
         #expect(notifications.notices.contains { $0.id.contains(bill.id.uuidString) && $0.date != nil })
         try await viewModel.deleteBill(id: bill.id)
@@ -239,12 +243,12 @@ struct PlanningTests {
         let records = RecordsViewModel(useCases: RecordUseCases(repository: repository), accounts: AccountUseCases(repository: repository),
                                        categories: CategoryUseCases(repository: repository), tags: TagUseCases(repository: repository))
         let viewModel = PlanningViewModel(repository: repository, records: records)
-        try await viewModel.save(BillReminder(name: "Water", amount: 30, dueDate: start))
+        try await viewModel.save(BillReminder(name: "Water", amount: 30, dueDate: start, accountID: account.id))
         var bill = try #require(viewModel.bills.first)
         await #expect(throws: PlanningError.self) { try await viewModel.pay(bill, paidAt: start) }
         #expect(try await repository.fetchRecords().isEmpty)
 
-        bill.accountID = account.id; bill.categoryID = category.id
+        bill.categoryID = category.id
         let paidAt = start.addingTimeInterval(86400 * 2)
         try await viewModel.pay(bill, paidAt: paidAt)
         let expense = try #require(try await repository.fetchRecords().first?.draft)
@@ -263,7 +267,7 @@ struct PlanningTests {
         try await repository.createRecord(id: UUID(), draft: draft(account: account, category: category))
         _ = try await repository.generateDueRecords(through: start.addingTimeInterval(86400 * 100))
         try await repository.saveBudget(Budget(amount: 50))
-        try await repository.saveBillReminder(BillReminder(name: "Bill", amount: 5))
+        try await repository.saveBillReminder(BillReminder(name: "Bill", amount: 5, accountID: account.id))
         try await repository.resetWalletData()
         #expect(try await repository.fetchRecurringSeries().isEmpty)
         #expect(try await repository.fetchOccurrences().isEmpty)

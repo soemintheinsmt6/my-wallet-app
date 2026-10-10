@@ -31,6 +31,7 @@ public struct BillReminder: Identifiable, Codable, Sendable, Equatable {
     public func validate() throws {
         guard !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, name.count <= 80 else { throw PlanningError.invalidName }
         try RecordDraft.validateAmount(amount)
+        guard accountID != nil else { throw PlanningError.missingAccount }
         try recurrence?.validate(start: dueDate)
         guard Locale.commonISOCurrencyCodes.contains(currencyCode), dueDate.timeIntervalSince1970.isFinite,
               (0...30).contains(reminderDaysBefore), nextIndex >= 0 else { throw PlanningError.invalidReminder }

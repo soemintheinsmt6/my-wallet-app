@@ -53,7 +53,7 @@ struct BillRemindersView: View {
             }
         }
         .navigationTitle("Bills")
-        .toolbar { Button("Add Bill", systemImage: "plus") { editing = BillReminder() } }
+        .toolbar { Button("Add Bill", systemImage: "plus") { editing = BillReminder(currencyCode: "MMK") } }
         .sheet(item: $editing) { BillEditorView(viewModel: viewModel, bill: $0) }
         .sheet(item: $paying) { BillPaymentView(viewModel: viewModel, bill: $0) }
         .alert("Delete Bill Reminder?", isPresented: Binding(get: { deleting != nil }, set: { if !$0 { deleting = nil } })) {
@@ -119,6 +119,29 @@ struct BillRemindersView: View {
         }
     }
 
+}
+
+/// Account and category rows that push a full list instead of popping up a menu.
+private struct BillSelectionRows: View {
+    @ObservedObject var records: RecordsViewModel
+    let accounts: [Account]
+    @Binding var bill: BillReminder
+    /// The account is always required; the category only when paying.
+    var categoryRequired = true
+
+    var body: some View {
+        NavigationLink {
+            RecordAccountSelection(accounts: accounts, selection: $bill.accountID, title: "Account")
+        } label: {
+            LabeledContent("Account", value: records.account(bill.accountID)?.name ?? "Choose")
+        }
+        NavigationLink {
+            RecordCategoryPicker(viewModel: records, kind: .expense, selection: $bill.categoryID, allowsNone: !categoryRequired)
+        } label: {
+            LabeledContent("Category", value: bill.categoryID == nil ? (categoryRequired ? "Choose" : "None")
+                                                                     : records.categoryTitle(bill.categoryID))
+        }
+    }
 }
 
 /// Shared wording and colour for a bill's next occurrence.
@@ -262,14 +285,7 @@ private struct BillPaymentView: View {
 
                 Section {
                     DatePicker("Paid date", selection: $paidAt, in: ...Date(), displayedComponents: .date)
-                    Picker("Account", selection: $bill.accountID) {
-                        Text("Choose").tag(nil as UUID?)
-                        ForEach(accounts) { Text($0.name).tag(Optional($0.id)) }
-                    }
-                    Picker("Category", selection: $bill.categoryID) {
-                        Text("Choose").tag(nil as UUID?)
-                        ForEach(viewModel.records.categories) { Text(viewModel.records.categoryTitle($0.id)).tag(Optional($0.id)) }
-                    }
+                    BillSelectionRows(records: viewModel.records, accounts: accounts, bill: $bill)
                 } header: {
                     Text("Expense")
                 } footer: {
@@ -316,6 +332,7 @@ private struct BillEditorView: View {
     @Environment(\.dismiss) private var dismiss
 
     private var isNew: Bool { !viewModel.bills.contains { $0.id == bill.id } }
+    private var accounts: [Account] { viewModel.records.accounts.filter { $0.currencyCode == bill.currencyCode } }
 
     var body: some View {
         NavigationStack {
@@ -334,25 +351,20 @@ private struct BillEditorView: View {
                         }
                         .monospacedDigit()
                     }
-                    Picker("Currency", selection: $bill.currencyCode) {
-                        ForEach(Locale.commonISOCurrencyCodes.sorted(), id: \.self) { Text($0).tag($0) }
+                    NavigationLink {
+                        CurrencyPickerView(selection: $bill.currencyCode, pushed: true)
+                    } label: {
+                        LabeledContent("Currency", value: bill.currencyCode)
                     }
-                    .disabled(bill.accountID != nil)
                 }
 
                 Section {
-                    Picker("Account", selection: $bill.accountID) {
-                        Text("None").tag(nil as UUID?)
-                        ForEach(viewModel.records.accounts) { Text($0.name).tag(Optional($0.id)) }
-                    }
-                    Picker("Category", selection: $bill.categoryID) {
-                        Text("None").tag(nil as UUID?)
-                        ForEach(viewModel.records.categories) { Text(viewModel.records.categoryTitle($0.id)).tag(Optional($0.id)) }
-                    }
+                    BillSelectionRows(records: viewModel.records, accounts: accounts, bill: $bill, categoryRequired: false)
                 } header: {
                     Text("Payment")
                 } footer: {
-                    Text("Both are required to create an expense when marking this bill paid. The currency follows the linked account.")
+                    Text(accounts.isEmpty ? "Add a \(bill.currencyCode) account to save this bill."
+                                          : "The account is required. Accounts in the bill's currency are listed.")
                 }
 
                 Section("Schedule") {
@@ -385,6 +397,10 @@ private struct BillEditorView: View {
             #endif
             .disabled(viewModel.isSaving)
             .onChange(of: bill.accountID) { _, id in if let account = viewModel.records.account(id) { bill.currencyCode = account.currencyCode } }
+            // A different currency invalidates the linked account; pick one in the new currency.
+            .onChange(of: bill.currencyCode) { _, code in
+                if viewModel.records.account(bill.accountID)?.currencyCode != code { bill.accountID = nil }
+            }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() }.disabled(viewModel.isSaving) }
                 ToolbarItem(placement: .confirmationAction) {
@@ -393,7 +409,7 @@ private struct BillEditorView: View {
                             do { bill.amount = try AccountAmountInput.parse(amount); try await viewModel.save(bill); dismiss() }
                             catch { self.error = error.localizedDescription }
                         }
-                    }.disabled(viewModel.isSaving)
+                    }.disabled(viewModel.isSaving || bill.accountID == nil)
                 }
             }
             .task { amount = bill.amount == 0 ? "" : AccountAmountInput.text(bill.amount) }

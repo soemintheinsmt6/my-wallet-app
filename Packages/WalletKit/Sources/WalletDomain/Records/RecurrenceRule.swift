@@ -94,9 +94,10 @@ public struct ScheduledOccurrence: Identifiable, Codable, Sendable, Equatable {
 }
 
 public enum PlanningError: LocalizedError {
-    case invalidSchedule, invalidBudget, invalidName, missingItem, busy, invalidReminder, completedOccurrence
+    case invalidSchedule, invalidBudget, invalidName, missingItem, busy, invalidReminder, completedOccurrence, missingAccount
     public var errorDescription: String? {
         switch self {
+        case .missingAccount: "Choose an account for this bill."
         case .invalidSchedule: "Choose a valid schedule, end date and occurrence count (1–100,000)."
         case .invalidBudget: "Choose a positive budget, valid currency and period of at least one day."
         case .invalidName: "Enter a name with 1–80 characters."
