@@ -55,12 +55,7 @@ struct BillRemindersView: View {
         .navigationTitle("Bills")
         .toolbar { Button("Add Bill", systemImage: "plus") { editing = BillReminder() } }
         .sheet(item: $editing) { BillEditorView(viewModel: viewModel, bill: $0) }
-        .confirmationDialog("Mark this bill occurrence as paid?", isPresented: Binding(get: { paying != nil }, set: { if !$0 { paying = nil } }), titleVisibility: .visible) {
-            Button("Mark Paid and Add Expense") { pay(createRecord: true) }
-                .disabled(paying?.accountID == nil || paying?.categoryID == nil)
-            Button("Mark Paid Only") { pay(createRecord: false) }
-            Button("Cancel", role: .cancel) { paying = nil }
-        } message: { Text("Add Expense creates one record using the linked account/category. Mark Paid Only leaves balances unchanged.") }
+        .sheet(item: $paying) { BillPaymentView(viewModel: viewModel, bill: $0) }
         .alert("Delete Bill Reminder?", isPresented: Binding(get: { deleting != nil }, set: { if !$0 { deleting = nil } })) {
             Button("Cancel", role: .cancel) {}
             Button("Delete", role: .destructive) {
@@ -122,11 +117,78 @@ struct BillRemindersView: View {
         let when = due.formatted(date: .abbreviated, time: .omitted)
         return isOverdue ? "Overdue · \(when)" : "Due \(when)"
     }
+}
 
-    private func pay(createRecord: Bool) {
-        guard let bill = paying else { return }
-        paying = nil
-        Task { do { try await viewModel.pay(bill, createRecord: createRecord) } catch { viewModel.errorMessage = error.localizedDescription } }
+/// Settles the current occurrence on a chosen paid date and adds it as an expense.
+private struct BillPaymentView: View {
+    @ObservedObject var viewModel: PlanningViewModel
+    @State var bill: BillReminder
+    @State private var paidAt = Date()
+    @State private var error: String?
+    @Environment(\.dismiss) private var dismiss
+
+    /// Only accounts in the bill's currency can carry the expense.
+    private var accounts: [Account] { viewModel.records.accounts.filter { $0.currencyCode == bill.currencyCode } }
+    private var canPay: Bool { bill.accountID != nil && bill.categoryID != nil && !viewModel.isSaving }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    LabeledContent("Bill", value: bill.name)
+                    LabeledContent("Amount") {
+                        Text(bill.amount.walletFormatted(bill.currencyCode)).monospacedDigit()
+                    }
+                    if let due = bill.nextDueDate {
+                        LabeledContent("Due", value: due.formatted(date: .abbreviated, time: .omitted))
+                    }
+                }
+
+                Section {
+                    DatePicker("Paid date", selection: $paidAt, in: ...Date(), displayedComponents: .date)
+                    Picker("Account", selection: $bill.accountID) {
+                        Text("Choose").tag(nil as UUID?)
+                        ForEach(accounts) { Text($0.name).tag(Optional($0.id)) }
+                    }
+                    Picker("Category", selection: $bill.categoryID) {
+                        Text("Choose").tag(nil as UUID?)
+                        ForEach(viewModel.records.categories) { Text(viewModel.records.categoryTitle($0.id)).tag(Optional($0.id)) }
+                    }
+                } header: {
+                    Text("Expense")
+                } footer: {
+                    Text(accounts.isEmpty ? "Add a \(bill.currencyCode) account to record this payment."
+                                          : "An expense is added on the paid date. The account and category are saved to this bill.")
+                }
+
+                if let error {
+                    Section {
+                        Label(error, systemImage: "exclamationmark.triangle").foregroundStyle(.red)
+                    }
+                }
+            }
+            .formStyle(.grouped)
+            .navigationTitle("Mark as Paid")
+            #if !os(macOS)
+                .navigationBarTitleDisplayMode(.inline)
+            #endif
+            .disabled(viewModel.isSaving)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() }.disabled(viewModel.isSaving) }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Mark Paid") {
+                        Task {
+                            do { try await viewModel.pay(bill, paidAt: paidAt); dismiss() }
+                            catch { self.error = error.localizedDescription }
+                        }
+                    }.disabled(!canPay)
+                }
+            }
+            .interactiveDismissDisabled(viewModel.isSaving)
+        }
+        #if os(macOS)
+        .frame(minWidth: 420, minHeight: 420)
+        #endif
     }
 }
 

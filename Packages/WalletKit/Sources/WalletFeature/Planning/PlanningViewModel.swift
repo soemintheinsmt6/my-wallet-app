@@ -75,8 +75,17 @@ public final class PlanningViewModel: ObservableObject {
         try await mutate { try await repository.saveBillReminder(bill) }
     }
     public func deleteBill(id: UUID) async throws { try await mutate { try await repository.deleteBillReminder(id: id) } }
-    public func pay(_ bill: BillReminder, createRecord: Bool) async throws {
-        try await mutate { try await repository.markBillPaid(id: bill.id, occurrenceIndex: bill.nextIndex, createRecord: createRecord, paidAt: Date()) }
+    /// Settles the bill's current occurrence and records it as an expense dated `paidAt`.
+    /// An account or category chosen while paying is kept on the bill for next time.
+    public func pay(_ bill: BillReminder, paidAt: Date) async throws {
+        guard bill.accountID != nil, bill.categoryID != nil else { throw PlanningError.missingItem }
+        try await mutate {
+            if let stored = bills.first(where: { $0.id == bill.id }),
+               stored.accountID != bill.accountID || stored.categoryID != bill.categoryID {
+                try await repository.saveBillReminder(bill)
+            }
+            try await repository.markBillPaid(id: bill.id, occurrenceIndex: bill.nextIndex, createRecord: true, paidAt: paidAt)
+        }
     }
     public func save(_ series: RecurringSeries) async throws { try await mutate { try await repository.updateRecurringSeries(series) } }
     public func save(_ occurrence: ScheduledOccurrence) async throws { try await mutate { try await repository.saveOccurrence(occurrence) } }

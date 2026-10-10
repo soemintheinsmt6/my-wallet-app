@@ -234,6 +234,30 @@ struct PlanningTests {
         #expect(!viewModel.isSaving)
     }
 
+    @Test func payingABillAddsAnExpenseOnThePaidDateAndKeepsTheChosenLinks() async throws {
+        let (repository, account, category) = try await setup()
+        let records = RecordsViewModel(useCases: RecordUseCases(repository: repository), accounts: AccountUseCases(repository: repository),
+                                       categories: CategoryUseCases(repository: repository), tags: TagUseCases(repository: repository))
+        let viewModel = PlanningViewModel(repository: repository, records: records)
+        try await viewModel.save(BillReminder(name: "Water", amount: 30, dueDate: start))
+        var bill = try #require(viewModel.bills.first)
+        await #expect(throws: PlanningError.self) { try await viewModel.pay(bill, paidAt: start) }
+        #expect(try await repository.fetchRecords().isEmpty)
+
+        bill.accountID = account.id; bill.categoryID = category.id
+        let paidAt = start.addingTimeInterval(86400 * 2)
+        try await viewModel.pay(bill, paidAt: paidAt)
+        let expense = try #require(try await repository.fetchRecords().first?.draft)
+        #expect(expense.kind == .expense)
+        #expect(expense.date == paidAt)
+        #expect(expense.amount == 30)
+        #expect(try await repository.fetchAccounts().first?.settings.currentBalance == 70)
+        let paid = try #require(viewModel.bills.first)
+        #expect(paid.isPaid)
+        #expect(paid.accountID == account.id && paid.categoryID == category.id)
+        #expect(!viewModel.isSaving)
+    }
+
     @Test func resetRemovesAllPlansAndOccurrenceReceipts() async throws {
         let (repository, account, category) = try await setup()
         try await repository.createRecord(id: UUID(), draft: draft(account: account, category: category))
