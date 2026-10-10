@@ -1,7 +1,7 @@
 import SwiftUI
 import WalletDomain
 
-/// Most used categories as a horizontal strip, then top-level categories only. A category with
+/// Most used categories as a paged strip, then top-level categories only. A category with
 /// subcategories opens its own list, where either it or one of its subcategories can be chosen.
 struct RecordCategoryPicker: View {
     @ObservedObject var viewModel: RecordsViewModel
@@ -28,7 +28,14 @@ struct RecordCategoryPicker: View {
                 if kind == .transfer || allowsNone {
                     Button("No category") { pick(nil) }
                 }
-                Section("Categories") {
+                let frequent = viewModel.mostUsedCategories(for: kind, limit: Self.pageSize * 2)
+                if !frequent.isEmpty {
+                    Section("Most frequent") {
+                        MostUsedPager(categories: frequent, pageSize: Self.pageSize) { pick($0) }
+                            .listRowInsets(EdgeInsets())
+                    }
+                }
+                Section("All categories") {
                     ForEach(roots) { root in rootRow(root) }
                 }
             } else {
@@ -41,11 +48,7 @@ struct RecordCategoryPicker: View {
                 }
             }
         }
-        // Outside the list, so the strip runs edge to edge; list rows and headers keep side margins.
-        .safeAreaInset(edge: .top, spacing: 0) {
-            let frequent = viewModel.mostUsedCategories(for: kind)
-            if search.isEmpty, !frequent.isEmpty { mostUsed(frequent) }
-        }
+        .categoryPickerListStyle()
         .searchable(text: $search, prompt: "Category or subcategory")
         .navigationTitle("Category")
         #if !os(macOS)
@@ -64,46 +67,8 @@ struct RecordCategoryPicker: View {
         onPicked()
     }
 
-    private func mostUsed(_ categories: [WalletCategory]) -> some View {
-        VStack(alignment: .leading, spacing: WalletMetrics.small) {
-            Text("Most used")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-                .padding(.horizontal, WalletMetrics.large)
-            // No side padding: the tiles' own width centres each icon clear of the screen edge.
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 0) {
-                    ForEach(categories) { category in
-                        Button { pick(category.id) } label: {
-                            VStack(spacing: WalletMetrics.small) {
-                                CategoryIcon(category: category)
-                                Text(category.name)
-                                    .font(.caption)
-                                    .foregroundStyle(.primary)
-                                    .lineLimit(1)
-                            }
-                            .frame(width: 80)
-                            .contentShape(Rectangle())
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel(category.name)
-                    }
-                }
-            }
-        }
-        .padding(.vertical, WalletMetrics.small)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Self.screenBackground)
-    }
-
-    /// Matches the grouped list behind it, so the strip has no card of its own.
-    private static var screenBackground: Color {
-        #if os(macOS)
-        Color(nsColor: .windowBackgroundColor)
-        #else
-        Color(uiColor: .systemGroupedBackground)
-        #endif
-    }
+    /// Five tiles fill a phone's width; the strip pages through at most two screens of them.
+    private static let pageSize = 5
 
     @ViewBuilder
     private func rootRow(_ root: WalletCategory) -> some View {
@@ -143,9 +108,91 @@ private struct SubcategoryPicker: View {
                 }
             }
         }
+        .categoryPickerListStyle()
         .navigationTitle(category.name)
         #if !os(macOS)
         .navigationBarTitleDisplayMode(.inline)
+        #endif
+    }
+}
+
+/// Most used categories a page at a time, swiped sideways, with dots for the current page.
+/// It scrolls horizontally only; a vertical drag passes through to the list around it.
+private struct MostUsedPager: View {
+    let categories: [WalletCategory]
+    let pageSize: Int
+    let pick: (UUID) -> Void
+    @State private var page: Int? = 0
+
+    private var pages: [[WalletCategory]] {
+        stride(from: 0, to: categories.count, by: pageSize).map {
+            Array(categories[$0 ..< min($0 + pageSize, categories.count)])
+        }
+    }
+
+    var body: some View {
+        VStack(spacing: WalletMetrics.small) {
+            ScrollView(.horizontal, showsIndicators: false) {
+                LazyHStack(spacing: 0) {
+                    ForEach(pages.indices, id: \.self) { index in
+                        HStack(spacing: 0) {
+                            ForEach(pages[index]) { tile($0) }
+                            // A short last page keeps its tiles at the same width and position.
+                            ForEach(0 ..< pageSize - pages[index].count, id: \.self) { _ in
+                                Color.clear.frame(maxWidth: .infinity)
+                            }
+                        }
+                        .containerRelativeFrame(.horizontal)
+                        .id(index)
+                    }
+                }
+                .scrollTargetLayout()
+            }
+            .scrollTargetBehavior(.paging)
+            .scrollPosition(id: $page)
+            .scrollBounceBehavior(.basedOnSize, axes: .vertical)
+
+            if pages.count > 1 {
+                HStack(spacing: WalletMetrics.small) {
+                    ForEach(pages.indices, id: \.self) { index in
+                        Circle()
+                            .fill(index == (page ?? 0) ? Color.accentColor : Color.secondary.opacity(0.3))
+                            .frame(width: 7, height: 7)
+                    }
+                }
+                .accessibilityHidden(true)
+            }
+        }
+        // The dots add weight below the tiles, so the top gets more room to balance them.
+        .padding(.top, WalletMetrics.xLarge)
+        .padding(.bottom, WalletMetrics.medium)
+    }
+
+    private func tile(_ category: WalletCategory) -> some View {
+        Button { pick(category.id) } label: {
+            VStack(spacing: WalletMetrics.small) {
+                CategoryIcon(category: category)
+                Text(category.name)
+                    .font(.caption)
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+            }
+            .padding(.horizontal, WalletMetrics.tight)
+            .frame(maxWidth: .infinity)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(category.name)
+    }
+}
+
+private extension View {
+    /// Full-width rows under plain section headings, rather than inset cards.
+    @ViewBuilder func categoryPickerListStyle() -> some View {
+        #if os(iOS)
+        listStyle(.grouped)
+        #else
+        self
         #endif
     }
 }

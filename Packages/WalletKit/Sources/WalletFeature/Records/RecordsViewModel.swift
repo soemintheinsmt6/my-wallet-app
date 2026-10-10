@@ -115,7 +115,7 @@ public final class RecordsViewModel: ObservableObject {
         return category.name
     }
 
-    public func mostUsedCategories(for kind: RecordKind) -> [WalletCategory] {
+    public func mostUsedCategories(for kind: RecordKind, limit: Int = 6) -> [WalletCategory] {
         let matching = records.filter { $0.draft.kind == kind }
         let counts = Dictionary(grouping: matching.compactMap { $0.draft.categoryID }, by: { $0 }).mapValues(\.count)
         let recent = Dictionary(grouping: matching.filter { $0.draft.categoryID != nil }, by: { $0.draft.categoryID! })
@@ -124,6 +124,6 @@ public final class RecordsViewModel: ObservableObject {
             if counts[$0.id] != counts[$1.id] { return counts[$0.id, default: 0] > counts[$1.id, default: 0] }
             if recent[$0.id] != recent[$1.id] { return recent[$0.id, default: .distantPast] > recent[$1.id, default: .distantPast] }
             return $0.id.uuidString < $1.id.uuidString
-        }.prefix(6))
+        }.prefix(limit))
     }
 }
