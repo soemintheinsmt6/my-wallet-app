@@ -15,6 +15,8 @@ struct CategoryEditorView: View {
     @State private var nature: CategoryNature
     @State private var errorMessage: String?
     @State private var confirmingDelete = false
+    @State private var choosingSymbol = false
+    @Environment(\.categorySymbolStore) private var symbols
 
     init(viewModel: CategoriesViewModel, route: CategoryEditorRoute) {
         self.viewModel = viewModel
@@ -47,6 +49,19 @@ struct CategoryEditorView: View {
                         TextField("Name", text: $name)
                             .multilineTextAlignment(.trailing)
                             .accessibilityLabel("Name")
+                    }
+                    // Icons are keyed by the category's ID, so only a saved category can have one.
+                    if let category = route.category, symbols != nil {
+                        Button { choosingSymbol = true } label: {
+                            LabeledContent("Icon") {
+                                HStack(spacing: WalletMetrics.small) {
+                                    CategoryIcon(category: category)
+                                    WalletDisclosure()
+                                }
+                            }
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
                     }
                     if let color = (route.category ?? route.parent)?.colorToken {
                         LabeledContent("Color") {
@@ -115,6 +130,11 @@ struct CategoryEditorView: View {
                 Text("This cannot be undone. Records using \(deletable?.name ?? "it") become Uncategorized.")
             }
             .interactiveDismissDisabled(viewModel.isSaving)
+            .sheet(isPresented: $choosingSymbol) {
+                if let category = route.category, let symbols {
+                    CategorySymbolPicker(category: category, overrides: symbols)
+                }
+            }
         }
         #if os(macOS)
         .frame(minWidth: 440, minHeight: 360)

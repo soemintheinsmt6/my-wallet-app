@@ -27,11 +27,35 @@ struct CategoryIcon: View {
     @Environment(\.categorySymbolStore) private var symbols
 
     var body: some View {
-        Image(systemName: symbols?.symbol(for: category) ?? category.symbol)
+        // An environment object is only read, not observed, so a new icon choice would not redraw
+        // tiles already on screen; the observing tile does.
+        if let symbols {
+            ObservingCategoryIcon(category: category, symbols: symbols)
+        } else {
+            CategoryIconTile(symbol: category.symbol, color: category.colorToken.color)
+        }
+    }
+}
+
+private struct ObservingCategoryIcon: View {
+    let category: WalletCategory
+    @ObservedObject var symbols: CategorySymbolStore
+
+    var body: some View {
+        CategoryIconTile(symbol: symbols.symbol(for: category), color: category.colorToken.color)
+    }
+}
+
+private struct CategoryIconTile: View {
+    let symbol: String
+    let color: Color
+
+    var body: some View {
+        Image(systemName: symbol)
             .font(.system(size: 18))
             .foregroundStyle(.white)
             .frame(width: 36, height: 36)
-            .background(category.colorToken.color, in: RoundedRectangle(cornerRadius: 10))
+            .background(color, in: RoundedRectangle(cornerRadius: 10))
             .accessibilityHidden(true)
     }
 }
