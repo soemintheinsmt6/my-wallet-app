@@ -67,6 +67,8 @@ import SwiftUI
     }
 
     /// Whether this device can scan at all; simulators and Macs cannot.
+    /// Main-actor because VisionKit's check is; every caller is a view.
+    @MainActor
     enum ReceiptScannerAvailability {
         static var isSupported: Bool { VNDocumentCameraViewController.isSupported }
     }

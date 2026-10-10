@@ -20,7 +20,7 @@ final class WalletSpotlightIndexer {
         guard signature != lastIndexedSignature else { return }
         lastIndexedSignature = signature
 
-        var items: [CSSearchableItem] = accounts.map { account in
+        let accountItems: [CSSearchableItem] = accounts.map { account in
             let attributes = CSSearchableItemAttributeSet(contentType: .content)
             attributes.title = account.name
             attributes.contentDescription = "\(account.type.spotlightTitle) account · \(account.currencyCode)"
@@ -30,7 +30,7 @@ final class WalletSpotlightIndexer {
         }
 
         let byID = Dictionary(categories.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
-        items += categories.map { category in
+        let categoryItems: [CSSearchableItem] = categories.map { category in
             let attributes = CSSearchableItemAttributeSet(contentType: .content)
             attributes.title = category.name
             let parent = category.parentID.flatMap { byID[$0] }
@@ -40,17 +40,22 @@ final class WalletSpotlightIndexer {
                                     domainIdentifier: Self.domain, attributeSet: attributes)
         }
 
-        let index = CSSearchableIndex.default()
-        // Replacing the whole domain also removes anything the user deleted since the last pass.
-        index.deleteSearchableItems(withDomainIdentifiers: [Self.domain]) { _ in
-            index.indexSearchableItems(items) { _ in }
+        let items = accountItems + categoryItems
+
+        // The async API keeps the index and items in this task rather than handing them to
+        // completion handlers on another queue. Replacing the whole domain also removes anything
+        // the user deleted since the last pass.
+        Task {
+            let index = CSSearchableIndex.default()
+            try? await index.deleteSearchableItems(withDomainIdentifiers: [Self.domain])
+            try? await index.indexSearchableItems(items)
         }
     }
 
     /// Removes everything, for a wallet reset.
     func clear() {
         lastIndexedSignature = nil
-        CSSearchableIndex.default().deleteSearchableItems(withDomainIdentifiers: [Self.domain]) { _ in }
+        Task { try? await CSSearchableIndex.default().deleteSearchableItems(withDomainIdentifiers: [Self.domain]) }
     }
 
     /// Maps a Spotlight result back to the tab that owns it.

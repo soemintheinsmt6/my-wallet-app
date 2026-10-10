@@ -5,6 +5,8 @@ import WalletDomain
 #endif
 
 /// Whether this device can take a photo; simulators, Macs and watches cannot.
+/// Main-actor because UIKit's check is; every caller is a view.
+@MainActor
 enum RecordCameraAvailability {
     static var isAvailable: Bool {
         #if os(iOS)
