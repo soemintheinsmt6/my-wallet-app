@@ -207,32 +207,28 @@ private struct DrinkingHeatmapView: View {
     let isDisabled: Bool
     let select: (DayKey) -> Void
 
+    @State private var hovered: DrinkingHeatmap.Cell?
+
     private static let cell: CGFloat = 13
     private static let gap: CGFloat = 3
+    private static let pitch = cell + gap
     private static let labelHeight: CGFloat = 14
 
     var body: some View {
         VStack(alignment: .leading, spacing: WalletMetrics.small) {
             HStack(alignment: .top, spacing: Self.gap) {
                 weekdayLabels
-                ScrollViewReader { proxy in
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        VStack(alignment: .leading, spacing: Self.gap) {
-                            monthLabels
-                            HStack(spacing: Self.gap) {
-                                ForEach(heatmap.weeks.indices, id: \.self) { week in
-                                    VStack(spacing: Self.gap) {
-                                        ForEach(0..<7, id: \.self) { row in square(heatmap.weeks[week][row]) }
-                                    }
-                                    .id(week)
-                                }
-                            }
-                        }
-                        .padding(.trailing, Self.gap)
+                // An anchor rather than `scrollTo`, which also scrolls the enclosing list and threw it
+                // back to the chart whenever the row reappeared. Rebuilt per period to start at its end.
+                ScrollView(.horizontal, showsIndicators: false) {
+                    VStack(alignment: .leading, spacing: Self.gap) {
+                        monthLabels
+                        grid
                     }
-                    .onAppear { proxy.scrollTo(heatmap.weeks.count - 1, anchor: .trailing) }
-                    .onChange(of: heatmap.first) { proxy.scrollTo(heatmap.weeks.count - 1, anchor: .trailing) }
+                    .padding(.trailing, Self.gap)
                 }
+                .defaultScrollAnchor(.trailing)
+                .id(heatmap.first)
             }
             legend
         }
@@ -271,28 +267,48 @@ private struct DrinkingHeatmapView: View {
         }
     }
 
-    @ViewBuilder private func square(_ cell: DrinkingHeatmap.Cell?) -> some View {
-        if let cell {
-            Button { select(cell.day) } label: {
-                RoundedRectangle(cornerRadius: 3, style: .continuous)
-                    .fill(Self.color(level: cell.level))
-                    .overlay {
-                        if cell.day == today {
-                            RoundedRectangle(cornerRadius: 3, style: .continuous).strokeBorder(.primary, lineWidth: 1)
-                        }
+    /// Drawn as one canvas rather than a button per day: hundreds of views made the list stutter
+    /// whenever the chart scrolled into view.
+    private var grid: some View {
+        Canvas { context, _ in
+            for (week, column) in heatmap.weeks.enumerated() {
+                for (row, cell) in column.enumerated() {
+                    guard let cell else { continue }
+                    let rect = CGRect(x: CGFloat(week) * Self.pitch, y: CGFloat(row) * Self.pitch,
+                                      width: Self.cell, height: Self.cell)
+                    context.fill(Path(roundedRect: rect, cornerRadius: 3, style: .continuous),
+                                 with: .color(Self.color(level: cell.level)))
+                    if cell.day == today {
+                        context.stroke(Path(roundedRect: rect.insetBy(dx: 0.5, dy: 0.5), cornerRadius: 2.5, style: .continuous),
+                                       with: .color(.primary), lineWidth: 1)
                     }
-                    .frame(width: Self.cell, height: Self.cell)
+                }
             }
-            .buttonStyle(.plain)
-            .disabled(isDisabled)
-            .help(helpText(cell))
-        } else {
-            Color.clear.frame(width: Self.cell, height: Self.cell)
         }
+        .frame(width: max(0, CGFloat(heatmap.weeks.count) * Self.pitch - Self.gap), height: 7 * Self.pitch - Self.gap)
+        .contentShape(.rect)
+        .gesture(SpatialTapGesture().onEnded { value in
+            guard !isDisabled, let cell = cell(at: value.location) else { return }
+            select(cell.day)
+        })
+        .onContinuousHover { phase in
+            switch phase {
+            case .active(let location): hovered = cell(at: location)
+            case .ended: hovered = nil
+            }
+        }
+    }
+
+    private func cell(at location: CGPoint) -> DrinkingHeatmap.Cell? {
+        let week = Int(location.x / Self.pitch), row = Int(location.y / Self.pitch)
+        guard location.x >= 0, location.y >= 0, heatmap.weeks.indices.contains(week), (0..<7).contains(row) else { return nil }
+        return heatmap.weeks[week][row]
     }
 
     private var legend: some View {
         HStack(spacing: Self.gap) {
+            // Stands in for per-square tooltips, which the canvas can't carry.
+            Text(hovered.map(helpText) ?? "").lineLimit(1)
             Spacer()
             Text("Less").padding(.trailing, WalletMetrics.tight)
             ForEach(0..<5, id: \.self) { level in
@@ -328,33 +344,54 @@ private struct DrinkingCalendar: View {
     @ObservedObject var viewModel: DrinkingDaysViewModel
     let select: (DayKey) -> Void
 
-    private let columns = Array(repeating: GridItem(.flexible(), spacing: WalletMetrics.tight), count: 7)
-
+    /// A plain grid, not a lazy one: a lazy grid inside a list row misjudges its height as the row is
+    /// reused, which made the list jump while scrolling. A month is at most 42 cells.
     var body: some View {
         let calendar = viewModel.calendar
         let today = viewModel.today
-        LazyVGrid(columns: columns, spacing: WalletMetrics.tight) {
-            ForEach(Array(weekdaySymbols(calendar).enumerated()), id: \.offset) { _, symbol in
-                Text(symbol)
-                    .font(.caption2.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                    .accessibilityHidden(true)
-            }
-            ForEach(0..<leadingBlanks(calendar), id: \.self) { _ in Color.clear.frame(height: 1) }
-            ForEach(monthDays(calendar)) { day in
-                let entry = viewModel.days[day]
-                let isFuture = day > today
-                Button { select(day) } label: {
-                    DayCell(day: day.day, isMarked: entry != nil, isToday: day == today, isFuture: isFuture)
+        Grid(horizontalSpacing: WalletMetrics.tight, verticalSpacing: WalletMetrics.tight) {
+            GridRow {
+                ForEach(Array(weekdaySymbols(calendar).enumerated()), id: \.offset) { _, symbol in
+                    Text(symbol)
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity)
+                        .accessibilityHidden(true)
                 }
-                .buttonStyle(.plain)
-                .disabled(isFuture || viewModel.isSaving)
-                .accessibilityLabel(Text(day.date(in: calendar), format: .dateTime.weekday(.wide).month(.wide).day()))
-                .accessibilityValue(entry == nil ? "Alcohol-free" : "Drinking day")
-                .accessibilityAddTraits(entry != nil ? .isSelected : [])
+            }
+            ForEach(Array(weeks(calendar).enumerated()), id: \.offset) { _, week in
+                GridRow {
+                    ForEach(0..<7, id: \.self) { column in
+                        if let day = week[column] {
+                            dayButton(day, today: today, calendar: calendar)
+                        } else {
+                            Color.clear.frame(height: 1)
+                        }
+                    }
+                }
             }
         }
         .padding(.vertical, WalletMetrics.small)
+    }
+
+    private func dayButton(_ day: DayKey, today: DayKey, calendar: Calendar) -> some View {
+        let entry = viewModel.days[day]
+        let isFuture = day > today
+        return Button { select(day) } label: {
+            DayCell(day: day.day, isMarked: entry != nil, isToday: day == today, isFuture: isFuture)
+        }
+        .buttonStyle(.plain)
+        .disabled(isFuture || viewModel.isSaving)
+        .accessibilityLabel(Text(day.date(in: calendar), format: .dateTime.weekday(.wide).month(.wide).day()))
+        .accessibilityValue(entry == nil ? "Alcohol-free" : "Drinking day")
+        .accessibilityAddTraits(entry != nil ? .isSelected : [])
+    }
+
+    /// The month's days in rows of seven, padded with `nil` before the first and after the last.
+    private func weeks(_ calendar: Calendar) -> [[DayKey?]] {
+        var cells: [DayKey?] = Array(repeating: nil, count: leadingBlanks(calendar)) + monthDays(calendar)
+        cells += Array(repeating: nil, count: (7 - cells.count % 7) % 7)
+        return stride(from: 0, to: cells.count, by: 7).map { Array(cells[$0..<$0 + 7]) }
     }
 
     /// Short weekday names starting from the calendar's first weekday.

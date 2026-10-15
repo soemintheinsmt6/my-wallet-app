@@ -4,7 +4,9 @@ import WalletDomain
 
 @MainActor
 public final class DrinkingDaysViewModel: ObservableObject {
-    @Published public private(set) var days: [DayKey: DrinkingDay] = [:]
+    @Published public private(set) var days: [DayKey: DrinkingDay] = [:] {
+        didSet { cachedHeatmap = nil }
+    }
     /// The first day of the month on screen.
     @Published public private(set) var month: DayKey
     @Published public private(set) var isLoading = true
@@ -50,8 +52,17 @@ public final class DrinkingDaysViewModel: ObservableObject {
 
     @Published public private(set) var heatmapPeriod: DrinkingHeatmap.Period = .pastYear
 
+    private var cachedHeatmap: DrinkingHeatmap?
+
+    /// Built once per change rather than on every redraw, since a year walks hundreds of calendar dates.
     public var heatmap: DrinkingHeatmap {
-        DrinkingHeatmap(days: Array(days.values), period: heatmapPeriod, today: today, calendar: calendar)
+        let today = today
+        if let cachedHeatmap, cachedHeatmap.period == heatmapPeriod, cachedHeatmap.today == today {
+            return cachedHeatmap
+        }
+        let heatmap = DrinkingHeatmap(days: Array(days.values), period: heatmapPeriod, today: today, calendar: calendar)
+        cachedHeatmap = heatmap
+        return heatmap
     }
 
     /// The past year covers the current calendar year, so stepping back starts at last year.

@@ -25,6 +25,8 @@ public struct DrinkingHeatmap: Equatable, Sendable {
     /// `weeks[column][row]`; `nil` pads the first and last weeks outside the period.
     public let weeks: [[Cell?]]
     public let monthLabels: [MonthLabel]
+    public let period: Period
+    public let today: DayKey
     public let first: DayKey
     public let last: DayKey
     public let drinkingDays: Int
@@ -33,6 +35,8 @@ public struct DrinkingHeatmap: Equatable, Sendable {
     public let longestAlcoholFreeStreak: Int
 
     public init(days: [DrinkingDay], period: Period, today: DayKey, calendar: Calendar = .current) {
+        self.period = period
+        self.today = today
         switch period {
         case .pastYear:
             first = DayKey(calendar.date(byAdding: .year, value: -1, to: today.date(in: calendar)) ?? today.date(in: calendar),
