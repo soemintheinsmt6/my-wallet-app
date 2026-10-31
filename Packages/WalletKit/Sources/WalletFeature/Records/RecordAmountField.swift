@@ -10,7 +10,7 @@ struct RecordAmountField<Field: Hashable>: View {
     @ScaledMetric(relativeTo: .largeTitle) private var amountFontSize = 60
 
     private var amountColor: Color {
-        kind == .expense ? .walletExpense : kind == .income ? .green : .primary
+        kind == .expense ? .red : kind == .income ? .green : .primary
     }
 
     var body: some View {
