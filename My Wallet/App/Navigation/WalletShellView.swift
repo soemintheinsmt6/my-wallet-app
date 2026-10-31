@@ -37,6 +37,7 @@ struct WalletShellView: View {
         .environment(\.currencyViewModel, dependencies.currencyViewModel)
         .environment(\.receiptUseCases, dependencies.receiptUseCases)
         .environment(\.categorySymbolStore, dependencies.categorySymbolStore)
+        .environment(\.accountSymbolStore, dependencies.accountSymbolStore)
         .environment(\.splitsViewModel, dependencies.splitsViewModel)
         .modifier(WalletThemeModifier(theme: dependencies.themeViewModel))
         // Discard open drafts/navigation in every window after a successful reset.

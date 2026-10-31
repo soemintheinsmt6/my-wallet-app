@@ -8,6 +8,43 @@ import WalletDomain
 struct CategorySymbolPicker: View {
     let category: WalletCategory
     @ObservedObject var overrides: CategorySymbolStore
+
+    var body: some View {
+        WalletSymbolPicker(title: "Category Icon", name: category.name, color: category.colorToken.color,
+                           current: overrides.symbol(for: category),
+                           isCustom: overrides.hasOverride(category),
+                           select: { overrides.set($0, for: category) },
+                           reset: { overrides.clear(category) })
+    }
+}
+
+/// Lets the user pick a different SF Symbol for an account. Without a choice, the account's type
+/// decides its icon.
+struct AccountSymbolPicker: View {
+    let account: Account
+    /// The editor's color, which may not be saved yet, so the preview matches what is being edited.
+    let color: Color
+    @ObservedObject var overrides: AccountSymbolStore
+
+    var body: some View {
+        WalletSymbolPicker(title: "Account Icon", name: account.name, color: color,
+                           current: overrides.symbol(for: account),
+                           isCustom: overrides.hasOverride(account),
+                           select: { overrides.set($0, for: account) },
+                           reset: { overrides.clear(account) })
+    }
+}
+
+/// A searchable grid of symbols under a preview of the current one, with a reset back to the
+/// default. Choices apply as they are tapped; Done only closes the sheet.
+struct WalletSymbolPicker: View {
+    let title: String
+    let name: String
+    let color: Color
+    let current: String
+    let isCustom: Bool
+    let select: (String) -> Void
+    let reset: () -> Void
     @Environment(\.dismiss) private var dismiss
     @State private var search = ""
 
@@ -17,23 +54,21 @@ struct CategorySymbolPicker: View {
         return CategorySymbolCatalog.all.filter { $0.contains(query) }
     }
 
-    private var current: String { overrides.symbol(for: category) }
-
     var body: some View {
         NavigationStack {
             List {
                 Section {
                     HStack(spacing: WalletMetrics.medium) {
-                        WalletIconTile(symbol: current, color: category.colorToken.color, large: true)
+                        WalletIconTile(symbol: current, color: color, large: true)
                         VStack(alignment: .leading, spacing: WalletMetrics.hair) {
-                            Text(category.name).font(.body.weight(.medium))
-                            Text(overrides.hasOverride(category) ? "Custom icon" : "Default icon")
+                            Text(name).font(.body.weight(.medium))
+                            Text(isCustom ? "Custom icon" : "Default icon")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
                         Spacer(minLength: WalletMetrics.small)
-                        if overrides.hasOverride(category) {
-                            Button("Reset") { overrides.clear(category) }
+                        if isCustom {
+                            Button("Reset", action: reset)
                                 .font(.footnote.weight(.semibold))
                         }
                     }
@@ -44,12 +79,12 @@ struct CategorySymbolPicker: View {
                     LazyVGrid(columns: [GridItem(.adaptive(minimum: 56), spacing: WalletMetrics.medium)],
                               spacing: WalletMetrics.medium) {
                         ForEach(matches, id: \.self) { symbol in
-                            Button { overrides.set(symbol, for: category) } label: {
+                            Button { select(symbol) } label: {
                                 Image(systemName: symbol)
                                     .font(.system(size: 20))
                                     .foregroundStyle(symbol == current ? .white : Color.primary)
                                     .frame(width: 48, height: 48)
-                                    .background(symbol == current ? AnyShapeStyle(category.colorToken.color)
+                                    .background(symbol == current ? AnyShapeStyle(color)
                                                                   : AnyShapeStyle(.quaternary.opacity(0.5)),
                                                 in: RoundedRectangle(cornerRadius: WalletMetrics.medium,
                                                                      style: .continuous))
@@ -65,7 +100,7 @@ struct CategorySymbolPicker: View {
                 }
             }
             .searchable(text: $search, prompt: "Search symbols")
-            .navigationTitle("Category Icon")
+            .navigationTitle(title)
             #if !os(macOS)
                 .navigationBarTitleDisplayMode(.inline)
             #endif
@@ -145,6 +180,6 @@ enum CategorySymbolCatalog {
         "chart.bar", "chart.pie", "doc.text", "briefcase", "storefront", "shippingbox",
         "person", "person.2", "pawprint", "suitcase", "globe", "map", "sun.max", "umbrella",
         "wrench.and.screwdriver", "scissors", "comb", "shield", "lock", "phone", "envelope",
-        "clock", "calendar", "star", "flag", "bell", "wallet.bifold",
+        "clock", "calendar", "star", "flag", "bell", "wallet.bifold", "tray.full",
     ]
 }

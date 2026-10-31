@@ -130,7 +130,9 @@ public struct AccountsView: View {
     private func row(_ account: Account) -> some View {
         Button { editingAccount = account } label: {
             HStack(spacing: WalletMetrics.medium) {
-                WalletIconTile(symbol: account.type.symbol, color: account.settings.color.tint, large: true)
+                AccountSymbolReader(account: account) {
+                    WalletIconTile(symbol: $0, color: account.settings.color.tint, large: true)
+                }
                 VStack(alignment: .leading, spacing: WalletMetrics.hair) {
                     Text(account.name)
                         .font(.body.weight(.medium))

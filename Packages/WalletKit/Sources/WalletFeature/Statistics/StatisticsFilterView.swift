@@ -46,8 +46,10 @@ struct StatisticsFilterView: View {
                     choiceRow("All included accounts", symbol: "tray.full.fill", tint: .secondary,
                               isOn: draft.accountID == nil) { draft.accountID = nil }
                     ForEach(accounts.filter { $0.currencyCode == draft.currency }) { account in
-                        choiceRow(account.name, symbol: account.type.symbol, tint: account.settings.color.tint,
-                                  isOn: draft.accountID == account.id) { draft.accountID = account.id }
+                        AccountSymbolReader(account: account) { symbol in
+                            choiceRow(account.name, symbol: symbol, tint: account.settings.color.tint,
+                                      isOn: draft.accountID == account.id) { draft.accountID = account.id }
+                        }
                     }
                 }
                 Section {

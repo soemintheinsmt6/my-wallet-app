@@ -27,4 +27,5 @@ public enum WalletPreferenceKeys {
     static let density = "theme.density"
     static let textSize = "theme.textSize"
     static let categorySymbols = "theme.categorySymbols"
+    static let accountSymbols = "theme.accountSymbols"
 }
