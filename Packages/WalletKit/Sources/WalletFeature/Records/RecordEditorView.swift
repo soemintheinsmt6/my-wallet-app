@@ -113,6 +113,10 @@ struct RecordEditorView: View {
                         .frame(minHeight: 28)
                     }
                     .buttonStyle(.borderedProminent)
+                    // A pill matches the segmented type control and currency chip above it, and
+                    // the capsule controls of current iOS.
+                    .buttonBorderShape(.capsule)
+                    .controlSize(.large)
                     .disabled(!canSave)
                     .padding(.horizontal, 20)
                     .padding(.vertical, 10)
@@ -137,7 +141,7 @@ struct RecordEditorView: View {
                         selectionScreen = nil
                     }
                 case .tags:
-                    RecordTagPicker(viewModel: viewModel, selection: $draft.tagIDs)
+                    RecordTagPicker(viewModel: viewModel, selection: $draft.tagIDs) { selectionScreen = nil }
                 case .account:
                     RecordAccountSelection(
                         accounts: viewModel.accounts, selection: $draft.accountID,
@@ -247,7 +251,7 @@ struct RecordEditorView: View {
                 selectionScreen = .tags
             } label: {
                 HStack {
-                    Text("Labels").foregroundStyle(.primary)
+                    Text("Label").foregroundStyle(.primary)
                     Spacer()
                     if !draft.tagIDs.isEmpty { Text(selectedLabels).foregroundStyle(.secondary) }
                     chevron
