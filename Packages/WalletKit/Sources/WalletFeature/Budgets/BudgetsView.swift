@@ -81,7 +81,7 @@ struct BudgetsView: View {
     }
 
     private func scope(for budget: Budget) -> String {
-        let category = budget.categoryID.map { viewModel.records.categoryTitle($0) } ?? "All categories"
+        let category = budget.categoryID.map { viewModel.records.categoryName($0) } ?? "All categories"
         return "\(budget.period.rawValue.capitalized) · \(category)"
     }
 }
@@ -118,9 +118,9 @@ private struct BudgetEditorView: View {
                         LabeledContent("Currency", value: budget.currencyCode)
                     }
                     WalletMenuPicker("Category", selection: $budget.categoryID,
-                                     value: budget.categoryID == nil ? "Overall" : viewModel.records.categoryTitle(budget.categoryID)) {
+                                     value: budget.categoryID == nil ? "Overall" : viewModel.records.categoryName(budget.categoryID)) {
                         Text("Overall").tag(nil as UUID?)
-                        ForEach(viewModel.records.categories) { Text(viewModel.records.categoryTitle($0.id)).tag(Optional($0.id)) }
+                        ForEach(viewModel.records.categories) { Text(viewModel.records.categoryName($0.id)).tag(Optional($0.id)) }
                     }
                 }
 
