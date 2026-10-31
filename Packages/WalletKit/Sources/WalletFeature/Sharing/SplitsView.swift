@@ -43,7 +43,7 @@ public struct SplitsView: View {
                 } header: {
                     Text("Who owes what")
                 } footer: {
-                    Text("Netted across every split record. A person is owed when they paid more than their share.")
+                    WalletListFooter("Netted across every split record. A person is owed when they paid more than their share.")
                 }
             }
 
@@ -70,7 +70,7 @@ public struct SplitsView: View {
                 } header: {
                     Text("Settle up")
                 } footer: {
-                    Text("The fewest payments that clear these balances. Recording them is up to you — they are suggestions, not transactions.")
+                    WalletListFooter("The fewest payments that clear these balances. Recording them is up to you — they are suggestions, not transactions.")
                 }
             }
 
@@ -82,6 +82,7 @@ public struct SplitsView: View {
                 }
             }
         }
+        .listStyle(.plain)
         .overlay {
             if viewModel.splits.isEmpty {
                 WalletEmptyState(title: "Nothing shared yet", symbol: "person.2.circle",

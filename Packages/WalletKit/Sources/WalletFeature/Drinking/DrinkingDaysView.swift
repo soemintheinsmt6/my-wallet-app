@@ -22,14 +22,18 @@ public struct DrinkingDaysView: View {
             }
             .pickerStyle(.segmented)
             .labelsHidden()
-            .listRowInsets(EdgeInsets())
+            // Inset to the same margins as the rows below, rather than touching the screen edges.
+            .listRowInsets(EdgeInsets(top: WalletMetrics.small, leading: WalletMetrics.large,
+                                      bottom: WalletMetrics.small, trailing: WalletMetrics.large))
             .listRowBackground(Color.clear)
+            .listRowSeparator(.hidden)
 
             switch scope {
             case .month: monthSections
             case .year: yearSections
             }
         }
+        .listStyle(.plain)
         .navigationTitle("Drinking Days")
         .toolbar {
             ToolbarItem {
@@ -56,32 +60,26 @@ public struct DrinkingDaysView: View {
 
     @ViewBuilder private var yearSections: some View {
         let heatmap = viewModel.heatmap
+        // As in month view, the title is a row so it sits close under the switch.
         Section {
+            yearHeader
+                .listRowSeparator(.hidden)
             DrinkingHeatmapView(heatmap: heatmap, today: viewModel.today, calendar: viewModel.calendar,
                                 isDisabled: viewModel.isSaving) { editing = $0 }
-        } header: {
-            yearHeader
+                .alignmentGuide(.listRowSeparatorLeading) { _ in 0 }
         } footer: {
-            Text("Darker squares mean more drinks. Days marked without a count use the lightest shade.")
+            WalletListFooter("Darker squares mean more drinks. Days marked without a count use the lightest shade.")
         }
 
         Section {
-            HStack(spacing: WalletMetrics.medium) {
-                WalletStatTile(title: "Drinking", value: daysText(heatmap.drinkingDays),
-                               symbol: "wineglass", tint: DrinkingDaysView.tint)
-                WalletStatTile(title: "Alcohol-free", value: daysText(heatmap.alcoholFreeDays),
-                               symbol: "leaf", tint: .green)
-            }
-            .listRowInsets(EdgeInsets())
-            .listRowBackground(Color.clear)
-            HStack(spacing: WalletMetrics.medium) {
-                WalletStatTile(title: "Drinks", value: "\(heatmap.totalDrinks)",
-                               symbol: "number", tint: DrinkingDaysView.tint)
-                WalletStatTile(title: "Longest alcohol-free", value: daysText(heatmap.longestAlcoholFreeStreak),
-                               symbol: "flame", tint: .blue)
-            }
-            .listRowInsets(EdgeInsets())
-            .listRowBackground(Color.clear)
+            statRow(WalletStatTile(title: "Drinking", value: daysText(heatmap.drinkingDays),
+                                   symbol: "wineglass", tint: DrinkingDaysView.tint),
+                    WalletStatTile(title: "Alcohol-free", value: daysText(heatmap.alcoholFreeDays),
+                                   symbol: "leaf", tint: .green))
+            statRow(WalletStatTile(title: "Drinks", value: "\(heatmap.totalDrinks)",
+                                   symbol: "number", tint: DrinkingDaysView.tint),
+                    WalletStatTile(title: "Longest alcohol-free", value: daysText(heatmap.longestAlcoholFreeStreak),
+                                   symbol: "flame", tint: .blue))
         }
     }
 
@@ -114,33 +112,43 @@ public struct DrinkingDaysView: View {
         }
     }
 
+    /// Two stat tiles side by side. The row keeps a small inset so its separator can sit on the
+    /// same leading edge as every other line on the screen; only the left tile is padded in, which
+    /// gives Drinking and Drinks room from the edge without moving the lines.
+    private func statRow(_ left: WalletStatTile, _ right: WalletStatTile) -> some View {
+        HStack(spacing: WalletMetrics.medium) {
+            left.padding(.leading, WalletMetrics.medium)
+            right
+        }
+        .listRowInsets(EdgeInsets(top: 0, leading: WalletMetrics.tight, bottom: 0, trailing: WalletMetrics.tight))
+        .listRowBackground(Color.clear)
+        // The row content starts at `tight`; this puts the line at the standard 16 pt margin.
+        .alignmentGuide(.listRowSeparatorLeading) { _ in WalletMetrics.large - WalletMetrics.tight }
+    }
+
     @ViewBuilder private var monthSections: some View {
+        // The month title is a row, not a section header: a flat list pads headers with a tall gap
+        // that pushed the calendar away from the Month/Year switch.
         Section {
-            DrinkingCalendar(viewModel: viewModel) { editing = $0 }
-        } header: {
             monthHeader
+                .listRowSeparator(.hidden)
+            DrinkingCalendar(viewModel: viewModel) { editing = $0 }
+                // Otherwise the line follows the first weekday letter, inset from every other line.
+                .alignmentGuide(.listRowSeparatorLeading) { _ in 0 }
         }
 
         Section {
             let summary = viewModel.summary
-            HStack(spacing: WalletMetrics.medium) {
-                WalletStatTile(title: "Drinking", value: daysText(summary.drinkingDays),
-                               symbol: "wineglass", tint: DrinkingDaysView.tint)
-                WalletStatTile(title: "Alcohol-free", value: daysText(summary.alcoholFreeDays),
-                               symbol: "leaf", tint: .green)
-            }
-            .listRowInsets(EdgeInsets())
-            .listRowBackground(Color.clear)
-            HStack(spacing: WalletMetrics.medium) {
-                WalletStatTile(title: "Drinks", value: "\(summary.totalDrinks)",
-                               symbol: "number", tint: DrinkingDaysView.tint)
-                WalletStatTile(title: "Since last drink", value: summary.daysSinceLastDrink.map(daysText) ?? "—",
-                               symbol: "calendar", tint: .blue)
-            }
-            .listRowInsets(EdgeInsets())
-            .listRowBackground(Color.clear)
+            statRow(WalletStatTile(title: "Drinking", value: daysText(summary.drinkingDays),
+                                   symbol: "wineglass", tint: DrinkingDaysView.tint),
+                    WalletStatTile(title: "Alcohol-free", value: daysText(summary.alcoholFreeDays),
+                                   symbol: "leaf", tint: .green))
+            statRow(WalletStatTile(title: "Drinks", value: "\(summary.totalDrinks)",
+                                   symbol: "number", tint: DrinkingDaysView.tint),
+                    WalletStatTile(title: "Since last drink", value: summary.daysSinceLastDrink.map(daysText) ?? "—",
+                                   symbol: "calendar", tint: .blue))
         } footer: {
-            Text("Monthly counts include only days up to today. Days you don't mark count as alcohol-free.")
+            WalletListFooter("Monthly counts include only days up to today. Days you don't mark count as alcohol-free.")
         }
 
         let marked = markedDaysInMonth

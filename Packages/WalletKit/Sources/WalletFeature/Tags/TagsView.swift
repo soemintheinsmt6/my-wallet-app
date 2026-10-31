@@ -36,7 +36,9 @@ public struct TagsView: View {
                 Button("Delete", role: .destructive) { deleting = tag }
             }
             .disabled(viewModel.isSaving)
+            .walletFirstRow(tag.id == viewModel.tags.first?.id)
         }
+        .listStyle(.plain)
         .overlay {
             if viewModel.tags.isEmpty {
                 if viewModel.isLoading {

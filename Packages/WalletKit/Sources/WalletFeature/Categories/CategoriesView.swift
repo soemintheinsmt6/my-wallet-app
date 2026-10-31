@@ -47,7 +47,9 @@ public struct CategoriesView: View {
             .contextMenu {
                 Button("Edit Category") { editor = CategoryEditorRoute(category: category) }
             }
+            .walletFirstRow(category.id == viewModel.rootCategories.first?.id)
         }
+        .listStyle(.plain)
         .overlay {
             if viewModel.categories.isEmpty {
                 if viewModel.isLoading {

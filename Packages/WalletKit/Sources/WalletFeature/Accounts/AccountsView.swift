@@ -18,12 +18,12 @@ public struct AccountsView: View {
             .sorted { $0.currency < $1.currency }
     }
 
-    /// Accounts keep a stable, meaningful order: by type, then by name within a type.
-    private var groups: [(type: AccountType, accounts: [Account])] {
-        AccountType.allCases.compactMap { type in
-            let matching = viewModel.accounts.filter { $0.type == type }
+    /// Accounts keep a stable, meaningful order: by type, then by name within a type. The type is
+    /// shown on each row rather than as a section, since most types hold only one or two accounts.
+    private var sortedAccounts: [Account] {
+        AccountType.allCases.flatMap { type in
+            viewModel.accounts.filter { $0.type == type }
                 .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
-            return matching.isEmpty ? nil : (type, matching)
         }
     }
 
@@ -31,12 +31,11 @@ public struct AccountsView: View {
         List {
             if !viewModel.accounts.isEmpty { totalsSection }
             alertsSection
-            ForEach(groups, id: \.type) { group in
-                Section(group.type.title) {
-                    ForEach(group.accounts) { account in row(account) }
-                }
+            Section {
+                ForEach(sortedAccounts) { account in row(account) }
             }
         }
+        .listStyle(.plain)
         .overlay {
             if viewModel.accounts.isEmpty {
                 if viewModel.isLoading {
@@ -73,26 +72,35 @@ public struct AccountsView: View {
         }
     }
 
+    /// A header above the list rather than a row in it: no separators, and the explanation as a
+    /// caption, since a flat list would otherwise draw its footer as a full-size row of text.
     private var totalsSection: some View {
         Section {
-            ForEach(totals, id: \.currency) { total in
-                VStack(alignment: .leading, spacing: WalletMetrics.tight) {
-                    Text(totals.count > 1 ? "Total · \(total.currency)" : "Total balance")
-                        .font(.footnote.weight(.medium))
-                        .foregroundStyle(.secondary)
-                    Text(total.amount.walletFormatted(total.currency))
-                        .font(.system(.title, design: .rounded, weight: .semibold))
-                        .monospacedDigit()
-                        .foregroundStyle(total.amount < 0 ? .red : .primary)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.5)
+            VStack(alignment: .leading, spacing: WalletMetrics.medium) {
+                ForEach(totals, id: \.currency) { total in
+                    VStack(alignment: .leading, spacing: WalletMetrics.tight) {
+                        Text(totals.count > 1 ? "Total · \(total.currency)" : "Total balance")
+                            .font(.footnote.weight(.medium))
+                            .foregroundStyle(.secondary)
+                        Text(total.amount.walletFormatted(total.currency))
+                            // One total leads the screen; several share it at a smaller size.
+                            .font(.system(totals.count > 1 ? .title : .largeTitle, design: .rounded,
+                                          weight: .semibold))
+                            .monospacedDigit()
+                            .foregroundStyle(total.amount < 0 ? .red : .primary)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.5)
+                    }
+                    .accessibilityElement(children: .combine)
                 }
-                .padding(.vertical, WalletMetrics.tight)
-                .accessibilityElement(children: .combine)
+                Text("Accounts included in statistics. Currencies are never combined.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
-        } footer: {
-            Text("Totals cover accounts included in statistics and stay separate per currency.")
+            .padding(.vertical, WalletMetrics.small)
+            .listRowSeparator(.hidden)
         }
+        .listSectionSeparator(.hidden)
     }
 
     @ViewBuilder private var alertsSection: some View {
@@ -140,10 +148,13 @@ public struct AccountsView: View {
                         Label("Excluded from stats", systemImage: "eye.slash")
                             .font(.caption)
                             .foregroundStyle(.secondary)
-                    } else {
-                        Text(account.currencyCode)
+                    } else if account.name.caseInsensitiveCompare(account.type.title) != .orderedSame {
+                        // The balance already carries the currency, so the type says more here.
+                        // Skipped when it would only repeat the name, as with "Cash".
+                        Text(account.type.title)
                             .font(.caption)
                             .foregroundStyle(.secondary)
+                            .lineLimit(1)
                     }
                 }
                 Spacer(minLength: WalletMetrics.small)

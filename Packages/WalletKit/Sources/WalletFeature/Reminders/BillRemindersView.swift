@@ -39,20 +39,28 @@ struct BillRemindersView: View {
                 .pickerStyle(.segmented)
                 .listRowInsets(EdgeInsets(top: WalletMetrics.small, leading: WalletMetrics.large,
                                           bottom: WalletMetrics.small, trailing: WalletMetrics.large))
+                .listRowSeparator(.hidden)
                 if calendarMode {
                     DatePicker("Select a day", selection: $selectedDate, displayedComponents: .date)
                         .datePickerStyle(.graphical)
+                        .listRowSeparator(.hidden)
                 }
             }
+            // Controls above the list, not rows of it.
+            .listSectionSeparator(.hidden)
 
-            Section(calendarMode ? selectedDate.formatted(date: .abbreviated, time: .omitted) : "Bills") {
+            Section {
                 if sortedBills.isEmpty {
                     Text(calendarMode ? "No bills due on this day." : "Add bills to track due dates and payment reminders.")
                         .foregroundStyle(.secondary)
                 }
                 ForEach(sortedBills) { bill in row(bill) }
+            } header: {
+                // The page is already titled Bills; only the calendar's chosen day needs saying.
+                if calendarMode { Text(selectedDate.formatted(date: .abbreviated, time: .omitted)) }
             }
         }
+        .listStyle(.plain)
         .navigationTitle("Bills")
         .toolbar { Button("Add Bill", systemImage: "plus") { editing = BillReminder(currencyCode: defaultCurrency) } }
         .sheet(item: $editing) { BillEditorView(viewModel: viewModel, bill: $0) }

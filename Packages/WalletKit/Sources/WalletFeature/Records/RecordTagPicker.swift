@@ -20,6 +20,7 @@ struct RecordTagPicker: View {
                 row(name: "No label", symbol: "tag.slash", tint: .secondary, isOn: selection.isEmpty) {
                     selection = []
                 }
+                .walletFirstRow(true)
             }
             ForEach(viewModel.tags) { tag in
                 row(name: tag.name, symbol: "tag.fill", tint: tag.color.tint, isOn: selection.contains(tag.id)) {
@@ -27,6 +28,7 @@ struct RecordTagPicker: View {
                 }
             }
         }
+        .listStyle(.plain)
         .overlay {
             if viewModel.tags.isEmpty {
                 ContentUnavailableView("No labels yet", systemImage: "tag", description: Text("Create labels in the Labels tab, then select one here."))

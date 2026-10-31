@@ -48,7 +48,9 @@ struct CurrencyPickerView: View {
                 .foregroundStyle(.primary)
             }
             .accessibilityAddTraits(code == selection ? .isSelected : [])
+            .walletFirstRow(code == currencies.first)
         }
+        .listStyle(.plain)
         .searchable(text: $search, prompt: "Currency name or code")
         .navigationTitle("Currency")
     }

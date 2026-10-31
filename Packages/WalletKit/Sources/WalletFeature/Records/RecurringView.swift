@@ -7,7 +7,8 @@ struct RecurringView: View {
     var body: some View {
         List {
             if !viewModel.series.isEmpty {
-                Section("Series") {
+                // Untitled: the page is already Recurring, so a "Series" heading only repeated it.
+                Section {
                     ForEach(viewModel.series) { series in
                         NavigationLink {
                             RecurringDetailView(viewModel: viewModel, seriesID: series.id)
@@ -16,18 +17,21 @@ struct RecurringView: View {
                         }
                     }
                 }
-            }
-            Section {
-                Button {
-                    Task { await viewModel.refresh(generate: true) }
-                } label: {
-                    Label("Generate Due Records Now", systemImage: "arrow.clockwise")
+                .listSectionSeparator(.hidden, edges: .top)
+                // Only with a series to generate from; otherwise it sat above the empty state.
+                Section {
+                    Button {
+                        Task { await viewModel.refresh(generate: true) }
+                    } label: {
+                        Label("Generate Due Records Now", systemImage: "arrow.clockwise")
+                    }
+                    .disabled(viewModel.isLoading)
+                } footer: {
+                    WalletListFooter("Catch-up processes up to 500 occurrences per series at a time. Saved occurrences can be changed or deleted in Records without being regenerated.")
                 }
-                .disabled(viewModel.isLoading)
-            } footer: {
-                Text("Catch-up processes up to 500 occurrences per series at a time. Saved occurrences can be changed or deleted in Records without being regenerated.")
             }
         }
+        .listStyle(.plain)
         .overlay {
             if viewModel.series.isEmpty {
                 WalletEmptyState(title: "No recurring records", symbol: "repeat",
@@ -72,7 +76,11 @@ struct RecurringView: View {
     private func detail(_ series: RecurringSeries) -> String {
         let frequency = series.rule.frequency.rawValue.capitalized
         guard let next = series.nextDate else { return "\(frequency) · Series complete" }
-        return "\(frequency) · Next \(next.formatted(date: .abbreviated, time: .omitted))"
+        // The year only when it differs from this one, so the line fits beside the amount.
+        let sameYear = Calendar.current.isDate(next, equalTo: Date(), toGranularity: .year)
+        let date = sameYear ? next.formatted(.dateTime.day().month(.abbreviated))
+                            : next.formatted(.dateTime.day().month(.abbreviated).year())
+        return "\(frequency) · Next \(date)"
     }
 
     private func tint(for state: SeriesState) -> Color {

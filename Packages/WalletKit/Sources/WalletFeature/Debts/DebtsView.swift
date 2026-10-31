@@ -33,6 +33,7 @@ public struct DebtsView: View {
                 }
             }
         }
+        .listStyle(.plain)
         .overlay {
             if viewModel.balances.isEmpty && !viewModel.isLoading {
                 WalletEmptyState(title: "No debts tracked", symbol: "person.2",

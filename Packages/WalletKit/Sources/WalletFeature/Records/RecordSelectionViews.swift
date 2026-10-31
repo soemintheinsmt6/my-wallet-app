@@ -12,6 +12,7 @@ struct RecordAccountSelection: View {
             if accounts.isEmpty {
                 Text("No available accounts. Create an account in the Accounts tab.")
                     .foregroundStyle(.secondary)
+                    .walletFirstRow(true)
             }
             ForEach(accounts) { account in
                 Button {
@@ -36,8 +37,10 @@ struct RecordAccountSelection: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityAddTraits(selection == account.id ? .isSelected : [])
+                .walletFirstRow(account.id == accounts.first?.id)
             }
         }
+        .listStyle(.plain)
         .navigationTitle(title)
         #if !os(macOS)
         .navigationBarTitleDisplayMode(.inline)
@@ -65,7 +68,9 @@ struct RecordPaymentSelection: View {
             }
             .buttonStyle(.plain)
             .accessibilityAddTraits(selection == type ? .isSelected : [])
+            .walletFirstRow(type == PaymentType.allCases.first)
         }
+        .listStyle(.plain)
         .navigationTitle("Payment type")
         #if !os(macOS)
         .navigationBarTitleDisplayMode(.inline)
