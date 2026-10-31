@@ -208,6 +208,10 @@ struct RecordEditorView: View {
             .pickerStyle(.segmented)
             RecordAmountField(
                 kind: draft.kind, currency: currency, amount: $amount, focus: $focusedField, field: InputField.amount)
+            if let converted = convertedAmount, let home = currencyModel?.homeCurrency {
+                ConvertedAmountText(amount: converted, currencyCode: home, font: .footnote)
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+            }
             if crossCurrency {
                 HStack {
                     Text("Received \(destinationCurrency)")
@@ -219,10 +223,35 @@ struct RecordEditorView: View {
                 }
                 Text("Enter the actual amount received. No exchange rate is assumed.").font(.caption).foregroundStyle(
                     .secondary)
+                if let difference = transferDifference, let home = currencyModel?.homeCurrency {
+                    LabeledContent(difference >= 0 ? "Currency gain" : "Currency loss") {
+                        WalletAmountText.net(difference, currencyCode: home, font: .body.weight(.medium))
+                    }
+                }
             }
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 12)
+    }
+
+    /// The amount being entered, in the home currency, using the pinned rate when one is typed.
+    /// Updates as the amount, account or rate changes; hidden when there is nothing to convert.
+    private var convertedAmount: Decimal? {
+        guard let currencyModel, currencyModel.convertsTotals, !currency.isEmpty,
+              currency != currencyModel.homeCurrency,
+              let value = try? AccountAmountInput.parse(amount), value > 0 else { return nil }
+        let rate = manualRate.trimmingCharacters(in: .whitespaces).isEmpty
+            ? nil : try? AccountAmountInput.parse(manualRate)
+        return currencyModel.convert(value, from: currency, manualRate: rate)
+    }
+
+    /// For a cross-currency transfer, what the conversion gains or loses in the home currency.
+    private var transferDifference: Decimal? {
+        guard crossCurrency, let currencyModel, currencyModel.convertsTotals,
+              let sent = try? AccountAmountInput.parse(amount),
+              let received = try? AccountAmountInput.parse(receivedAmount) else { return nil }
+        return currencyModel.transferDifference(sent: sent, sentCurrency: currency,
+                                                received: received, receivedCurrency: destinationCurrency)
     }
 
     @ViewBuilder
