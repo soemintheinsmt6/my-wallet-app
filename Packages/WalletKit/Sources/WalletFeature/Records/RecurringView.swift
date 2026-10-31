@@ -39,7 +39,7 @@ struct RecurringView: View {
 
     private func row(_ series: RecurringSeries) -> some View {
         let title = series.template.payee.isEmpty
-            ? viewModel.records.categoryTitle(series.template.categoryID)
+            ? viewModel.records.categoryName(series.template.categoryID)
             : series.template.payee
         return HStack(spacing: WalletMetrics.medium) {
             WalletIconTile(symbol: "repeat", color: tint(for: series.state))

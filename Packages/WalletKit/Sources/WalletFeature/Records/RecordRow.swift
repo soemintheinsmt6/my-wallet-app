@@ -15,7 +15,7 @@ struct RecordRow: View {
 
     private var title: String {
         if draft.kind == .transfer, draft.categoryID == nil { return draft.kind.title }
-        return viewModel.categoryTitle(draft.categoryID)
+        return viewModel.categoryName(draft.categoryID)
     }
 
     private var context: String {

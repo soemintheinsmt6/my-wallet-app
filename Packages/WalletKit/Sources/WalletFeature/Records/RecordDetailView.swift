@@ -90,7 +90,7 @@ struct RecordDetailView: View {
                 VStack(spacing: WalletMetrics.tight) {
                     Text(draft.kind == .transfer && draft.categoryID == nil
                          ? draft.kind.title
-                         : viewModel.categoryTitle(draft.categoryID))
+                         : viewModel.categoryName(draft.categoryID))
                         .font(.headline)
                         .multilineTextAlignment(.center)
                     Text(draft.date.formatted(date: .complete, time: .shortened))

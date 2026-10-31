@@ -114,6 +114,8 @@ public final class RecordsViewModel: ObservableObject {
         if let parent = self.category(category.parentID) { return "\(parent.name) / \(category.name)" }
         return category.name
     }
+    /// The category or subcategory by its own name, without its parent.
+    func categoryName(_ id: UUID?) -> String { category(id)?.name ?? "Uncategorized" }
 
     public func mostUsedCategories(for kind: RecordKind, limit: Int = 6) -> [WalletCategory] {
         let matching = records.filter { $0.draft.kind == kind }
