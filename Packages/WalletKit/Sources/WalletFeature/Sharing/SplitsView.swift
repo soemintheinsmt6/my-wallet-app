@@ -97,7 +97,7 @@ public struct SplitsView: View {
         let record = viewModel.records.records.first { $0.id == split.recordID }
         return VStack(alignment: .leading, spacing: WalletMetrics.small) {
             HStack {
-                Text(record.map { viewModel.records.categoryTitle($0.draft.categoryID) } ?? "Record")
+                Text(record.map { viewModel.records.categoryName($0.draft.categoryID) } ?? "Record")
                     .font(.body.weight(.medium))
                     .lineLimit(1)
                 Spacer(minLength: WalletMetrics.small)
