@@ -72,9 +72,14 @@ public struct StatisticsView: View {
     private var activeFilters: [String] {
         var names: [String] = []
         if let account = viewModel.account(accountID) { names.append(account.name) }
-        if let categoryID { names.append(viewModel.categoryTitle(categoryID)) }
+        if let categoryID { names.append(categoryName(categoryID)) }
         if let tag = viewModel.tags.first(where: { $0.id == tagID }) { names.append(tag.name) }
         return names
+    }
+
+    /// The category or subcategory by its own name, without its parent.
+    private func categoryName(_ id: UUID?) -> String {
+        viewModel.category(id)?.name ?? "Uncategorized"
     }
 
     // MARK: - Body
@@ -190,7 +195,7 @@ public struct StatisticsView: View {
             }
             Picker("Category", selection: $categoryID) {
                 Text("All categories").tag(nil as UUID?)
-                ForEach(viewModel.categories) { Text(viewModel.categoryTitle($0.id)).tag(Optional($0.id)) }
+                ForEach(viewModel.categories) { Text(categoryName($0.id)).tag(Optional($0.id)) }
             }
             Picker("Label", selection: $tagID) {
                 Text("All labels").tag(nil as UUID?)
@@ -250,7 +255,7 @@ public struct StatisticsView: View {
                                innerRadius: .ratio(0.62), angularInset: 1.5)
                         .cornerRadius(3)
                         .foregroundStyle(color(for: entry))
-                        .accessibilityLabel(viewModel.categoryTitle(entry.categoryID))
+                        .accessibilityLabel(categoryName(entry.categoryID))
                         .accessibilityValue(money(entry.amount))
                 }
                 .chartLegend(.hidden)
@@ -286,7 +291,7 @@ public struct StatisticsView: View {
                 .fill(color(for: entry))
                 .frame(width: 10, height: 10)
                 .accessibilityHidden(true)
-            Text(viewModel.categoryTitle(entry.categoryID))
+            Text(categoryName(entry.categoryID))
                 .lineLimit(1)
             Spacer(minLength: WalletMetrics.small)
             Text(share.formatted(.percent.precision(.fractionLength(0))))
@@ -370,7 +375,7 @@ public struct StatisticsView: View {
                                 .font(.caption.weight(.bold).monospacedDigit())
                                 .foregroundStyle(.secondary)
                                 .frame(width: 16, alignment: .trailing)
-                            Text(viewModel.categoryTitle(entry.categoryID))
+                            Text(categoryName(entry.categoryID))
                                 .lineLimit(1)
                             Spacer(minLength: WalletMetrics.small)
                             Text(money(entry.amount)).monospacedDigit().lineLimit(1)
