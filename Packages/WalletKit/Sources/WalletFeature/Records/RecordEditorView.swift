@@ -31,6 +31,8 @@ struct RecordEditorView: View {
     @State private var viewingPhoto = false
     @State private var errorMessage: String?
     @State private var confirmingDelete = false
+    /// Set once a save succeeds, so closing afterwards keeps what was attached.
+    @State private var didSave = false
     @AppStorage(WalletPreferenceKeys.lastUsedAccountID) private var lastUsedAccountID = ""
     @AppStorage(WalletPreferenceKeys.lastUsedPaymentType) private var lastUsedPaymentType = PaymentType.unspecified.rawValue
     @FocusState private var focusedField: InputField?
@@ -74,6 +76,9 @@ struct RecordEditorView: View {
     private var crossCurrency: Bool {
         draft.kind == .transfer && !currency.isEmpty && !destinationCurrency.isEmpty && currency != destinationCurrency
     }
+    /// The record's label. Older records may carry several; the first in label order stands in.
+    private var selectedLabel: WalletTag? { viewModel.tags.first { draft.tagIDs.contains($0.id) } }
+
     private var selectedLabels: String {
         let names = viewModel.tags.filter { draft.tagIDs.contains($0.id) }.map(\.name)
         return names.isEmpty ? "None" : names.joined(separator: ", ")
@@ -194,9 +199,26 @@ struct RecordEditorView: View {
                 if draft.destinationAccountID == id { draft.destinationAccountID = nil }
             }
         }
+        // Pushed pickers and the split sheet stay inside this view, so this runs only when the
+        // editor itself closes.
+        .onDisappear { discardUnsavedAttachments() }
         #if os(macOS)
             .frame(minWidth: 540, minHeight: 720)
         #endif
+    }
+
+    /// A split and scanned receipts are stored as soon as they are made, under the ID a new record
+    /// will take. If the new record is never saved, nothing would ever point at them, so they are
+    /// removed rather than left behind as a split for a record that does not exist.
+    private func discardUnsavedAttachments() {
+        guard record == nil, !didSave else { return }
+        let id = recordID
+        let splits = splitsViewModel
+        let receipts = receiptUseCases
+        Task {
+            if let splits, splits.split(for: id) != nil { await splits.delete(recordID: id) }
+            try? await receipts?.deleteAll(recordID: id)
+        }
     }
 
     @ViewBuilder
@@ -293,7 +315,9 @@ struct RecordEditorView: View {
         recordRow("calendar") {
             RecordDateTimeField(date: $draft.date) { focusedField = nil }
         }
-        recordRow("tag", showsDivider: false) {
+        // Takes the chosen label's color and filled icon, as the label list shows it.
+        recordRow(selectedLabel == nil ? "tag" : "tag.fill", color: selectedLabel?.color.tint ?? .gray,
+                  showsDivider: false) {
             Button {
                 focusedField = nil
                 selectionScreen = .tags
@@ -325,7 +349,10 @@ struct RecordEditorView: View {
                         if let existing = splits.split(for: recordID) {
                             Text("\(existing.participants.count) people").foregroundStyle(.secondary)
                         }
+                        chevron
                     }
+                    .frame(maxWidth: .infinity, minHeight: 44)
+                    .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
             }
@@ -586,6 +613,7 @@ struct RecordEditorView: View {
                 ? nil : try AccountAmountInput.parse(manualRate)
             if let saveAction { try await saveAction(recordID, values) }
             else { try await viewModel.save(id: recordID, draft: values, editing: record != nil) }
+            didSave = true
             lastUsedAccountID = values.accountID?.uuidString ?? ""
             lastUsedPaymentType = values.paymentType.rawValue
             dismiss()
