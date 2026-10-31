@@ -23,6 +23,8 @@ public struct HomeView: View {
     /// Which currency the balance header shows when more than one is in use.
     @State private var displayedCurrency = ""
     @State private var isArranging = false
+    @State private var editingRecord: WalletRecord?
+    @State private var detailRecordID: UUID?
 
     private let recentLimit = 5
     private let previewLimit = 3
@@ -117,7 +119,7 @@ public struct HomeView: View {
                 }
             }
             .navigationTitle("Home")
-            .navigationDestination(for: WalletRecord.ID.self) { id in
+            .navigationDestination(item: $detailRecordID) { id in
                 if let record = records.records.first(where: { $0.id == id }) {
                     RecordDetailView(viewModel: records, record: record)
                 }
@@ -134,6 +136,7 @@ public struct HomeView: View {
                 }
             }
             .sheet(isPresented: $creating) { RecordEditorView(viewModel: records) }
+            .sheet(item: $editingRecord) { RecordEditorView(viewModel: records, record: $0) }
             .sheet(item: $pendingAdd) { kind in
                 RecordEditorView(viewModel: records, initialKind: kind)
             }
@@ -399,8 +402,16 @@ public struct HomeView: View {
                     .foregroundStyle(.secondary)
             } else {
                 ForEach(recentRecords) { record in
-                    NavigationLink(value: record.id) {
+                    // Tapping goes straight to editing; details stay one long-press away.
+                    Button { editingRecord = record } label: {
                         RecordRow(viewModel: records, record: record, showsDate: true)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .contextMenu {
+                        Button { detailRecordID = record.id } label: {
+                            Label("View Details", systemImage: "info.circle")
+                        }
                     }
                 }
             }

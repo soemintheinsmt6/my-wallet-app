@@ -9,6 +9,8 @@ public struct RecordsView: View {
     @State private var deletionError: String?
     @State private var query = RecordQuery()
     @State private var filtering = false
+    @State private var editingRecord: WalletRecord?
+    @State private var detailRecordID: UUID?
     @AppStorage(WalletPreferenceKeys.recentSearches) private var recentSearches = ""
 
     public init(viewModel: RecordsViewModel) { self.viewModel = viewModel }
@@ -92,6 +94,12 @@ public struct RecordsView: View {
             }
             .sheet(isPresented: $creating) { RecordEditorView(viewModel: viewModel) }
             .sheet(isPresented: $filtering) { RecordFilterView(viewModel: viewModel, query: $query) }
+            .sheet(item: $editingRecord) { RecordEditorView(viewModel: viewModel, record: $0) }
+            .navigationDestination(item: $detailRecordID) { id in
+                if let record = viewModel.records.first(where: { $0.id == id }) {
+                    RecordDetailView(viewModel: viewModel, record: record)
+                }
+            }
             .refreshable { await viewModel.reload() }
             .alert("Unable to Load Records", isPresented: Binding(get: { viewModel.errorMessage != nil }, set: { if !$0 { viewModel.errorMessage = nil } })) {
                 Button("Retry") { Task { await viewModel.reload() } }
@@ -165,17 +173,20 @@ public struct RecordsView: View {
     }
 
     private func row(_ record: WalletRecord) -> some View {
-        NavigationLink {
-            RecordDetailView(viewModel: viewModel, record: record)
-        } label: {
+        // Tapping goes straight to editing; details (receipts, converted amounts) stay one
+        // long-press away.
+        Button { editingRecord = record } label: {
             RecordRow(viewModel: viewModel, record: record)
+                .contentShape(Rectangle())
         }
+        .buttonStyle(.plain)
         // Drag onto a category to refile the record; iPad and macOS only in practice.
         .draggable(RecordTransfer(recordID: record.id))
         .swipeActions {
             Button("Delete", role: .destructive) { pendingDelete = record }
         }
         .contextMenu {
+            Button { detailRecordID = record.id } label: { Label("View Details", systemImage: "info.circle") }
             Button("Delete Record", role: .destructive) { pendingDelete = record }
         }
         .disabled(viewModel.isSaving)
