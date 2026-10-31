@@ -54,7 +54,11 @@ struct RecordDetailView: View {
                 .disabled(viewModel.isSaving)
             }
         }
-        .sheet(isPresented: $editing, onDismiss: { Task { await loadPhoto() } }) {
+        .sheet(isPresented: $editing, onDismiss: {
+            // The editor can delete the record; there is then nothing left to show here.
+            guard viewModel.records.contains(where: { $0.id == initialRecord.id }) else { dismiss(); return }
+            Task { await loadPhoto() }
+        }) {
             RecordEditorView(viewModel: viewModel, record: record)
         }
         .alert("Delete Record?", isPresented: $confirmingDelete) {

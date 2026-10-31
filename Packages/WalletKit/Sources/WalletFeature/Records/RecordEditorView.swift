@@ -30,6 +30,7 @@ struct RecordEditorView: View {
     @State private var capturingPhoto = false
     @State private var viewingPhoto = false
     @State private var errorMessage: String?
+    @State private var confirmingDelete = false
     @AppStorage(WalletPreferenceKeys.lastUsedAccountID) private var lastUsedAccountID = ""
     @AppStorage(WalletPreferenceKeys.lastUsedPaymentType) private var lastUsedPaymentType = PaymentType.unspecified.rawValue
     @FocusState private var focusedField: InputField?
@@ -87,6 +88,20 @@ struct RecordEditorView: View {
                     detailsSection
                     if record == nil && allowsRecurrence { recurrenceSection }
                     if let errorMessage { Text(errorMessage).foregroundStyle(.red).padding(20) }
+                    if canDelete {
+                        // Laid out as a form row so its icon and title line up with the rows above.
+                        Button(role: .destructive) {
+                            focusedField = nil
+                            confirmingDelete = true
+                        } label: {
+                            recordRow("trash", color: .red, showsDivider: false) {
+                                Text("Delete Record").foregroundStyle(.red)
+                                Spacer()
+                            }
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                    }
                 }
                 .background {
                     Color.clear.contentShape(Rectangle())
@@ -134,6 +149,10 @@ struct RecordEditorView: View {
                         .disabled(isBusy)
                 }
             }
+            .alert("Delete Record?", isPresented: $confirmingDelete) {
+                Button("Cancel", role: .cancel) {}
+                Button("Delete", role: .destructive) { Task { await delete() } }
+            } message: { Text("This removes the record and its photo and reverses its effect on account balances.") }
             .navigationDestination(item: $selectionScreen) { screen in
                 switch screen {
                 case .category:
@@ -506,6 +525,21 @@ struct RecordEditorView: View {
         do {
             draft.photoData = try await Task.detached { try RecordPhoto.prepare(data) }.value
             errorMessage = nil
+        } catch { errorMessage = error.localizedDescription }
+    }
+
+    /// Only a saved record edited in the ordinary way. A custom save action edits something else,
+    /// such as a recurring template shown as a record, which has no record to delete.
+    private var canDelete: Bool { record != nil && saveAction == nil }
+
+    private func delete() async {
+        guard canDelete, !isBusy else { return }
+        isSubmitting = true
+        defer { isSubmitting = false }
+        errorMessage = nil
+        do {
+            try await viewModel.delete(id: recordID)
+            dismiss()
         } catch { errorMessage = error.localizedDescription }
     }
 
