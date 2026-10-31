@@ -303,10 +303,10 @@ private struct DebtSettlementView: View {
                                 ForEach(accounts) { Text($0.name).tag(Optional($0.id)) }
                             }
                             WalletMenuPicker("Category", selection: $categoryID,
-                                             value: categoryID == nil ? "None" : viewModel.records.categoryTitle(categoryID)) {
+                                             value: categoryID == nil ? "None" : viewModel.records.categoryName(categoryID)) {
                                 Text("None").tag(nil as UUID?)
                                 ForEach(viewModel.records.categories) {
-                                    Text(viewModel.records.categoryTitle($0.id)).tag(Optional($0.id))
+                                    Text(viewModel.records.categoryName($0.id)).tag(Optional($0.id))
                                 }
                             }
                         }
