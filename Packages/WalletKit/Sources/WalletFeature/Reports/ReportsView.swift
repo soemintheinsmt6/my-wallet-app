@@ -146,7 +146,7 @@ struct ReportsView: View {
                             .fill(records.category(total.categoryID)?.colorToken.color ?? .gray)
                             .frame(width: 10, height: 10)
                             .accessibilityHidden(true)
-                        Text(records.categoryTitle(total.categoryID)).lineLimit(1)
+                        Text(records.categoryName(total.categoryID)).lineLimit(1)
                         Spacer(minLength: WalletMetrics.small)
                         Text(money(total.amount, currency)).monospacedDigit().lineLimit(1)
                     }
@@ -175,7 +175,7 @@ struct ReportsView: View {
                 ForEach(statement.entries, id: \.record.id) { entry in
                     VStack(alignment: .leading, spacing: WalletMetrics.tight) {
                         HStack(spacing: WalletMetrics.small) {
-                            Text(records.categoryTitle(entry.record.draft.categoryID))
+                            Text(records.categoryName(entry.record.draft.categoryID))
                                 .font(.body.weight(.medium))
                                 .lineLimit(1)
                             Spacer(minLength: WalletMetrics.small)
@@ -267,7 +267,7 @@ struct ReportsView: View {
             return FinancialReport(title: "\(account.name) Statement", subtitle: subtitle, sections: [
                 .init(title: "Balances", lines: ["Opening: \(value(statement.openingBalance))", "Closing: \(value(statement.closingBalance))"]),
                 .init(title: "Transactions", lines: statement.entries.isEmpty ? ["No records in this period."] : statement.entries.map {
-                    "\($0.record.draft.date.formatted(date: .abbreviated, time: .shortened)) | \($0.record.draft.kind.title) | \(records.categoryTitle($0.record.draft.categoryID))\nChange: \(value($0.change)) | Balance: \(value($0.balance))\n\($0.record.draft.payee) \($0.record.draft.note)"
+                    "\($0.record.draft.date.formatted(date: .abbreviated, time: .shortened)) | \($0.record.draft.kind.title) | \(records.categoryName($0.record.draft.categoryID))\nChange: \(value($0.change)) | Balance: \(value($0.balance))\n\($0.record.draft.payee) \($0.record.draft.note)"
                 }),
                 .init(title: "Method", lines: ["Balances are reconstructed from current base balances and records. Manual balance corrections apply retrospectively. Transfers use this account's currency."])
             ])
@@ -275,7 +275,7 @@ struct ReportsView: View {
         let result = statistics
         func value(_ amount: Decimal) -> String { money(amount, currency) }
         func lines(_ totals: [CategoryTotal]) -> [String] {
-            totals.isEmpty ? ["No activity in this period."] : totals.map { "\(records.categoryTitle($0.categoryID)): \(value($0.amount))" }
+            totals.isEmpty ? ["No activity in this period."] : totals.map { "\(records.categoryName($0.categoryID)): \(value($0.amount))" }
         }
         return FinancialReport(title: "Financial Summary - \(currency)", subtitle: subtitle, sections: [
             .init(title: "Summary", lines: ["Income: \(value(result.income))", "Expenses: \(value(result.expenses))", "Net: \(value(result.net))"]),
