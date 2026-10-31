@@ -14,6 +14,7 @@ public struct StatisticsView: View {
     @State private var accountID: UUID?
     @State private var categoryID: UUID?
     @State private var tagID: UUID?
+    @State private var filtering = false
     @State private var granularity = StatisticsGranularity.day
 
     private enum Period: String, CaseIterable, Identifiable {
@@ -107,7 +108,10 @@ public struct StatisticsView: View {
                 }
             }
             .navigationTitle("Statistics")
-            .toolbar { ToolbarItem { filterMenu } }
+            .toolbar { ToolbarItem { filterButton } }
+            .sheet(isPresented: $filtering) {
+                StatisticsFilterView(viewModel: viewModel, accounts: accounts, selection: filterSelection)
+            }
             .refreshable { await viewModel.reload() }
             .overlay {
                 if viewModel.isLoading && viewModel.records.isEmpty {
@@ -116,7 +120,10 @@ public struct StatisticsView: View {
             }
             .task { await viewModel.observe() }
             .onChange(of: scenePhase) { _, phase in if phase == .active { Task { await viewModel.reload() } } }
-            .onChange(of: selectedCurrency) { _, _ in accountID = nil }
+            .onChange(of: selectedCurrency) { _, code in
+                // The filter sheet may apply a new currency and one of its accounts together.
+                if viewModel.account(accountID)?.currencyCode != code { accountID = nil }
+            }
             .alert("Unable to Load Statistics", isPresented: Binding(get: { viewModel.errorMessage != nil }, set: { if !$0 { viewModel.errorMessage = nil } })) {
                 Button("Retry") { Task { await viewModel.reload() } }
                 Button("OK", role: .cancel) { viewModel.errorMessage = nil }
@@ -182,33 +189,24 @@ public struct StatisticsView: View {
 
     // MARK: - Filters
 
-    private var filterMenu: some View {
-        Menu {
-            if currencies.count > 1 {
-                Picker("Currency", selection: Binding(get: { selectedCurrency }, set: { currency = $0 })) {
-                    ForEach(currencies, id: \.self) { Text($0).tag($0) }
-                }
-            }
-            Picker("Account", selection: $accountID) {
-                Text("All included accounts").tag(nil as UUID?)
-                ForEach(accounts.filter { $0.currencyCode == selectedCurrency }) { Text($0.name).tag(Optional($0.id)) }
-            }
-            Picker("Category", selection: $categoryID) {
-                Text("All categories").tag(nil as UUID?)
-                ForEach(viewModel.categories) { Text(categoryName($0.id)).tag(Optional($0.id)) }
-            }
-            Picker("Label", selection: $tagID) {
-                Text("All labels").tag(nil as UUID?)
-                ForEach(viewModel.tags) { Text($0.name).tag(Optional($0.id)) }
-            }
-            if !activeFilters.isEmpty {
-                Divider()
-                Button("Clear Filters", role: .destructive) { clearFilters() }
-            }
-        } label: {
+    private var filterButton: some View {
+        Button { filtering = true } label: {
             Label("Filters", systemImage: activeFilters.isEmpty ? "line.3.horizontal.decrease.circle" : "line.3.horizontal.decrease.circle.fill")
         }
         .accessibilityValue(activeFilters.isEmpty ? "No filters" : activeFilters.joined(separator: ", "))
+    }
+
+    /// The current filters, with the currency resolved, as the sheet edits and applies them.
+    private var filterSelection: Binding<StatisticsFilterSelection> {
+        Binding {
+            StatisticsFilterSelection(currency: selectedCurrency, accountID: accountID,
+                                      categoryID: categoryID, tagID: tagID)
+        } set: { value in
+            currency = value.currency
+            accountID = value.accountID
+            categoryID = value.categoryID
+            tagID = value.tagID
+        }
     }
 
     private var filterSummary: some View {
