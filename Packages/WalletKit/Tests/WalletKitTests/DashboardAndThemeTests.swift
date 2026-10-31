@@ -191,40 +191,12 @@ struct CategorySymbolStoreTests {
     }
 }
 
-@MainActor
-struct AccountSymbolStoreTests {
-    private let account = Account(name: "Wallet", type: .cash)
-
-    private func defaults() -> UserDefaults {
-        UserDefaults(suiteName: "account.symbols.tests.\(UUID().uuidString)")!
-    }
-
-    /// Without a choice the type decides the icon, so resetting returns to it rather than to a
-    /// blank tile, and a type change still shows.
+struct AccountSymbolTests {
+    /// Without a choice the type decides the icon, so a type change still shows; a chosen icon
+    /// wins over the type.
     @Test func theAccountTypeSymbolIsTheFallback() {
-        let symbols = AccountSymbolStore(defaults: defaults())
-        #expect(symbols.symbol(for: account) == account.type.symbol)
-        #expect(!symbols.hasOverride(account))
-
-        let retyped = Account(id: account.id, name: account.name, type: .savings)
-        #expect(symbols.symbol(for: retyped) == AccountType.savings.symbol)
-
-        symbols.set("star", for: account)
-        #expect(symbols.symbol(for: account) == "star")
-        #expect(symbols.symbol(for: retyped) == "star")
-        #expect(symbols.hasOverride(account))
-
-        symbols.clear(account)
-        #expect(symbols.symbol(for: account) == account.type.symbol)
-    }
-
-    @Test func choicesSurviveARelaunchAndStayPerAccount() {
-        let storage = defaults()
-        let other = Account(name: "Card", type: .creditCard)
-        AccountSymbolStore(defaults: storage).set("flame", for: account)
-
-        let relaunched = AccountSymbolStore(defaults: storage)
-        #expect(relaunched.symbol(for: account) == "flame")
-        #expect(relaunched.symbol(for: other) == other.type.symbol)
+        #expect(Account(name: "Wallet", type: .cash).symbol == AccountType.cash.symbol)
+        #expect(Account(name: "Wallet", type: .savings).symbol == AccountType.savings.symbol)
+        #expect(Account(name: "Wallet", type: .cash, settings: AccountSettings(symbol: "star")).symbol == "star")
     }
 }

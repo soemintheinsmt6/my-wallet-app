@@ -17,6 +17,8 @@ public struct WalletArchive: Codable, Sendable, Equatable {
         public var currentBalance: Decimal
         public var color: AccountColor
         public var excludeFromStats: Bool
+        /// Optional, so backups written before account icons existed still decode.
+        public var symbol: String?
 
         public init(account: Account) {
             id = account.id
@@ -26,6 +28,7 @@ public struct WalletArchive: Codable, Sendable, Equatable {
             currentBalance = account.settings.currentBalance
             color = account.settings.color
             excludeFromStats = account.settings.excludeFromStats
+            symbol = account.settings.symbol
         }
     }
 

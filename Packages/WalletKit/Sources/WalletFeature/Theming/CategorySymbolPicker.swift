@@ -18,20 +18,22 @@ struct CategorySymbolPicker: View {
     }
 }
 
-/// Lets the user pick a different SF Symbol for an account. Without a choice, the account's type
-/// decides its icon.
+/// Lets the user pick a different SF Symbol for an account being edited. The choice goes into the
+/// editor's draft, so it is saved, and synced, with the rest of the account. Without a choice, the
+/// account's type decides its icon.
 struct AccountSymbolPicker: View {
-    let account: Account
-    /// The editor's color, which may not be saved yet, so the preview matches what is being edited.
+    let name: String
+    /// The editor's type and color, which may not be saved yet, so the preview matches the edit.
+    let type: AccountType
     let color: Color
-    @ObservedObject var overrides: AccountSymbolStore
+    @Binding var selection: String?
 
     var body: some View {
-        WalletSymbolPicker(title: "Account Icon", name: account.name, color: color,
-                           current: overrides.symbol(for: account),
-                           isCustom: overrides.hasOverride(account),
-                           select: { overrides.set($0, for: account) },
-                           reset: { overrides.clear(account) })
+        WalletSymbolPicker(title: "Account Icon", name: name, color: color,
+                           current: selection ?? type.symbol,
+                           isCustom: selection != nil,
+                           select: { selection = $0 },
+                           reset: { selection = nil })
     }
 }
 

@@ -19,13 +19,11 @@ struct RecordAccountSelection: View {
                     dismiss()
                 } label: {
                     HStack(spacing: 12) {
-                        AccountSymbolReader(account: account) {
-                            Image(systemName: $0)
-                                .foregroundStyle(.white)
-                                .frame(width: 36, height: 36)
-                                .background(account.settings.color.tint, in: RoundedRectangle(cornerRadius: 10))
-                                .accessibilityHidden(true)
-                        }
+                        Image(systemName: account.symbol)
+                            .foregroundStyle(.white)
+                            .frame(width: 36, height: 36)
+                            .background(account.settings.color.tint, in: RoundedRectangle(cornerRadius: 10))
+                            .accessibilityHidden(true)
                         VStack(alignment: .leading) {
                             Text(account.name).foregroundStyle(.primary)
                             Text(account.currencyCode).font(.caption).foregroundStyle(.secondary)

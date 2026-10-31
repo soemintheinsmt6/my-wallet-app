@@ -42,7 +42,7 @@ public enum WalletSnapshotBuilder {
             }
 
         let options = included.map {
-            WalletSnapshot.Option(id: $0.id, title: $0.name, symbol: $0.type.symbol,
+            WalletSnapshot.Option(id: $0.id, title: $0.name, symbol: $0.symbol,
                                   currencyCode: $0.currencyCode)
         }
         let quick = quickCategories(records: records, categories: categories, categoriesByID: categoriesByID)

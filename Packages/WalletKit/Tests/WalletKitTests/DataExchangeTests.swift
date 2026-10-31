@@ -195,6 +195,25 @@ struct WalletArchiveTests {
         #expect(restored.records.first?.draft.photoData == nil)
     }
 
+    @Test func accountIconsAreBackedUpAndOlderBackupsWithoutThemStillDecode() throws {
+        let card = Account(name: "Card", type: .creditCard, settings: AccountSettings(symbol: "star"))
+        let restored = try WalletArchive.decode(
+            WalletArchive.encode(WalletArchive(accounts: [card], categories: [], tags: [], records: [])))
+        #expect(restored.accounts.first?.symbol == "star")
+
+        // A backup written before account icons existed has no "symbol" key at all.
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        var object = try #require(try JSONSerialization.jsonObject(
+            with: encoder.encode(WalletArchive(accounts: [card], categories: [], tags: [], records: []))) as? [String: Any])
+        var accounts = try #require(object["accounts"] as? [[String: Any]])
+        accounts[0].removeValue(forKey: "symbol")
+        object["accounts"] = accounts
+        let older = try WalletArchive.decode(JSONSerialization.data(withJSONObject: object))
+        #expect(older.accounts.first?.symbol == nil)
+        #expect(older.accounts.first?.id == card.id)
+    }
+
     @Test func aNewerArchiveIsRefusedRatherThanMisread() throws {
         var archive = WalletArchive(accounts: [], categories: [], tags: [], records: [])
         archive.version = WalletArchive.currentVersion + 1

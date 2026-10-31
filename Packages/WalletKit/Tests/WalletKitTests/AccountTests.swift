@@ -24,6 +24,26 @@ struct AccountTests {
         #expect(try await useCases.load().count == 1)
     }
 
+    /// The icon is stored on the account, so it syncs with it; clearing it returns to the type's.
+    @Test func chosenIconPersistsWithTheAccountAndCanBeCleared() async throws {
+        let repository = try await SwiftDataWalletRepository.make(configuration: .inMemory)
+        let useCases = AccountUseCases(repository: repository)
+        try await useCases.create(name: "Cash", type: .cash, settings: AccountSettings(symbol: "star"))
+        let created = try #require(try await useCases.load().first)
+        #expect(created.settings.symbol == "star")
+
+        var settings = created.settings
+        settings.symbol = "flame"
+        try await useCases.update(id: created.id, name: "Cash", type: .savings, settings: settings)
+        #expect(try await useCases.load().first?.settings.symbol == "flame")
+
+        settings.symbol = nil
+        try await useCases.update(id: created.id, name: "Cash", type: .savings, settings: settings)
+        let cleared = try #require(try await useCases.load().first)
+        #expect(cleared.settings.symbol == nil)
+        #expect(cleared.symbol == AccountType.savings.symbol)
+    }
+
     @Test func balanceAlertsUseStrictLimitsAndExclusionDoesNotDisableThem() async throws {
         let repository = try await SwiftDataWalletRepository.make(configuration: .inMemory)
         let viewModel = AccountsViewModel(useCases: AccountUseCases(repository: repository))

@@ -25,3 +25,8 @@ extension AccountType {
         }
     }
 }
+
+extension Account {
+    /// The account's chosen icon, or its type's when none is chosen.
+    var symbol: String { settings.symbol ?? type.symbol }
+}

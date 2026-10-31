@@ -16,7 +16,6 @@ struct AccountEditorView: View {
     @State private var choosingCurrency = false
     @State private var choosingSymbol = false
     @Environment(\.defaultCurrency) private var defaultCurrency
-    @Environment(\.accountSymbolStore) private var symbols
 
     init(viewModel: AccountsViewModel, account: Account? = nil) {
         self.viewModel = viewModel
@@ -83,19 +82,17 @@ struct AccountEditorView: View {
                             Label(option.title, systemImage: option.symbol).tag(option)
                         }
                     }
-                    // Icons are keyed by the account's ID, so only a saved account can have one.
-                    if let account, let symbols {
-                        Button { choosingSymbol = true } label: {
-                            LabeledContent("Icon") {
-                                HStack(spacing: WalletMetrics.small) {
-                                    EditedAccountIcon(account: editedAccount(account), symbols: symbols)
-                                    WalletDisclosure()
-                                }
+                    Button { choosingSymbol = true } label: {
+                        LabeledContent("Icon") {
+                            HStack(spacing: WalletMetrics.small) {
+                                // Follows the type being edited until an icon is chosen.
+                                WalletIconTile(symbol: settings.symbol ?? type.symbol, color: settings.color.tint)
+                                WalletDisclosure()
                             }
-                            .contentShape(Rectangle())
                         }
-                        .buttonStyle(.plain)
+                        .contentShape(Rectangle())
                     }
+                    .buttonStyle(.plain)
                 } header: {
                     Text("Account")
                 } footer: {
@@ -178,22 +175,14 @@ struct AccountEditorView: View {
             }
             .sheet(isPresented: $choosingCurrency) { CurrencyPickerView(selection: $currencyCode) }
             .sheet(isPresented: $choosingSymbol) {
-                if let account, let symbols {
-                    AccountSymbolPicker(account: editedAccount(account), color: settings.color.tint, overrides: symbols)
-                }
+                AccountSymbolPicker(name: trimmedName.isEmpty ? "New account" : trimmedName,
+                                    type: type, color: settings.color.tint, selection: $settings.symbol)
             }
             .interactiveDismissDisabled(viewModel.isSaving)
         }
         #if os(macOS)
         .frame(minWidth: 480, minHeight: 680)
         #endif
-    }
-
-    /// The account as currently edited, so icon previews follow an unsaved type, name and color.
-    /// It keeps the saved ID, which is what an icon choice is stored under.
-    private func editedAccount(_ account: Account) -> Account {
-        Account(id: account.id, name: trimmedName.isEmpty ? account.name : trimmedName, type: type,
-                createdAt: account.createdAt, currencyCode: account.currencyCode, settings: settings)
     }
 
     private func save() async {
@@ -216,15 +205,5 @@ struct AccountEditorView: View {
         } catch {
             errorMessage = error.localizedDescription
         }
-    }
-}
-
-/// The editor's icon preview; it observes the store so a choice made in the picker shows at once.
-private struct EditedAccountIcon: View {
-    let account: Account
-    @ObservedObject var symbols: AccountSymbolStore
-
-    var body: some View {
-        WalletIconTile(symbol: symbols.symbol(for: account), color: account.settings.color.tint)
     }
 }

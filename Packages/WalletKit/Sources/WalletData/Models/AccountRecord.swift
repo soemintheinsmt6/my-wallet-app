@@ -17,6 +17,9 @@ final class AccountRecord {
     var notifyAboveMaximum: Bool = false
     var maximumBalanceValue: String = "0"
     var excludeFromStats: Bool = false
+    // Empty means no chosen icon, so the type's icon shows. A defaulted attribute keeps the change
+    // a lightweight migration that CloudKit accepts.
+    var symbolValue: String = ""
 
     init(account: Account) {
         id = account.id
@@ -37,6 +40,7 @@ final class AccountRecord {
         notifyAboveMaximum = settings.notifyAboveMaximum
         maximumBalanceValue = NSDecimalNumber(decimal: settings.maximumBalance).stringValue
         excludeFromStats = settings.excludeFromStats
+        symbolValue = settings.symbol ?? ""
     }
 
     var account: Account {
@@ -47,7 +51,8 @@ final class AccountRecord {
             minimumBalance: Decimal(string: minimumBalanceValue, locale: Locale(identifier: "en_US_POSIX")) ?? 0,
             notifyAboveMaximum: notifyAboveMaximum,
             maximumBalance: Decimal(string: maximumBalanceValue, locale: Locale(identifier: "en_US_POSIX")) ?? 0,
-            excludeFromStats: excludeFromStats
+            excludeFromStats: excludeFromStats,
+            symbol: symbolValue.isEmpty ? nil : symbolValue
         ))
     }
 }

@@ -59,11 +59,9 @@ struct RecordFilterView: View {
                 }
                 Section {
                     ForEach(viewModel.accounts) { account in
-                        AccountSymbolReader(account: account) { symbol in
-                            toggleRow(account.name, symbol: symbol, tint: account.settings.color.tint,
-                                      detail: account.currencyCode,
-                                      isOn: draft.accountIDs.contains(account.id)) { toggle(account.id, in: &draft.accountIDs) }
-                        }
+                        toggleRow(account.name, symbol: account.symbol, tint: account.settings.color.tint,
+                                  detail: account.currencyCode,
+                                  isOn: draft.accountIDs.contains(account.id)) { toggle(account.id, in: &draft.accountIDs) }
                     }
                     if viewModel.accounts.isEmpty { Text("No accounts yet.").foregroundStyle(.secondary) }
                 } header: { Text("Accounts") } footer: {

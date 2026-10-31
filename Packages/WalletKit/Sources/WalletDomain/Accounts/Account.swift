@@ -43,8 +43,10 @@ public struct AccountSettings: Equatable, Sendable {
     public var notifyAboveMaximum: Bool
     public var maximumBalance: Decimal
     public var excludeFromStats: Bool
+    /// An SF Symbol chosen for the account. `nil` leaves the icon to the account's type.
+    public var symbol: String?
 
-    public init(currentBalance: Decimal = 0, color: AccountColor = .blue, notifyBelowMinimum: Bool = false, minimumBalance: Decimal = 0, notifyAboveMaximum: Bool = false, maximumBalance: Decimal = 0, excludeFromStats: Bool = false) {
+    public init(currentBalance: Decimal = 0, color: AccountColor = .blue, notifyBelowMinimum: Bool = false, minimumBalance: Decimal = 0, notifyAboveMaximum: Bool = false, maximumBalance: Decimal = 0, excludeFromStats: Bool = false, symbol: String? = nil) {
         self.currentBalance = currentBalance
         self.color = color
         self.notifyBelowMinimum = notifyBelowMinimum
@@ -52,6 +54,7 @@ public struct AccountSettings: Equatable, Sendable {
         self.notifyAboveMaximum = notifyAboveMaximum
         self.maximumBalance = maximumBalance
         self.excludeFromStats = excludeFromStats
+        self.symbol = symbol
     }
 
     public var isBelowMinimum: Bool { notifyBelowMinimum && currentBalance < minimumBalance }
