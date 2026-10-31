@@ -109,11 +109,6 @@ public final class RecordsViewModel: ObservableObject {
     public func photo(id: UUID) async throws -> Data? { try await useCases.photo(id: id) }
     func account(_ id: UUID?) -> Account? { accounts.first { $0.id == id } }
     func category(_ id: UUID?) -> WalletCategory? { categories.first { $0.id == id } }
-    func categoryTitle(_ id: UUID?) -> String {
-        guard let category = category(id) else { return "Uncategorized" }
-        if let parent = self.category(category.parentID) { return "\(parent.name) / \(category.name)" }
-        return category.name
-    }
     /// The category or subcategory by its own name, without its parent.
     func categoryName(_ id: UUID?) -> String { category(id)?.name ?? "Uncategorized" }
 

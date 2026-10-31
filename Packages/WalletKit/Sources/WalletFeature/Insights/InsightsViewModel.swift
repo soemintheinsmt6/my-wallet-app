@@ -103,7 +103,7 @@ public final class InsightsViewModel: ObservableObject {
         if preferences.unusualSpending, let anomaly = insights.anomalies.first {
             let spent = anomaly.current.walletFormattedForNotice(anomaly.currencyCode)
             let usual = anomaly.average.walletFormattedForNotice(anomaly.currencyCode)
-            let name = records.categoryTitle(anomaly.categoryID)
+            let name = records.categoryName(anomaly.categoryID)
             // Keyed by month so the same category alerts at most once per month.
             notices.append(WalletNotification(
                 id: "wallet.insight.unusual.\(anomaly.categoryID).\(monthKey(calendar: calendar))",

@@ -113,7 +113,7 @@ public struct HomeView: View {
                     ForEach(configuration.visible) { card in
                         section(for: card)
                     }
-                    InsightsSection(viewModel: insights) { records.categoryTitle($0) }
+                    InsightsSection(viewModel: insights) { records.categoryName($0) }
                 }
             }
             .navigationTitle("Home")
