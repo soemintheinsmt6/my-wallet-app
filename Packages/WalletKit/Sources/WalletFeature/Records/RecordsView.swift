@@ -36,6 +36,8 @@ public struct RecordsView: View {
                     ForEach(matches) { row($0.record) }
                 }
             }
+            // Edge-to-edge rows rather than inset cards.
+            .listStyle(.plain)
             .searchable(text: $query.text, prompt: "Note, payee, amount, category or label")
             .searchSuggestions { suggestions }
             .onSubmit(of: .search) { recentSearches = RecentSearches.adding(query.text, to: recentSearches) }
