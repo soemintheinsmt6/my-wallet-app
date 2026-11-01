@@ -224,32 +224,74 @@ public struct HomeView: View {
 
     private var balanceSection: some View {
         Section {
-            VStack(alignment: .leading, spacing: WalletMetrics.tight) {
-                HStack {
+            VStack(alignment: .leading, spacing: WalletMetrics.medium) {
+                HStack(alignment: .firstTextBaseline) {
                     Text("Total balance")
-                        .font(.footnote.weight(.medium))
+                        .font(.subheadline.weight(.medium))
                         .foregroundStyle(.secondary)
-                    Spacer()
-                    if currencies.count > 1 { currencyMenu }
-                }
-                Text(totalBalance.walletFormatted(selectedCurrency))
-                    .font(.system(.largeTitle, design: .rounded, weight: .semibold))
-                    .monospacedDigit()
-                    .foregroundStyle(totalBalance < 0 ? .red : .primary)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.5)
-                    .contentTransition(.numericText())
-                    .animation(.default, value: totalBalance)
-                Text(accountSummary)
-                    .font(.caption)
+                    Spacer(minLength: WalletMetrics.small)
+                    // How many accounts the total covers, trailing the label it qualifies, then
+                    // the currency it is in: a picker when there are several.
+                    HStack(spacing: WalletMetrics.tight) {
+                        Text(accountSummary)
+                        Text("·").accessibilityHidden(true)
+                        if currencies.count > 1 {
+                            currencyMenu
+                        } else {
+                            Text(selectedCurrency)
+                        }
+                    }
+                    .font(.footnote)
                     .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                }
+                VStack(alignment: .leading, spacing: WalletMetrics.small) {
+                    Text(totalBalance.walletFormatted(selectedCurrency))
+                        .font(.system(size: 40, weight: .bold, design: .rounded))
+                        .monospacedDigit()
+                        .foregroundStyle(totalBalance < 0 ? .red : .primary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.5)
+                        .contentTransition(.numericText())
+                        .animation(.default, value: totalBalance)
+                    monthChange
+                }
                 if let combined = combinedTotal {
                     ConvertedAmountText(amount: combined, currencyCode: currency.homeCurrency)
                 }
             }
-            .padding(.vertical, WalletMetrics.small)
+            .padding(.vertical, WalletMetrics.medium)
             .accessibilityElement(children: .combine)
         }
+    }
+
+    /// How this month has gone so far in the shown currency, income less expenses, as a tinted
+    /// chip under the balance: the arrow and sign say it as well as the color does.
+    private var monthChange: some View {
+        let net = statistics.net
+        let tint: Color = net > 0 ? .green : net < 0 ? .red : .secondary
+        return HStack(spacing: WalletMetrics.tight) {
+            if net != 0 {
+                Image(systemName: net > 0 ? "arrow.up.right" : "arrow.down.right")
+                    .font(.caption.weight(.bold))
+                    .accessibilityHidden(true)
+                Text("\(net > 0 ? "+" : "−")\((net < 0 ? -net : net).walletFormatted(selectedCurrency))")
+                    .font(.subheadline.weight(.semibold))
+                    .monospacedDigit()
+                Text("this month")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            } else {
+                Text("No change this month")
+                    .font(.subheadline)
+            }
+        }
+        .foregroundStyle(tint)
+        .lineLimit(1)
+        .minimumScaleFactor(0.7)
+        .padding(.horizontal, WalletMetrics.small)
+        .padding(.vertical, WalletMetrics.tight)
+        .background(tint.opacity(0.12), in: Capsule())
     }
 
     /// Every currency added together in the home currency, shown only when the user asked for
@@ -274,10 +316,10 @@ public struct HomeView: View {
         .accessibilityLabel("Currency \(selectedCurrency)")
     }
 
+    /// The currency follows it on the same line, so the count doesn't repeat it.
     private var accountSummary: String {
         let matching = includedAccounts.filter { $0.currencyCode == selectedCurrency }.count
-        let label = matching == 1 ? "1 account" : "\(matching) accounts"
-        return currencies.count > 1 ? "\(label) in \(selectedCurrency)" : label
+        return matching == 1 ? "1 account" : "\(matching) accounts"
     }
 
     /// Every account as a card with its balance, two to a row, and a tile to add another. A card
@@ -293,18 +335,23 @@ public struct HomeView: View {
                         .accessibilityHint("Opens the account")
                 }
                 Button { creatingAccount = true } label: {
-                    VStack(spacing: WalletMetrics.small) {
+                    HStack(spacing: WalletMetrics.medium) {
                         Image(systemName: "plus")
-                            .font(.title3.weight(.semibold))
+                            .font(.headline.weight(.semibold))
                             .foregroundStyle(.white)
                             .frame(width: WalletMetrics.Tile.largeSize, height: WalletMetrics.Tile.largeSize)
                             .background(Color.accentColor, in: Circle())
                         Text("Add account")
-                            .font(.subheadline.weight(.medium))
+                            .font(.subheadline.weight(.semibold))
                             .foregroundStyle(.primary)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.8)
+                        Spacer(minLength: 0)
                     }
-                    .frame(maxWidth: .infinity, minHeight: AccountCard.height)
-                    .background(.background.opacity(0.6),
+                    .padding(.horizontal, WalletMetrics.medium)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: AccountCard.height)
+                    .background(Color.walletCard,
                                 in: RoundedRectangle(cornerRadius: WalletMetrics.large, style: .continuous))
                     .contentShape(Rectangle())
                 }
@@ -333,8 +380,8 @@ public struct HomeView: View {
                         }
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, WalletMetrics.medium)
-                        .background(.background, in: RoundedRectangle(cornerRadius: WalletMetrics.medium,
-                                                                      style: .continuous))
+                        .background(Color.walletCard, in: RoundedRectangle(cornerRadius: WalletMetrics.medium,
+                                                                           style: .continuous))
                     }
                     .buttonStyle(.plain)
                     .disabled(records.accounts.isEmpty)
@@ -510,27 +557,46 @@ public struct HomeView: View {
 struct AccountCard: View {
     let account: Account
 
-    /// Shared with the Add tile so a row of the grid lines up.
-    static let height: CGFloat = 116
+    /// A fixed height, shared with the Add tile, so every row of the grid lines up even when a
+    /// long balance shrinks its text.
+    static let height: CGFloat = 80
+
+    /// The balance's number and its currency symbol, formatted apart so the card can set them in
+    /// different sizes. Done separately rather than by splitting the formatted amount, because
+    /// some locales put the symbol first.
+    private var balance: (value: String, unit: String) {
+        let value = account.settings.currentBalance.formatted(.number.precision(.fractionLength(0...8)))
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .currency
+        formatter.currencyCode = account.currencyCode
+        return (value, formatter.currencySymbol ?? account.currencyCode)
+    }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: WalletMetrics.small) {
-            WalletIconTile(symbol: account.symbol, color: account.settings.color.tint)
+        // The icon beside the name and balance rather than above them, so several accounts take
+        // a few rows instead of a screenful.
+        HStack(spacing: WalletMetrics.medium) {
+            WalletIconTile(symbol: account.symbol, color: account.settings.color.tint, large: true)
+            VStack(alignment: .leading, spacing: WalletMetrics.hair) {
+                // The currency rides with the name, so the balance line holds only the number
+                // and a long balance fits at full size instead of shrinking beside a short one.
+                Text("\(account.name) · \(balance.unit)")
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                Text(balance.value)
+                    .font(.system(.headline, design: .rounded, weight: .semibold))
+                    .monospacedDigit()
+                    .foregroundStyle(account.settings.currentBalance < 0 ? .red : .primary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
+            }
             Spacer(minLength: 0)
-            Text(account.name)
-                .font(.caption.weight(.medium))
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
-            Text(account.settings.currentBalance.walletFormatted(account.currencyCode))
-                .font(.system(.headline, design: .rounded, weight: .semibold))
-                .monospacedDigit()
-                .foregroundStyle(account.settings.currentBalance < 0 ? .red : .primary)
-                .lineLimit(1)
-                .minimumScaleFactor(0.6)
         }
-        .padding(WalletMetrics.medium)
-        .frame(maxWidth: .infinity, minHeight: Self.height, alignment: .leading)
-        .background(.background, in: RoundedRectangle(cornerRadius: WalletMetrics.large, style: .continuous))
+        .padding(.horizontal, WalletMetrics.medium)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(height: Self.height)
+        .background(Color.walletCard, in: RoundedRectangle(cornerRadius: WalletMetrics.large, style: .continuous))
         .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
     }
