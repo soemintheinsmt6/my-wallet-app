@@ -117,7 +117,7 @@ public struct HomeView: View {
                     InsightsSection(viewModel: insights) { records.categoryName($0) }
                 }
             }
-            .navigationTitle("Home")
+            .navigationTitle("Dashboard")
             .toolbar {
                 ToolbarItem {
                     Button { isArranging = true } label: {

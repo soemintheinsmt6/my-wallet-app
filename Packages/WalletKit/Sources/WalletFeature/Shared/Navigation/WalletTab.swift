@@ -16,7 +16,7 @@ public enum WalletTab: String, CaseIterable, Identifiable, Sendable {
 
     public var title: String {
         switch self {
-        case .home: "Home"
+        case .home: "Dashboard"
         case .records: "Records"
         case .statistics: "Statistics"
         case .planning: "Planning"

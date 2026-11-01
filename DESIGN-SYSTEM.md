@@ -25,9 +25,9 @@ Prefer these over literals so unrelated screens line up. `CategoryIcon` remains 
 
 ## Navigation
 
-Five tabs: Home, Records, Statistics, Planning and More. iOS collapses anything past five into its own "More" list, so the secondary destinations live behind `MoreView`, where Accounts, Categories, Labels and Settings keep real icon tiles, counts and a badge when an account balance limit is breached. `WalletTab` in `Shared/Navigation/` is the shared tab identity; `HomeView` takes a binding to it so dashboard sections can link through to the tab that owns them.
+Five tabs: Dashboard, Records, Statistics, Planning and More. iOS collapses anything past five into its own "More" list, so the secondary destinations live behind `MoreView`, where Accounts, Categories, Labels and Settings keep real icon tiles, counts and a badge when an account balance limit is breached. `WalletTab` in `Shared/Navigation/` is the shared tab identity; `HomeView` takes a binding to it so dashboard sections can link through to the tab that owns them.
 
-Home, Records, Statistics and Planning each own a `NavigationStack`. Screens reached through More do not; they are pushed into the More stack and only declare their title, toolbar and destinations.
+Dashboard, Records, Statistics and Planning each own a `NavigationStack`. Screens reached through More do not; they are pushed into the More stack and only declare their title, toolbar and destinations.
 
 `HomeView` is derived entirely from `RecordsViewModel` and `PlanningViewModel` and adds no persistence: total balance for the dominant currency (with a currency menu only when more than one is in use), this month's income/expense tiles and net, the tightest budget progress, the nearest bills and the most recent records.
 
@@ -95,7 +95,7 @@ The searchable category sheet allows either a root or child selection and reuses
 
 The records list groups rows into day sections with a Today/Yesterday/weekday header and the day's net on the trailing edge. `RecordDayGrouping` owns that logic: transfers are excluded from the net exactly as statistics excludes them, and a day spanning more than one currency states no net rather than adding unlike currencies. Day headers appear only while the list is in date order — sorting by relevance over search text, or by amount, interleaves days and drops the headers. A toolbar sort menu exposes the order.
 
-`RecordRow` is the shared row for the ledger and the Home dashboard: category tile, name, account/payee context with the time, and the trailing signed amount. Rows without a category fall back to a kind-colored tile.
+`RecordRow` is the shared row for the ledger and the Dashboard: category tile, name, account/payee context with the time, and the trailing signed amount. Rows without a category fall back to a kind-colored tile.
 
 The records list uses the native search field with a prompt naming the searched fields, and recent searches appear as a labeled suggestion section with a clear action. The toolbar filter control uses `line.3.horizontal.decrease.circle`, filled while filters are active, and carries an accessibility value naming the number of active filters. An active search or filter shows a leading footnote summary row with a Clear action; empty results use `ContentUnavailableView` naming the search text and offering the same clear action rather than replacing the "No records yet" state.
 

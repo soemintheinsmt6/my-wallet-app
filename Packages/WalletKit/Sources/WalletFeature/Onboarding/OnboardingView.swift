@@ -284,10 +284,10 @@ public struct OnboardingView: View {
     private var ready: some View {
         VStack(spacing: WalletMetrics.large) {
             title("You're set up",
-                  "Add your first record from Home or the Records tab whenever you're ready.",
+                  "Add your first record from Dashboard or the Records tab whenever you're ready.",
                   symbol: "checkmark.circle")
             VStack(spacing: WalletMetrics.large) {
-                point("Home", "Your balance, this month and recent activity at a glance.",
+                point("Dashboard", "Your balance, this month and recent activity at a glance.",
                       symbol: "house", tint: .blue)
                 point("Records", "Add expenses, income and transfers; search and filter them.",
                       symbol: "list.bullet.rectangle", tint: .orange)
