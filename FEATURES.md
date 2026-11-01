@@ -466,7 +466,7 @@ The projection is a straight-line extrapolation from the average saved per day s
 
 Contributing can optionally record a real transfer between two of the user's accounts, so the money movement lands in balances and statistics. The celebration plays once, when a goal is first reached, and holds still under Reduce Motion.
 
-Update (2026-11-01): Each goal now has a visible Add Money row under its progress. Contributing used to be reachable only by swiping the row right, so a new goal looked like it had nothing to do.
+Update (2026-11-01): Each goal now has a visible Add Money row under its progress. Contributing used to be reachable only by swiping the row right, so a new goal looked like it had nothing to do. The goal editor also shows a Progress section, with the amount saved and the same Add Money button, once the goal has been saved.
 
 ---
 

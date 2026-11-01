@@ -9,9 +9,12 @@ struct GoalEditorView: View {
     @State private var hasDeadline = false
     @State private var deadline = Date()
     @State private var errorMessage: String?
+    @State private var contributing: GoalProgress?
     @Environment(\.dismiss) private var dismiss
 
-    private var isNew: Bool { !viewModel.goals.contains { $0.goal.id == goal.id } }
+    /// The saved goal's live progress; nil while the goal is new.
+    private var progress: GoalProgress? { viewModel.goals.first { $0.goal.id == goal.id } }
+    private var isNew: Bool { progress == nil }
 
     var body: some View {
         NavigationStack {
@@ -33,6 +36,19 @@ struct GoalEditorView: View {
                         CurrencyPickerView(selection: $goal.currencyCode, pushed: true)
                     } label: {
                         LabeledContent("Currency", value: goal.currencyCode)
+                    }
+                }
+
+                if let progress {
+                    Section {
+                        LabeledContent("Saved") {
+                            Text("\(progress.saved.walletFormatted(progress.goal.currencyCode)) of \(progress.goal.targetAmount.walletFormatted(progress.goal.currencyCode))")
+                                .monospacedDigit()
+                        }
+                        Button("Add Money", systemImage: "plus.circle.fill") { contributing = progress }
+                            .font(.body.weight(.medium))
+                    } header: {
+                        Text("Progress")
                     }
                 }
 
@@ -89,6 +105,7 @@ struct GoalEditorView: View {
                 deadline = goal.deadline ?? Date()
             }
             .interactiveDismissDisabled(viewModel.isSaving)
+            .sheet(item: $contributing) { GoalContributionView(viewModel: viewModel, progress: $0) }
         }
         #if os(macOS)
         .frame(minWidth: 500, minHeight: 560)
