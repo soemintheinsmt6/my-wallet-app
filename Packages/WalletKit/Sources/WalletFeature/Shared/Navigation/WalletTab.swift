@@ -26,7 +26,7 @@ public enum WalletTab: String, CaseIterable, Identifiable, Sendable {
 
     public var symbol: String {
         switch self {
-        case .home: "house"
+        case .home: "square.grid.2x2"
         case .records: "list.bullet.rectangle"
         case .statistics: "chart.pie"
         case .planning: "calendar.badge.clock"

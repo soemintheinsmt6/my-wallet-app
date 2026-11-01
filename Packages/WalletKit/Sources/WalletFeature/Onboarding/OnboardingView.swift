@@ -288,7 +288,7 @@ public struct OnboardingView: View {
                   symbol: "checkmark.circle")
             VStack(spacing: WalletMetrics.large) {
                 point("Dashboard", "Your balance, this month and recent activity at a glance.",
-                      symbol: "house", tint: .blue)
+                      symbol: "square.grid.2x2", tint: .blue)
                 point("Records", "Add expenses, income and transfers; search and filter them.",
                       symbol: "list.bullet.rectangle", tint: .orange)
                 point("More", "Accounts, categories, labels and settings live here.",
