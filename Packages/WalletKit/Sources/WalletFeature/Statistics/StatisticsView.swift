@@ -54,7 +54,15 @@ public struct StatisticsView: View {
                                    categories: viewModel.categories,
                                    filter: StatisticsFilter(interval: interval, currencyCode: selectedCurrency,
                                                             accountID: accountID, categoryID: categoryID,
-                                                            tagID: tagID, granularity: granularity))
+                                                            tagID: tagID, granularity: grouping))
+    }
+
+    /// The groupings that make sense for this period's length.
+    private var groupingOptions: [StatisticsGranularity] { StatisticsGranularity.options(for: interval) }
+
+    /// The chosen grouping, or the period's preferred one when the choice no longer fits it.
+    private var grouping: StatisticsGranularity {
+        groupingOptions.contains(granularity) ? granularity : StatisticsGranularity.preferred(for: interval)
     }
 
     private var periodTitle: String {
@@ -300,18 +308,20 @@ public struct StatisticsView: View {
 
     private func trendSection(_ result: WalletStatistics) -> some View {
         Section {
-            Picker("Group by", selection: $granularity) {
-                ForEach(StatisticsGranularity.allCases, id: \.self) { Text($0.rawValue.capitalized).tag($0) }
+            if groupingOptions.count > 1 {
+                Picker("Group by", selection: Binding(get: { grouping }, set: { granularity = $0 })) {
+                    ForEach(groupingOptions, id: \.self) { Text($0.rawValue.capitalized).tag($0) }
+                }
+                .pickerStyle(.segmented)
+                .listRowInsets(EdgeInsets(top: WalletMetrics.small, leading: WalletMetrics.large,
+                                          bottom: WalletMetrics.small, trailing: WalletMetrics.large))
             }
-            .pickerStyle(.segmented)
-            .listRowInsets(EdgeInsets(top: WalletMetrics.small, leading: WalletMetrics.large,
-                                      bottom: WalletMetrics.small, trailing: WalletMetrics.large))
 
             if result.spendingTrend.allSatisfy({ $0.amount == 0 }) {
                 Text("No expenses in this period.").foregroundStyle(.secondary)
             } else {
                 Chart(result.spendingTrend) { point in
-                    BarMark(x: .value("Date", point.date, unit: granularity.component),
+                    BarMark(x: .value("Date", point.date, unit: grouping.component),
                             y: .value("Expenses", point.amount.doubleValue))
                         .foregroundStyle(Color.accentColor.gradient)
                         .cornerRadius(WalletMetrics.tight)
@@ -345,6 +355,8 @@ public struct StatisticsView: View {
             }
             .chartYAxis { compactYAxis }
             .chartXAxis { AxisMarks(values: .automatic(desiredCount: 4)) }
+            // The whole period stays on the axis, so a period in progress reads as "so far".
+            .chartXScale(domain: interval.start...interval.end)
             .frame(height: WalletMetrics.Chart.height)
             .padding(.vertical, WalletMetrics.small)
         } header: {

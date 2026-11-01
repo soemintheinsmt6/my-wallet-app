@@ -10,6 +10,34 @@ public enum StatisticsGranularity: String, CaseIterable, Sendable {
         case .month: .month
         }
     }
+
+    /// The groupings that give a period more than a handful of bars. Grouping a month by month,
+    /// or a week by week, draws one bar and says nothing.
+    public static func options(for interval: DateInterval) -> [StatisticsGranularity] {
+        switch days(in: interval) {
+        case ...14: [.day]
+        case ...92: [.day, .week]
+        case ...731: [.week, .month]
+        default: [.month]
+        }
+    }
+
+    /// The grouping a period opens with: days for anything up to a quarter, months beyond.
+    public static func preferred(for interval: DateInterval) -> StatisticsGranularity {
+        days(in: interval) <= 92 ? .day : .month
+    }
+
+    /// How finely balance history is sampled, independent of the spending grouping: daily for
+    /// short periods so movements land on the day they happened, coarser as periods get long.
+    static func history(for interval: DateInterval) -> StatisticsGranularity {
+        switch days(in: interval) {
+        case ...92: .day
+        case ...731: .week
+        default: .month
+        }
+    }
+
+    private static func days(in interval: DateInterval) -> Double { (interval.duration / 86400).rounded() }
 }
 
 public struct StatisticsFilter: Sendable {
@@ -76,8 +104,11 @@ public struct WalletStatistics: Sendable {
 
     /// Currency totals are never combined without an exchange rate. Transfers affect only history.
     /// History uses the current stored base balance, so manual balance corrections are retrospective.
+    /// It is sampled on its own schedule (see `StatisticsGranularity.history(for:)`) and stops at
+    /// the step containing `now`, so a period still in progress does not plot days yet to come.
     public static func calculate(records: [WalletRecord], accounts: [Account], categories: [WalletCategory],
-                                 filter: StatisticsFilter, calendar: Calendar = .current) -> WalletStatistics {
+                                 filter: StatisticsFilter, calendar: Calendar = .current,
+                                 now: Date = Date()) -> WalletStatistics {
         let included = accounts.filter {
             !$0.settings.excludeFromStats && $0.currencyCode == filter.currencyCode &&
                 (filter.accountID == nil || $0.id == filter.accountID)
@@ -127,19 +158,27 @@ public struct WalletStatistics: Sendable {
             }
         }
         advanceBalance(to: filter.interval.start)
+        /// Consecutive steps of `component` across the filter's window, clipped to its ends.
+        func steps(_ component: Calendar.Component) -> [DateInterval] {
+            var result: [DateInterval] = []
+            var date = filter.interval.start
+            while date < filter.interval.end {
+                guard let next = calendar.dateInterval(of: component, for: date)?.end, next > date else { break }
+                let end = min(next, filter.interval.end)
+                result.append(DateInterval(start: date, end: end))
+                date = end
+            }
+            return result
+        }
+        let trend = steps(filter.granularity.component).map { step in
+            StatisticsPoint(date: step.start, amount: activity
+                .filter { $0.draft.kind == .expense && $0.draft.date >= step.start && $0.draft.date < step.end }
+                .reduce(Decimal.zero) { $0 + $1.draft.amount })
+        }
         var history = [StatisticsPoint(date: filter.interval.start, amount: balance)]
-        var trend: [StatisticsPoint] = []
-        var date = filter.interval.start
-        while date < filter.interval.end {
-            let bucket = calendar.dateInterval(of: filter.granularity.component, for: date)
-            guard let next = bucket?.end, next > date else { break }
-            let end = min(next, filter.interval.end)
-            let amount = activity.filter { $0.draft.kind == .expense && $0.draft.date >= date && $0.draft.date < end }
-                .reduce(Decimal.zero) { $0 + $1.draft.amount }
-            trend.append(StatisticsPoint(date: date, amount: amount))
-            advanceBalance(to: end)
-            history.append(StatisticsPoint(date: end, amount: balance))
-            date = end
+        for step in steps(StatisticsGranularity.history(for: filter.interval).component) where step.start <= now {
+            advanceBalance(to: step.end)
+            history.append(StatisticsPoint(date: step.end, amount: balance))
         }
         return WalletStatistics(income: incomeCategories.reduce(0) { $0 + $1.amount },
                                 expenses: expenseCategories.reduce(0) { $0 + $1.amount },

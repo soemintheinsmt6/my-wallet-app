@@ -71,6 +71,30 @@ struct StatisticsTests {
         #expect(result.balanceHistory.map(\.amount) == [100, 90, 75])
     }
 
+    @Test func groupingOptionsNeverCollapseAPeriodIntoOneBar() {
+        func interval(days: Double) -> DateInterval { DateInterval(start: start, duration: days * 86400) }
+        #expect(StatisticsGranularity.options(for: interval(days: 7)) == [.day])
+        #expect(StatisticsGranularity.options(for: interval(days: 31)) == [.day, .week])
+        #expect(StatisticsGranularity.options(for: interval(days: 366)) == [.week, .month])
+        #expect(StatisticsGranularity.options(for: interval(days: 1000)) == [.month])
+        #expect(StatisticsGranularity.preferred(for: interval(days: 31)) == .day)
+        #expect(StatisticsGranularity.preferred(for: interval(days: 366)) == .month)
+    }
+
+    @Test func historyIsDailyWhateverTheGroupingAndStopsAtTheCurrentDay() {
+        let account = Account(name: "Cash", type: .cash, settings: AccountSettings(currentBalance: 70))
+        let records = [record(account, nil, amount: 10, day: 1), record(account, nil, amount: 20, day: 2)]
+        // A month grouped by month, viewed on its third day.
+        let filter = StatisticsFilter(interval: DateInterval(start: start, duration: 31 * 86400),
+                                      currencyCode: "USD", granularity: .month)
+        let now = start.addingTimeInterval(2.5 * 86400)
+        let result = WalletStatistics.calculate(records: records, accounts: [account], categories: [],
+                                                filter: filter, calendar: calendar, now: now)
+        #expect(result.spendingTrend.map(\.amount) == [30])
+        #expect(result.balanceHistory.map(\.amount) == [100, 100, 90, 70])
+        #expect(result.balanceHistory.last?.date == start.addingTimeInterval(3 * 86400))
+    }
+
     @Test func missingCategoriesAreGroupedAsUncategorizedAndEmptyPeriodsHaveZeroTotals() {
         let account = Account(name: "Cash", type: .cash)
         let missing = WalletCategory(name: "Deleted")
