@@ -18,12 +18,11 @@ public struct StatisticsView: View {
     @State private var granularity = StatisticsGranularity.day
 
     private enum Period: String, CaseIterable, Identifiable {
-        case day, week, month, year, custom
+        case week, month, year, custom
         var id: String { rawValue }
         var title: String { rawValue.capitalized }
         var component: Calendar.Component? {
             switch self {
-            case .day: .day
             case .week: .weekOfYear
             case .month: .month
             case .year: .year
@@ -60,9 +59,6 @@ public struct StatisticsView: View {
 
     private var periodTitle: String {
         switch period {
-        case .day:
-            return Calendar.current.isDateInToday(interval.start)
-                ? "Today" : interval.start.formatted(date: .complete, time: .omitted)
         case .week:
             let end = interval.end.addingTimeInterval(-1)
             return "\(interval.start.formatted(.dateTime.month().day())) – \(end.formatted(.dateTime.month().day()))"
