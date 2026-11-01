@@ -14,4 +14,16 @@ extension Color {
         Color.gray.opacity(0.2)
         #endif
     }
+
+    /// The background a grouped list draws behind its cards: light gray, or black in dark mode.
+    /// For full screens that should read as part of a grouped screen, such as launch.
+    static var walletGroupedBackground: Color {
+        #if os(iOS) || os(visionOS)
+        Color(uiColor: .systemGroupedBackground)
+        #elseif os(macOS)
+        Color(nsColor: .windowBackgroundColor)
+        #else
+        Color.black
+        #endif
+    }
 }

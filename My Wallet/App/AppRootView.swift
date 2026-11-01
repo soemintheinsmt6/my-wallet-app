@@ -33,7 +33,7 @@ struct AppRootView: View {
                     Button("Retry") { attempt += 1 }
                 }
             } else {
-                ProgressView("Opening wallet…")
+                WalletLaunchView()
             }
         }
         .task(id: attempt) {

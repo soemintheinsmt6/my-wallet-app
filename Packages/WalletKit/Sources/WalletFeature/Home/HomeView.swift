@@ -179,12 +179,16 @@ public struct HomeView: View {
                 AccountDetailView(accounts: accounts, records: records, accountID: id)
             }
             .refreshable { await planning.refresh(generate: true) }
-            .overlay {
-                if records.isLoading && records.accounts.isEmpty {
-                    WalletLoadingState(message: "Opening wallet…")
-                }
+        }
+        // Over the whole navigation stack, title and toolbar included, so it continues the launch
+        // screen shown while storage opened rather than swapping to a second, different spinner.
+        .overlay {
+            if records.isLoading && records.accounts.isEmpty {
+                WalletLaunchView()
+                    .transition(.opacity)
             }
         }
+        .animation(.easeOut(duration: 0.25), value: records.isLoading && records.accounts.isEmpty)
         .task { await records.observe() }
         .task { await currency.refresh() }
         .task { insights.start() }
