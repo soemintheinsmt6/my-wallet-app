@@ -13,15 +13,22 @@ Use system controls and text styles for new screens. Keep account-specific color
 | Type | Purpose |
 | --- | --- |
 | `WalletMetrics` | 4-point spacing scale (`hair` 2 … `xxLarge` 28), `touchTarget` 44, `Tile` sizes, `Chart` heights |
-| `WalletIconTile` | The one leading-icon treatment: white symbol on a solid color tile, 36 pt standard / 44 pt `large` |
+| `WalletIconTile` | The one leading-icon treatment: white medium-weight symbol on a gradient color tile, 36 pt standard / 44 pt `large`; category, account, record-kind and menu icons all draw through it |
 | `WalletDisclosure` | Trailing chevron matching the system's `NavigationLink` weight |
 | `WalletAmountText` | Money with the sign and tint rules; `.net(_:currencyCode:)` signs from the value itself |
 | `WalletStatTile` | Labelled figure for summary rows, on a cleared list row so the grouped background reads as the gap |
 | `WalletBadge` | Status capsule; the label always carries the meaning |
 | `WalletEmptyState` / `WalletLoadingState` | The single empty and loading shapes, wrapping `ContentUnavailableView` and `ProgressView` |
+| `WalletLaunchView` | The launch screen: wallet mark, app name and a quiet progress line on the grouped background; shown while storage opens and during the dashboard's first load |
+| `WalletListFooter` / `.walletFirstRow(_:)` | Caption-style section footers for flat lists, and hiding the stray rule above a flat list's first row |
+| `Color.walletCard` / `Color.walletGroupedBackground` | The grouped list's card fill and background, for tiles placed on cleared rows and full screens; correct in dark mode, unlike `.background` |
 | `Decimal.walletFormatted(_:)` | The app-wide money format: account currency, up to eight fractional digits |
 
-Prefer these over literals so unrelated screens line up. `CategoryIcon` remains the category-specific tile and matches `WalletIconTile` geometry.
+Prefer these over literals so unrelated screens line up. `CategoryIcon` adds the category's chosen symbol and color, then draws through `WalletIconTile`.
+
+### List styles
+
+Long lists of like items use the flat (plain) style, rows edge to edge: Records, Accounts, Categories, Labels, Splits, Recurring, Bills, Debts, Drinking Days and the account, currency, payment type and label pickers. Editors, Settings, filters, More and dashboards keep the inset grouped style, where cards group related controls. In a flat list, footers use `WalletListFooter` (plain lists otherwise draw them at body size), controls above the rows (segmented pickers, date pickers) hide their separators, and a list that starts without a header hides its first row's top rule.
 
 ## Navigation
 
@@ -29,11 +36,11 @@ Five tabs: Dashboard, Records, Statistics, Planning and More. iOS collapses anyt
 
 Dashboard, Records, Statistics and Planning each own a `NavigationStack`. Screens reached through More do not; they are pushed into the More stack and only declare their title, toolbar and destinations.
 
-`HomeView` is derived entirely from `RecordsViewModel` and `PlanningViewModel` and adds no persistence: total balance for the dominant currency (with a currency menu only when more than one is in use), this month's income/expense tiles and net, the tightest budget progress, the nearest bills and the most recent records.
+`HomeView` (the Dashboard tab, `square.grid.2x2`) is derived entirely from the other view models; its only persistence is the card arrangement. It always covers the current month across every account included in statistics, with no period or account scope of its own. Cards: total balance for the dominant currency (account count and currency trailing the label, a currency menu only when several are in use, and a tinted chip with this month's net), a two-column grid of compact account cards (icon beside "Name · currency" and the balance) with an Add tile, quick actions, this month's income and expenses, Balance Trend, Expenses by category or label, Top Expenses, budgets, goals, bills and recent records. Tiles placed on cleared rows use `Color.walletCard` so they match the cards around them in dark mode. Tapping an account card opens `AccountDetailView`, which owns the per-account and per-period view.
 
 ## Color and Typography
 
-`AccountColor+Presentation.swift` maps ten stored choices to SwiftUI colors: blue, teal, green, yellow, orange, red, pink, purple, indigo and gray. Account icons use white symbols on solid backgrounds in the chosen color, matching category icons. Color choices include a name and selection checkmark. The read-only category editor swatch is labeled Color.
+`AccountColor+Presentation.swift` maps ten stored choices to SwiftUI colors: blue, teal, green, yellow, orange, red, pink, purple, indigo and gray. Account icons use white symbols on gradient tiles in the chosen color, matching category icons. Color choices include a name and selection checkmark. The read-only category editor swatch is labeled Color.
 
 Use primary text for names/content, secondary text for supporting information, tint for actions and red text for form errors. Do not communicate selection, errors or account type using color alone.
 
@@ -79,7 +86,7 @@ Record UI sources live in `Sources/WalletFeature/Records/`. `RecordAmountField` 
 
 Date & Time uses primary-colored, trailing, locale-aware date/time text with relative day labels and no capsule background. The row opens a native graphical date/time picker in a popover without Done; changes update the draft immediately and tapping outside dismisses it.
 
-The amount header uses a 60-point Dynamic Type-scaled font, 12-point stack spacing and 4-point vertical amount padding. Currency is a subheadline pill with 12 × 6-point padding. Save uses a 28-point minimum label height plus native button insets and a 10-point vertical footer margin. Blank-background/section-header taps clear focus for all entry text fields without adding a tap gesture to interactive controls.
+The amount header uses a 60-point Dynamic Type-scaled font, 12-point stack spacing and 4-point vertical amount padding. Currency is a subheadline pill with 12 × 6-point padding. Save is a full-width pill (`.borderedProminent`, capsule shape, large control size) with a 28-point minimum label height and a 10-point vertical footer margin; the pill matches the segmented selector and currency capsule above it. Expense amounts use the system red, aligned with every other expense red. When the record is in another currency and converted totals are on, a "≈ amount" line under the amount shows it in the home currency as the amount, account or rate changes; a cross-currency transfer also states its currency gain or loss. Blank-background/section-header taps clear focus for all entry text fields without adding a tap gesture to interactive controls.
 
 Display locale-aware grouping in the main amount, preserving fractional zeros and incomplete decimal input. Account rows use a fixed white wallet on blue, independent of selection. New drafts restore the locally last-saved account/payment type; persist defaults only after a successful save.
 
@@ -87,11 +94,11 @@ All record-row leading icons, including Attach Photo, use 18-point symbols in 36
 
 Focus the amount once on initial presentation, not again after returning from selection. Hide the currency capsule without a selected account. Account and Payment Type rows have leading labels, optional trailing values and chevrons; push selection lists with checkmarks and return after choosing. Transfer destination excludes the source account. Reuse `CategoryIcon` for selected categories and a gray white-symbol tile when unselected.
 
-Use an inline Add Record navigation title on mobile. A segmented selector sits above a left currency capsule and right-aligned amount using a Dynamic Type-scaled 60-point regular font with monospaced digits. Expense amounts have a red minus prefix, income amounts a green plus, and transfers use primary text without a prefix. Keep signs outside the stored value. Full-width rows use 36-point leading icon slots, inset dividers and muted section-header bands. A safe-area bottom Save button remains disabled until required input is valid. Missing required categories display Required in red; Labels has a plus action.
+Use an inline Add Record navigation title on mobile. A segmented selector sits above a left currency capsule and right-aligned amount using a Dynamic Type-scaled 60-point regular font with monospaced digits. Expense amounts have a red minus prefix, income amounts a green plus, and transfers use primary text without a prefix. Keep signs outside the stored value. Full-width rows use 36-point leading icon slots, inset dividers and muted section-header bands. A safe-area bottom Save button remains disabled until required input is valid. Missing required categories display Required in red. The Label row's icon takes the chosen label's color and filled tag symbol. Split with people and other selection rows end in a chevron. Editing a saved record adds a Delete Record row at the end, laid out like the other rows (red trash icon, leading title) and confirmed before deleting.
 
 Record creation uses an Expense/Income/Transfer segmented selector and amount input. General groups account (From/To for transfers), category, most-used shortcuts, date/time and labels. More Details groups optional note, payee, payment type and library-photo attachment. Different-currency transfers reveal a received amount input.
 
-The searchable category sheet allows either a root or child selection and reuses fixed category colors/icons; most-used entries include parent context. Label selection supports multiple checkmarks. Photo loading shows progress and disables saving; previews offer replacement/removal. Record rows open details with Edit and confirmed Delete actions. Edit reuses the record form and loads original photos before permitting saves. Retain textual type labels alongside red expense, green income and blue transfer indicators.
+The searchable category sheet allows either a root or child selection and reuses fixed category colors/icons; most-used entries include parent context. A record takes one label: the label picker lists No label and every label, and choosing one returns to the form. Photo loading shows progress and disables saving; previews offer replacement/removal. Tapping a record row opens the record form directly (there is no separate details screen); the form loads original photos before permitting saves and carries the receipt gallery and converted amount the details screen used to show. Closing a new record without saving removes any split or scanned receipts already made for it. Categories are shown by their own name everywhere, never "Parent / Child"; only CSV export and Shortcuts keep the full path. Retain textual type labels alongside red expense, green income and blue transfer indicators.
 
 The records list groups rows into day sections with a Today/Yesterday/weekday header and the day's net on the trailing edge. `RecordDayGrouping` owns that logic: transfers are excluded from the net exactly as statistics excludes them, and a day spanning more than one currency states no net rather than adding unlike currencies. Day headers appear only while the list is in date order — sorting by relevance over search text, or by amount, interleaves days and drops the headers. A toolbar sort menu exposes the order.
 
@@ -125,6 +132,8 @@ Mappings live in `AccountType+Presentation.swift`.
 | Loans & Mortgage | `house` |
 | Other | `wallet.bifold` |
 
+These are defaults. An account may choose its own symbol from the shared symbol picker (the Icon row in the account editor); the choice is part of `AccountSettings.symbol` and syncs with the account. Without one, the type decides the icon, so changing the type still changes it. Read `account.symbol` rather than `account.type.symbol` wherever an account is drawn.
+
 ## Interaction and Content
 
 Disable form editing, cancellation and interactive dismissal while saving. Preserve drafts after validation/storage errors. Use concise recovery messages. Account-list loading errors use an alert; save errors appear inline.
@@ -147,11 +156,11 @@ Update this guide when adding shared visual conventions, and update [README.md](
 
 ## Statistics and Destructive Actions
 
-Statistics leads with a segmented Week/Month/Year/Custom control and a period stepper that moves whole periods with the range named between the arrows; stepping forward stops at the current period. Account, category, label and currency filters sit in a toolbar menu, with a summary row and Clear action appearing only while a filter is set. Income and expenses use `WalletStatTile`, and net uses the signed amount style.
+Statistics leads with a segmented Day/Week/Month/Year/Custom control and a period stepper that moves whole periods with the range named between the arrows; stepping forward stops at the current period. Account, category, label and currency filters open a filter sheet (`StatisticsFilterView`) rather than a menu, since a flat menu of every category grew too long: checkmark rows for currency, account and label, and a searchable category list grouped by parent that returns on choosing. The sheet edits a private copy and applies on Apply. A summary row and Clear action appear only while a filter is set. Income and expenses use `WalletStatTile`, and net uses the signed amount style.
 
 Donut breakdowns hide the chart legend and carry the period total in the center, with each category listed below as color, name, share percentage and amount. The spending chart uses rounded bars over the selected granularity, the balance history a stepped line with a soft area fill, and both use compact leading axis labels. Top spending categories are ranked with a proportional meter tinted by the category color. Charts remain decorative: every figure is stated in text beside them.
 
-Accounts lead with a per-currency total, group rows by account type and show the balance on the trailing edge; the alert section uses `bell.badge` on red and states which limit was breached. Chart marks and legends reuse category color tokens with a gray Uncategorized fallback; names and amounts accompany color. VoiceOver marks expose dates/categories and formatted amounts. Empty periods show explicit no-activity text. Totals remain separate by currency and the history explanation stays visible.
+Accounts lead with a per-currency total as a header (no separators, large title amount, the explanation as a caption), then one list ordered by type and name with the type as each row's subtitle (omitted when it would repeat the name) and the balance on the trailing edge; `AccountDetailView` shows one account's balance, its income and expenses for today, the week, month or year with arrows to earlier periods, and the records that touched it; the alert section uses `bell.badge` on red and states which limit was breached. Chart marks and legends reuse category color tokens with a gray Uncategorized fallback; names and amounts accompany color. VoiceOver marks expose dates/categories and formatted amounts. Empty periods show explicit no-activity text. Totals remain separate by currency and the history explanation stays visible.
 
 Record deletion is available through detail toolbar, swipe and context actions with a confirmation explaining balance reversal and photo removal. Account deletion opens an impact sheet with record/transfer counts, balance, Keep/Delete Records strategy and a final destructive confirmation. Category deletion offers child reassignment or deletion and explains the Uncategorized fallback. Disable actions while saving and retain forms with inline errors on failure.
 

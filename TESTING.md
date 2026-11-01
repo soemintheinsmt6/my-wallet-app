@@ -370,3 +370,23 @@ Manual checks:
 6. Change accent, density and text size; confirm text size stacks with the system Dynamic Type setting rather than replacing it.
 7. Switch app icons on a device and confirm the Home Screen updates and the choice persists.
 8. Reach a savings goal and confirm the celebration plays once, and holds still under Reduce Motion.
+
+## Interface Polish and Dashboard Validation (2026-11-01)
+
+**299 tests across 49 suites passed.** One run hit an intermittent failure in `screensSharingTheRecordsModelLoadItOnceBetweenThem`, which depends on timing (racing tasks and a 50 ms sleep); it passed in isolation and in three further full runs, and the session's changes do not touch record loading.
+
+New and updated coverage: `AccountTests` covers a chosen account icon persisting, changing and clearing back to the type's icon; `WalletArchiveTests` covers icons in the backup and older backups without the key still decoding; `AccountSymbolTests` covers the type fallback. `DashboardConfigurationTests` covers `ActivityPeriod` windows (day, week, month and a leap year), older arrangements decoding with their period and account scope ignored, and the Accounts and chart cards being introduced after Balance and the summary rather than appended. `AccountActivityTests` covers totals counting only the account's own income and expenses while transfers in either direction are listed, newest first. `ExpenseBreakdownTests` covers label totals summing to the same expenses (multi-label split, unlabeled, deleted labels, other currencies and excluded accounts left out), subcategories rolling up to their top level with its color, and folding the tail into "Other". `CategoryColorTests` pins the retuned palette.
+
+Verified on an iPhone 18 Pro simulator, light and dark, with seeded sample data: every flat list screen (with footers, the first-row rule and segmented-control separators checked), the Accounts header, the Dashboard's balance card, account cards and their dark-mode fill, the Accounts card and Add tile, the three chart cards, the account detail screen, the retuned category colors beside the income/expense tiles, gradient category icons, and the launch view and system launch background. The palette was checked with the dataviz validator: every hard check passes in both modes, with sub-3:1 contrast warnings relieved by always-visible labels; ten colors cannot pass all-pairs separation, which is why charts name every part.
+
+**Not verified:** taps and gestures could not be driven in the simulator, so the Labels side of the Expenses switch, the Balance Trend touch tooltip, tapping an account card or record, the Statistics filter sheet's interactions, the record editor's Delete row, discarding a split from an unsaved record, and the account icon picker were exercised only by build and unit tests. Account icon sync across devices and the production CloudKit schema for `symbolValue` are unverified.
+
+Manual checks:
+
+1. Drag across Balance Trend in light and dark mode; confirm the tooltip is readable and stays inside the chart.
+2. Switch Expenses to Labels; confirm unlabeled spending appears as No label and the total matches Categories.
+3. Tap an account card; step the period back and confirm the totals and records follow, and the next arrow stops at the current period.
+4. Add a record, split it, then close without saving; confirm the split no longer appears in Splits.
+5. Tap a record to edit it, delete it from the editor, and confirm the confirmation and the balance change.
+6. Choose an icon for an account on one device and confirm it appears on a second device after sync, once the schema is deployed.
+7. Cold-launch the app on a device in light mode; confirm no white flash before the launch view (delete and reinstall first, since iOS caches launch screens).
