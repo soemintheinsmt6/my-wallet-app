@@ -132,7 +132,7 @@ Mappings live in `AccountType+Presentation.swift`.
 | Loans & Mortgage | `house` |
 | Other | `wallet.bifold` |
 
-These are defaults. An account may choose its own symbol from the shared symbol picker (the Icon row in the account editor); the choice is part of `AccountSettings.symbol` and syncs with the account. Without one, the type decides the icon, so changing the type still changes it. Read `account.symbol` rather than `account.type.symbol` wherever an account is drawn.
+These are defaults. An account may choose its own symbol from the shared symbol picker (the Icon row in the account editor); the choice is part of `AccountSettings.symbol` and syncs with the account. The picker (`WalletSymbolPicker`, shared with category icons) offers a curated `CategorySymbolCatalog` of 189 symbols in titled groups (Food & Drink, Shopping, Home, Bills & Utilities, Transport, Health & Fitness, Fun & Learning, Tech, Money, People & Pets, Travel, Other); search matches symbol names and group titles. Only symbols available on iOS 17 and macOS 14 are offered, since a newer one renders as a blank tile there. Without one, the type decides the icon, so changing the type still changes it. Read `account.symbol` rather than `account.type.symbol` wherever an account is drawn.
 
 ## Interaction and Content
 
