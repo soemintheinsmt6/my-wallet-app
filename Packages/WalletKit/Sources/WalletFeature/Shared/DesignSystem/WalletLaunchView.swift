@@ -1,4 +1,5 @@
 import SwiftUI
+import WalletDomain
 
 /// What the app shows while it opens: the wallet mark, the app's name and a quiet progress line.
 ///
@@ -13,7 +14,7 @@ public struct WalletLaunchView: View {
 
     public var body: some View {
         VStack(spacing: WalletMetrics.large) {
-            Image(systemName: "wallet.bifold.fill")
+            Image(systemName: WalletSymbols.walletFill)
                 .font(.system(size: 40, weight: .medium))
                 .foregroundStyle(.white)
                 .frame(width: 88, height: 88)

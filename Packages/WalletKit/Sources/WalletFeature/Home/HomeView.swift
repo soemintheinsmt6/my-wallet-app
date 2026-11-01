@@ -216,7 +216,7 @@ public struct HomeView: View {
 
     private var setUpSection: some View {
         Section {
-            WalletEmptyState(title: "Your wallet starts here", symbol: "wallet.bifold",
+            WalletEmptyState(title: "Your wallet starts here", symbol: WalletSymbols.wallet,
                              message: "Create an account to start tracking balances, spending and budgets.",
                              actionTitle: "Go to Accounts") { selection = .more }
                 .listRowBackground(Color.clear)

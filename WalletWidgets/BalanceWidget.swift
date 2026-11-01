@@ -40,7 +40,7 @@ struct BalanceWidgetView: View {
 
     private func content(_ primary: WalletSnapshot.Balance) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            Label("Total Balance", systemImage: "wallet.bifold")
+            Label("Total Balance", systemImage: WalletSymbols.wallet)
                 .font(.caption2.weight(.semibold))
                 .foregroundStyle(.secondary)
                 .labelStyle(.titleAndIcon)

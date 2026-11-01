@@ -1,4 +1,5 @@
 import SwiftUI
+import WalletDomain
 
 public struct WalletView: View {
     @StateObject private var viewModel: WalletViewModel
@@ -29,7 +30,7 @@ public struct WalletView: View {
                 if viewModel.isLoading && viewModel.entries.isEmpty {
                     ProgressView()
                 } else if viewModel.entries.isEmpty {
-                    ContentUnavailableView("No entries yet", systemImage: "wallet.bifold", description: Text("Add an entry to get started."))
+                    ContentUnavailableView("No entries yet", systemImage: WalletSymbols.wallet, description: Text("Add an entry to get started."))
                 }
             }
             .navigationTitle("My Wallet")

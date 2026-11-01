@@ -280,13 +280,13 @@ struct RecordEditorView: View {
     @ViewBuilder
     private var generalSection: some View {
         sectionHeader("General")
-        recordRow("wallet.bifold.fill", color: .blue, filledIcon: true) {
+        recordRow(WalletSymbols.walletFill, color: .blue, filledIcon: true) {
             selectionButton(
                 draft.kind == .transfer ? "From account" : "Account", value: viewModel.account(draft.accountID)?.name,
                 screen: .account)
         }
         if draft.kind == .transfer {
-            recordRow("wallet.bifold.fill", color: .blue, filledIcon: true) {
+            recordRow(WalletSymbols.walletFill, color: .blue, filledIcon: true) {
                 selectionButton(
                     "To account", value: viewModel.account(draft.destinationAccountID)?.name, screen: .destination)
             }

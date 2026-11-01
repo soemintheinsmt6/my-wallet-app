@@ -41,7 +41,7 @@ public struct AccountsView: View {
                 if viewModel.isLoading {
                     WalletLoadingState(message: "Loading accounts…")
                 } else {
-                    WalletEmptyState(title: "Your wallet starts here", symbol: "wallet.bifold",
+                    WalletEmptyState(title: "Your wallet starts here", symbol: WalletSymbols.wallet,
                                      message: "Create your first account to organize your money.",
                                      actionTitle: "Create Account") { isCreatingAccount = true }
                 }

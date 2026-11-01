@@ -38,7 +38,7 @@ public enum DashboardCard: String, CaseIterable, Codable, Sendable, Identifiable
 
     public var symbol: String {
         switch self {
-        case .balance: "wallet.bifold"
+        case .balance: WalletSymbols.wallet
         case .accounts: "creditcard"
         case .quickActions: "bolt"
         case .summary: "arrow.up.arrow.down"

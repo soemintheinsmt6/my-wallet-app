@@ -1,4 +1,5 @@
 import Testing
+import WalletDomain
 @testable import WalletFeature
 #if os(macOS)
 import AppKit
@@ -11,6 +12,16 @@ struct SymbolCatalogTests {
         #expect(Set(all).count == all.count)
         #if os(macOS)
         for symbol in all {
+            #expect(NSImage(systemSymbolName: symbol, accessibilityDescription: nil) != nil, "\(symbol)")
+        }
+        #endif
+    }
+
+    @Test func walletIconAndItsOlderSystemFallbackBothExist() {
+        #expect(WalletSymbols.wallet.hasPrefix("wallet."))
+        #expect(WalletSymbols.walletFill == WalletSymbols.wallet + ".fill")
+        #if os(macOS)
+        for symbol in ["wallet.bifold", "wallet.bifold.fill", "wallet.pass", "wallet.pass.fill"] {
             #expect(NSImage(systemSymbolName: symbol, accessibilityDescription: nil) != nil, "\(symbol)")
         }
         #endif

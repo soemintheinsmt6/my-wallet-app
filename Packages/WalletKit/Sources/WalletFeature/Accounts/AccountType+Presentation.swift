@@ -21,7 +21,7 @@ extension AccountType {
         case .savings: "tray.full"
         case .investments: "chart.line.uptrend.xyaxis"
         case .loansAndMortgage: "house"
-        case .other: "wallet.bifold"
+        case .other: WalletSymbols.wallet
         }
     }
 }

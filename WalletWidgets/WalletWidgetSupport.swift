@@ -107,7 +107,7 @@ struct WidgetEmptyState: View {
 
     var body: some View {
         VStack(spacing: 6) {
-            Image(systemName: "wallet.bifold")
+            Image(systemName: WalletSymbols.wallet)
                 .font(.title3)
                 .foregroundStyle(.secondary)
             Text(message)

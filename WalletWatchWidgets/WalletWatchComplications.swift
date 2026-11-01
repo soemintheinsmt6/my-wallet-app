@@ -64,7 +64,7 @@ struct WatchBalanceComplicationView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
         default:
             VStack(spacing: 0) {
-                Image(systemName: "wallet.bifold").font(.caption2)
+                Image(systemName: WalletSymbols.wallet).font(.caption2)
                 Text(compact).font(.caption2).lineLimit(1).minimumScaleFactor(0.5)
             }
         }

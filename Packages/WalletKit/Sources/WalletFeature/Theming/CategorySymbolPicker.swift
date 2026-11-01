@@ -166,7 +166,8 @@ public final class CategorySymbolStore: ObservableObject {
 /// A curated list rather than every SF Symbol: the full catalog runs to thousands, most of which
 /// mean nothing in a wallet, and scrolling it would be worse than useless. Every symbol must exist
 /// on the oldest supported systems (iOS 17, macOS 14) or its tile renders blank there; for example
-/// `wallet.bifold` and `receipt` are newer and so are left out.
+/// `wallet.bifold` and `receipt` are newer and so are left out (see `WalletSymbols` for the app's
+/// own wallet icon, which falls back on older systems).
 enum CategorySymbolCatalog {
     struct Group: Identifiable {
         let title: String

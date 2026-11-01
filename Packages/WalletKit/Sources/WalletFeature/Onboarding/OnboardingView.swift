@@ -129,7 +129,7 @@ public struct OnboardingView: View {
         VStack(spacing: WalletMetrics.large) {
             title("Welcome to My Wallet",
                   "Track what you earn and spend, across every account you use.",
-                  symbol: "wallet.bifold")
+                  symbol: WalletSymbols.wallet)
             VStack(spacing: WalletMetrics.large) {
                 point("Every account in one place", "Cash, cards, savings and loans, each in its own currency.",
                       symbol: "creditcard", tint: .blue)

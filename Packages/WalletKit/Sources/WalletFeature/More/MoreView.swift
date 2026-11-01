@@ -53,7 +53,7 @@ public struct MoreView: View {
                         AccountsView(viewModel: accounts)
                     } label: {
                         MoreRow(title: "Accounts", detail: accountsDetail,
-                                symbol: "wallet.bifold", color: .blue, badge: alertCount)
+                                symbol: WalletSymbols.wallet, color: .blue, badge: alertCount)
                     }
                     NavigationLink {
                         CategoriesView(viewModel: categories, planning: planning, refile: refile)

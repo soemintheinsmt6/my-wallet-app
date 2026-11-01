@@ -1,4 +1,5 @@
 import SwiftUI
+import WalletDomain
 import WalletFeature
 #if canImport(UIKit)
     import UIKit
@@ -15,7 +16,7 @@ enum WalletAppIcons {
             return [
                 // The primary icon is milk with black stripes; the swatch tile draws a white
                 // symbol, so it takes the icon's ink rather than its milk.
-                WalletAppIcon(alternateName: nil, title: "Default", symbol: "wallet.bifold",
+                WalletAppIcon(alternateName: nil, title: "Default", symbol: WalletSymbols.wallet,
                               color: Color(.sRGB, red: 0.075, green: 0.075, blue: 0.086)),
                 WalletAppIcon(alternateName: "AppIcon-Midnight", title: "Midnight",
                               symbol: "moon.stars", color: Color(.sRGB, red: 0.11, green: 0.13, blue: 0.21)),

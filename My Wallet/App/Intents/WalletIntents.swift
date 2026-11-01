@@ -152,7 +152,8 @@ struct WalletShortcuts: AppShortcutsProvider {
                 "Show my \(.applicationName) balance",
             ],
             shortTitle: "Show Balance",
-            systemImageName: "wallet.bifold")
+            // A literal is required here; `wallet.bifold` would draw nothing before iOS 18.
+            systemImageName: "wallet.pass")
 
         AppShortcut(
             intent: MonthlySummaryIntent(),
