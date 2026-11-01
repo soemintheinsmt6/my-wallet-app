@@ -60,6 +60,9 @@ struct WalletSummaryCard: View {
             }
         }
         .padding(.vertical, WalletMetrics.small)
+        // The list would start the row's separator at a label inside the card; start it at the
+        // card's edge like every other row.
+        .alignmentGuide(.listRowSeparatorLeading) { $0[.leading] }
     }
 
     private func detail(_ title: String, @ViewBuilder value: () -> some View) -> some View {
