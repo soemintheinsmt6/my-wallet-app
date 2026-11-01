@@ -104,6 +104,18 @@ struct DashboardConfigurationTests {
         #expect(!configuration.visible.contains(.goals))
     }
 
+    /// The chart cards join an older arrangement together, right after the month's summary.
+    @MainActor
+    @Test func anOlderArrangementGainsTheChartCardsAfterTheSummary() {
+        let defaults = UserDefaults(suiteName: "dashboard.tests.\(UUID().uuidString)")!
+        defaults.set(Data(#"{"order":["balance","summary","recent"],"hidden":[]}"#.utf8),
+                     forKey: WalletPreferenceKeys.dashboard)
+
+        let arranged = DashboardViewModel(defaults: defaults).configuration.arranged
+        #expect(arranged.prefix(7) == [.balance, .accounts, .summary, .balanceTrend, .expenseBreakdown,
+                                       .topExpenses, .recent])
+    }
+
     /// Once the user has the card, hiding or moving it sticks across launches.
     @MainActor
     @Test func aHiddenAccountsCardStaysHidden() {
@@ -111,6 +123,77 @@ struct DashboardConfigurationTests {
         let first = DashboardViewModel(defaults: defaults)
         first.configuration.setVisible(.accounts, false)
         #expect(!DashboardViewModel(defaults: defaults).configuration.visible.contains(.accounts))
+    }
+}
+
+struct ExpenseBreakdownTests {
+    private let interval = DateInterval(start: Date(timeIntervalSince1970: 1_704_067_200), duration: 31 * 86400)
+    private let cash = Account(name: "Cash", type: .cash, currencyCode: "MMK")
+    private let hidden = Account(name: "Hidden", type: .cash, currencyCode: "MMK",
+                                 settings: AccountSettings(excludeFromStats: true))
+    private let dollars = Account(name: "Dollars", type: .cash, currencyCode: "USD")
+    private let work = WalletTag(name: "Work")
+    private let trip = WalletTag(name: "Trip")
+
+    private func expense(_ amount: Decimal, on account: Account, tags: Set<UUID> = []) -> WalletRecord {
+        var draft = RecordDraft()
+        draft.kind = .expense
+        draft.amount = amount
+        draft.accountID = account.id
+        draft.tagIDs = tags
+        draft.date = interval.start.addingTimeInterval(86400)
+        return WalletRecord(id: UUID(), draft: draft, currencyCode: account.currencyCode)
+    }
+
+    /// Unlabeled spending is its own part, a record with two labels splits between them, a label
+    /// that no longer exists counts as unlabeled, and other currencies and excluded accounts stay
+    /// out, so the parts add up to the month's expenses.
+    @Test func labelTotalsAddUpToTheSameExpenses() {
+        let records = [
+            expense(100, on: cash, tags: [work.id]),
+            expense(60, on: cash, tags: [work.id, trip.id]),
+            expense(40, on: cash),
+            expense(25, on: cash, tags: [UUID()]),
+            expense(999, on: hidden, tags: [work.id]),
+            expense(999, on: dollars, tags: [work.id]),
+        ]
+        let totals = WalletStatistics.expensesByLabel(
+            records: records, accounts: [cash, hidden, dollars], tags: [work, trip],
+            filter: StatisticsFilter(interval: interval, currencyCode: "MMK"))
+
+        #expect(totals.first { $0.tagID == work.id }?.amount == 130)
+        #expect(totals.first { $0.tagID == trip.id }?.amount == 30)
+        #expect(totals.first { $0.tagID == nil }?.amount == 65)
+        #expect(totals.reduce(Decimal.zero) { $0 + $1.amount } == 225)
+        #expect(totals.first?.tagID == work.id)
+    }
+
+    /// Subcategories roll up into their top-level category, carrying its color.
+    @Test func categoriesRollUpToTheirTopLevel() {
+        let food = WalletCategory(name: "Food")
+        let coffee = WalletCategory(parentID: food.id, name: "Coffee")
+        let rent = WalletCategory(name: "Rent")
+        let totals = [CategoryTotal(categoryID: coffee.id, amount: 30), CategoryTotal(categoryID: food.id, amount: 20),
+                      CategoryTotal(categoryID: rent.id, amount: 40), CategoryTotal(categoryID: nil, amount: 5)]
+
+        let entries = DashboardBreakdown.byTopLevelCategory(totals, categories: [food, coffee, rent])
+        #expect(entries.map(\.name) == ["Food", "Rent", "Uncategorized"])
+        #expect(entries.map(\.amount) == [50, 40, 5])
+        #expect(entries.first?.color == food.colorToken.color)
+    }
+
+    /// Past the limit, the largest keep their own color and the rest become one "Other".
+    @Test func aLongBreakdownFoldsTheTailIntoOther() {
+        let entries = (1...8).map {
+            BreakdownEntry(id: "\($0)", name: "Item \($0)", amount: Decimal(100 - $0), color: .blue)
+        }
+        let folded = DashboardBreakdown.folded(entries, limit: 6)
+
+        #expect(folded.count == 6)
+        #expect(folded.prefix(5).map(\.id) == ["1", "2", "3", "4", "5"])
+        #expect(folded.last?.name == "Other")
+        #expect(folded.last?.amount == Decimal(279)) // 94 + 93 + 92
+        #expect(DashboardBreakdown.folded(Array(entries.prefix(6)), limit: 6).count == 6)
     }
 }
 

@@ -8,6 +8,9 @@ public enum DashboardCard: String, CaseIterable, Codable, Sendable, Identifiable
     case accounts
     case quickActions
     case summary
+    case balanceTrend
+    case expenseBreakdown
+    case topExpenses
     case spendingChart
     case budgets
     case goals
@@ -22,6 +25,9 @@ public enum DashboardCard: String, CaseIterable, Codable, Sendable, Identifiable
         case .accounts: "Accounts"
         case .quickActions: "Quick Actions"
         case .summary: "Income & Expenses"
+        case .balanceTrend: "Balance Trend"
+        case .expenseBreakdown: "Expenses"
+        case .topExpenses: "Top Expenses"
         case .spendingChart: "Spending Chart"
         case .budgets: "Budget Progress"
         case .goals: "Savings Goals"
@@ -36,6 +42,9 @@ public enum DashboardCard: String, CaseIterable, Codable, Sendable, Identifiable
         case .accounts: "creditcard"
         case .quickActions: "bolt"
         case .summary: "arrow.up.arrow.down"
+        case .balanceTrend: "chart.line.uptrend.xyaxis"
+        case .expenseBreakdown: "chart.pie"
+        case .topExpenses: "list.number"
         case .spendingChart: "chart.bar"
         case .budgets: "chart.bar.fill"
         case .goals: "target"
@@ -46,7 +55,8 @@ public enum DashboardCard: String, CaseIterable, Codable, Sendable, Identifiable
 
     /// Shown on a fresh install, in this order.
     public static let defaultOrder: [DashboardCard] = [
-        .balance, .accounts, .quickActions, .summary, .budgets, .bills, .recent,
+        .balance, .accounts, .quickActions, .summary, .balanceTrend, .expenseBreakdown, .topExpenses,
+        .budgets, .bills, .recent,
     ]
 }
 
@@ -121,6 +131,10 @@ public final class DashboardViewModel: ObservableObject {
             // The account cards replaced the dashboard's account picker; show them where the
             // picker's figures used to lead, not at the bottom of an existing arrangement.
             stored.introduce(.accounts, after: .balance)
+            // The chart cards sit together after the month's summary, in this order.
+            stored.introduce(.balanceTrend, after: .summary)
+            stored.introduce(.expenseBreakdown, after: .balanceTrend)
+            stored.introduce(.topExpenses, after: .expenseBreakdown)
             configuration = stored
         } else {
             configuration = DashboardConfiguration()

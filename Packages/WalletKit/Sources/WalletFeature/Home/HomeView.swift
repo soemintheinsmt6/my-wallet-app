@@ -91,6 +91,35 @@ public struct HomeView: View {
                                    filter: StatisticsFilter(interval: interval, currencyCode: selectedCurrency))
     }
 
+    /// End-of-day balance for each of the last 30 days, today included, in the shown currency.
+    private var balanceTrend: [StatisticsPoint] {
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+        guard let start = calendar.date(byAdding: .day, value: -29, to: today),
+              let end = calendar.date(byAdding: .day, value: 1, to: today) else { return [] }
+        let history = WalletStatistics.calculate(
+            records: records.records, accounts: records.accounts, categories: records.categories,
+            filter: StatisticsFilter(interval: DateInterval(start: start, end: end), currencyCode: selectedCurrency)
+        ).balanceHistory
+        // Each history point is the balance at the end of a day, stamped with the next midnight;
+        // plot it on the day it closes. The first point is the opening balance, before any day.
+        return history.dropFirst().compactMap { point in
+            calendar.date(byAdding: .day, value: -1, to: point.date)
+                .map { StatisticsPoint(date: $0, amount: point.amount) }
+        }
+    }
+
+    private var expensesByCategory: [BreakdownEntry] {
+        DashboardBreakdown.byTopLevelCategory(statistics.expensesByCategory, categories: records.categories)
+    }
+
+    private var expensesByLabel: [BreakdownEntry] {
+        let totals = WalletStatistics.expensesByLabel(
+            records: records.records, accounts: records.accounts, tags: records.tags,
+            filter: StatisticsFilter(interval: interval, currencyCode: selectedCurrency))
+        return DashboardBreakdown.byLabel(totals, tags: records.tags)
+    }
+
     private var recentRecords: [WalletRecord] {
         Array(records.records.sorted { $0.draft.date > $1.draft.date }.prefix(recentLimit))
     }
@@ -171,6 +200,9 @@ public struct HomeView: View {
         case .accounts: accountsSection
         case .quickActions: quickActionsSection
         case .summary: summarySection
+        case .balanceTrend: balanceTrendSection
+        case .expenseBreakdown: expenseBreakdownSection
+        case .topExpenses: topExpensesSection
         case .spendingChart: spendingChartSection
         case .budgets: budgetSection
         case .goals: goalsSection
@@ -321,6 +353,48 @@ public struct HomeView: View {
             WalletSummaryCard(income: result.income, expenses: result.expenses, currencyCode: selectedCurrency)
         } header: {
             WalletSectionHeader(title: "This Month", actionTitle: "Details") {
+                selection = .statistics
+            }
+        }
+    }
+
+    private var balanceTrendSection: some View {
+        Section {
+            VStack(alignment: .leading, spacing: WalletMetrics.medium) {
+                VStack(alignment: .leading, spacing: WalletMetrics.hair) {
+                    Text("Today")
+                        .font(.footnote.weight(.medium))
+                        .foregroundStyle(.secondary)
+                    Text(totalBalance.walletFormatted(selectedCurrency))
+                        .font(.system(.title2, design: .rounded, weight: .semibold))
+                        .monospacedDigit()
+                        .foregroundStyle(totalBalance < 0 ? .red : .primary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.5)
+                }
+                .accessibilityElement(children: .combine)
+                BalanceTrendChart(points: balanceTrend, currencyCode: selectedCurrency)
+            }
+            .padding(.vertical, WalletMetrics.small)
+        } header: {
+            WalletSectionHeader(title: "Balance Trend", actionTitle: "Show more") { selection = .statistics }
+        }
+    }
+
+    private var expenseBreakdownSection: some View {
+        Section {
+            ExpenseBreakdownView(byCategory: expensesByCategory, byLabel: expensesByLabel,
+                                 total: statistics.expenses, currencyCode: selectedCurrency)
+        } header: {
+            WalletSectionHeader(title: "Expenses · This Month", actionTitle: "Show more") { selection = .statistics }
+        }
+    }
+
+    private var topExpensesSection: some View {
+        Section {
+            TopExpensesView(entries: Array(expensesByCategory.prefix(5)), currencyCode: selectedCurrency)
+        } header: {
+            WalletSectionHeader(title: "Top Expenses · This Month", actionTitle: "Show more") {
                 selection = .statistics
             }
         }

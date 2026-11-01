@@ -499,7 +499,7 @@ Shared budget tracking means a bill you front for a group counts toward **your**
 A configurable home screen that surfaces the most relevant information.
 
 - [x] Drag-and-drop card arrangement
-- [x] Customizable cards: balance, accounts, recent records, budget progress, spending chart, goals
+- [x] Customizable cards: balance, accounts, balance trend, expenses by category or label, top expenses, recent records, budget progress, spending chart, goals
 - [x] Quick-action buttons (add expense, add income, add transfer)
 - [x] Account cards opening a per-account screen (balance, today/week/month/year activity, its records)
 
@@ -508,6 +508,8 @@ Implementation notes (2026-09-11): Order and visibility are stored **separately 
 The arrangement is local and cosmetic, so it is stored as encoded JSON in preferences rather than added to the synced schema.
 
 Update (2026-11-01): the dashboard no longer has its own period and account scope. It always shows the current month across every account included in statistics, so its figures never depend on a setting the user has forgotten. Narrower views moved to the screens that own them: Statistics gained a Day period alongside Week, Month, Year and Custom and keeps its account filter; Records keeps its account filter; and a new Accounts card shows every account's balance, each opening `AccountDetailView` with that account's income and expenses for today, the week, month or year and the records that touched it. Arrangements saved with the old scope still load, the scope ignored, and gain the Accounts card directly after Balance.
+
+Update (2026-11-01): three chart cards follow the month's summary, all in the Balance card's currency. **Balance Trend** plots the end-of-day balance over the last 30 days as one line over a light area, with today's balance above it; touch and drag reads any day. **Expenses** is a donut of this month's spending by top-level category or by label, the total in the hole and a legend giving every part's name, share and amount; past six parts the smallest fold into one gray "Other". Label totals split a record carrying several labels evenly between them, so both views add up to the same total. **Top Expenses** ranks the five largest categories as bars scaled to the largest. The category colors are the app's identity colors and do not meet colorblind-separation targets on their own, so every part and bar is always named and valued in text, never identified by color alone. Existing arrangements gain the three cards directly after the summary.
 
 ---
 

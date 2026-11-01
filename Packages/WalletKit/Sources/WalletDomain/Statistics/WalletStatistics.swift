@@ -35,12 +35,34 @@ public struct CategoryTotal: Identifiable, Sendable {
     public let categoryID: UUID?
     public let amount: Decimal
     public var id: String { categoryID?.uuidString ?? "uncategorized" }
+
+    public init(categoryID: UUID?, amount: Decimal) {
+        self.categoryID = categoryID
+        self.amount = amount
+    }
+}
+
+/// Spending under one label; `tagID` is `nil` for spending with no label.
+public struct LabelTotal: Identifiable, Sendable, Equatable {
+    public let tagID: UUID?
+    public let amount: Decimal
+    public var id: String { tagID?.uuidString ?? "unlabeled" }
+
+    public init(tagID: UUID?, amount: Decimal) {
+        self.tagID = tagID
+        self.amount = amount
+    }
 }
 
 public struct StatisticsPoint: Identifiable, Sendable {
     public let date: Date
     public let amount: Decimal
     public var id: Date { date }
+
+    public init(date: Date, amount: Decimal) {
+        self.date = date
+        self.amount = amount
+    }
 }
 
 public struct WalletStatistics: Sendable {
@@ -123,5 +145,35 @@ public struct WalletStatistics: Sendable {
                                 expenses: expenseCategories.reduce(0) { $0 + $1.amount },
                                 incomeByCategory: incomeCategories, expensesByCategory: expenseCategories,
                                 spendingTrend: trend, balanceHistory: history)
+    }
+
+    /// Expenses grouped by label over the filter's window, largest first, with unlabeled spending
+    /// as its own entry so the parts add up to the same total as the category breakdown.
+    ///
+    /// Records are one label each now, but older ones may carry several; such a record's amount
+    /// is split evenly between them rather than counted once per label, which would overstate the
+    /// total. Labels that no longer exist count as unlabeled.
+    public static func expensesByLabel(records: [WalletRecord], accounts: [Account], tags: [WalletTag],
+                                       filter: StatisticsFilter) -> [LabelTotal] {
+        let accountIDs = Set(accounts.filter {
+            !$0.settings.excludeFromStats && $0.currencyCode == filter.currencyCode &&
+                (filter.accountID == nil || $0.id == filter.accountID)
+        }.map(\.id))
+        let known = Set(tags.map(\.id))
+        var values: [UUID?: Decimal] = [:]
+        for record in records {
+            let draft = record.draft
+            guard draft.kind == .expense, let account = draft.accountID, accountIDs.contains(account),
+                  draft.date >= filter.interval.start, draft.date < filter.interval.end else { continue }
+            let labels = draft.tagIDs.filter { known.contains($0) }
+            if labels.isEmpty {
+                values[nil, default: 0] += draft.amount
+            } else {
+                let share = draft.amount / Decimal(labels.count)
+                for label in labels { values[label, default: 0] += share }
+            }
+        }
+        return values.map { LabelTotal(tagID: $0.key, amount: $0.value) }
+            .sorted { $0.amount == $1.amount ? $0.id < $1.id : $0.amount > $1.amount }
     }
 }
