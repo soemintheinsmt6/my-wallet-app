@@ -4,3 +4,11 @@ DerivedData/
 .swiftpm/
 xcuserdata/
 *.xcuserstate
+
+# Coding-agent instructions and settings; kept local only.
+CLAUDE.md
+CLAUDE.local.md
+.claude/
+AGENTS.md
+.codex/
+.mcp.json

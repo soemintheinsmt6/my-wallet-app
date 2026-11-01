@@ -180,7 +180,7 @@ Verify account creation and edits on two signed devices using the same iCloud ac
 - [ARCHITECTURE.md](ARCHITECTURE.md): module boundaries, data flow, concurrency and storage.
 - [TESTING.md](TESTING.md): commands, coverage and manual validation.
 - [DESIGN-SYSTEM.md](DESIGN-SYSTEM.md): components, visual conventions and interaction states.
-- [AGENTS.md](AGENTS.md): contributor guidelines.
+- [FEATURES.md](FEATURES.md): what each feature does and why.
 
 ## Feature Completion Workflow
 
