@@ -1,17 +1,26 @@
 import Foundation
 
-/// Fixed sRGB colors shared by category UI and future charts. Never derive these from nature.
+/// Fixed sRGB colors shared by category UI and charts. Never derive these from nature.
+///
+/// Tuned as a set (2026-11-01) to sit beside the system green and red used for income and
+/// expense: each hue at the most saturation sRGB allows, as light as one value can be and still
+/// work in light and dark mode (OKLCH lightness 0.50–0.67, chroma >= 0.10). Each neighbor in this
+/// order stays apart under deutan/protan simulation (ΔE >= 10.2) and normal vision (ΔE >= 17.5).
+/// A few fall just under 3:1 against a surface (green, blue, teal and gold on white; brown on
+/// black), so charts must always name each category in text, never rely on color alone; ten hues
+/// cannot all stay apart in every pairing either. Transportation is brown rather than slate gray,
+/// which read as gray and shared Shopping's hue. Re-validate the whole set if any value changes.
 public enum CategoryColor: UInt32, CaseIterable, Sendable {
-    case food = 0x55D80B
-    case shopping = 0x4AC3F2
-    case housing = 0xFFA51F
-    case transportation = 0x78909C
-    case vehicle = 0xAA00FF
-    case entertainment = 0xFF4136
-    case communication = 0x536DFE
-    case financial = 0x00BFA5
-    case investments = 0xFF4081
-    case income = 0xFFC329
+    case food = 0x05B231
+    case shopping = 0x009EDB
+    case housing = 0xD47A05
+    case transportation = 0x964B2C
+    case vehicle = 0xA834FF
+    case entertainment = 0xFE2826
+    case communication = 0x5555FF
+    case financial = 0x09AB99
+    case investments = 0xD40363
+    case income = 0xB29000
 
     public var hex: String { String(format: "#%06X", rawValue) }
 }

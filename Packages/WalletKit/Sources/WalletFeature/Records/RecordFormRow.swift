@@ -17,12 +17,7 @@ struct RecordFormRow<Content: View>: View {
                 if categoryTile, let category = category {
                     CategoryIcon(category: category)
                 } else if categoryTile || filledIcon {
-                    Image(systemName: symbol)
-                        .font(.system(size: 18))
-                        .foregroundStyle(.white)
-                        .frame(width: 36, height: 36)
-                        .background(color, in: RoundedRectangle(cornerRadius: 10))
-                        .accessibilityHidden(true)
+                    WalletIconTile(symbol: symbol, color: color)
                 } else {
                     Image(systemName: symbol)
                         .font(.system(size: 18))

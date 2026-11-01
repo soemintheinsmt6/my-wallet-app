@@ -108,20 +108,20 @@ Nature badges use **None: gray**, **Must: green**, **Need: blue**, and **Want: r
 
 | Category | Fixed color |
 | --- | --- |
-| Food & Drinks | Bright green `#55D80B` |
-| Shopping | Sky blue `#4AC3F2` |
-| Housing | Orange `#FFA51F` |
-| Transportation | Blue-gray `#78909C` |
-| Vehicle | Violet `#AA00FF` |
-| Life & Entertainment | Red `#FF4136` |
-| Communication (PC) | Indigo `#536DFE` |
-| Financial Expenses | Teal `#00BFA5` |
-| Investments | Pink `#FF4081` |
-| Income | Amber `#FFC329` |
+| Food & Drinks | Green `#05B231` |
+| Shopping | Sky blue `#009EDB` |
+| Housing | Orange `#D47A05` |
+| Transportation | Brown `#964B2C` |
+| Vehicle | Violet `#A834FF` |
+| Life & Entertainment | Red `#FE2826` |
+| Communication (PC) | Indigo `#5555FF` |
+| Financial Expenses | Teal `#09AB99` |
+| Investments | Raspberry `#D40363` |
+| Income | Gold `#B29000` |
 
-Colors have no editor control. Future graphs/charts should reuse `category.colorToken.color` for marks and legends. Statistics charts use these same fixed colors.
+Colors have no editor control. Graphs and charts reuse `category.colorToken.color` for marks and legends; Statistics and the Dashboard charts use these same fixed colors.
 
-The bright palette follows the supplied visual reference, with Food & Drinks green and Life & Entertainment red. Category and account icons use white symbols on solid color backgrounds. Nature chips use white text on solid gray/green/blue/red fills for a consistent style; their colors remain independent of category and account colors.
+The palette keeps the original hues (Food & Drinks green, Life & Entertainment red) but was retuned as a set on 2026-11-01 to match the vividness of the system green and red used for income and expense, while one value works in light and dark mode: every color stays clear of gray, and neighbors stay distinguishable for normal and red-green color-blind vision. A few sit just under 3:1 contrast against one background, which is why chart parts are always labeled. Transportation moved from blue-gray to brown, since the gray read as "no category" and shared Shopping's hue. With ten categories some pairs can still look alike under color blindness, so charts always name each category in text. See `CategoryColor.swift` for the validation targets. Category and account icons use white symbols on solid color backgrounds. Nature chips use white text on solid gray/green/blue/red fills for a consistent style; their colors remain independent of category and account colors.
 
 The main category list shows only icons and names, without subcategory counts or nature chips. Category details show the card below the navigation title, with no large header icon. Nature chips have no dot and sit beside names in the detail and subcategory rows; subcategories use trailing chevrons. Nature remains editable in the editor.
 

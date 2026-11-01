@@ -46,16 +46,14 @@ private struct ObservingCategoryIcon: View {
     }
 }
 
+/// Drawn by the shared tile, so category icons get the same gradient fill, symbol weight and
+/// corners as account, record-kind and menu icons; a flat fill read duller beside them even in
+/// the same hue.
 private struct CategoryIconTile: View {
     let symbol: String
     let color: Color
 
     var body: some View {
-        Image(systemName: symbol)
-            .font(.system(size: 18))
-            .foregroundStyle(.white)
-            .frame(width: 36, height: 36)
-            .background(color, in: RoundedRectangle(cornerRadius: 10))
-            .accessibilityHidden(true)
+        WalletIconTile(symbol: symbol, color: color)
     }
 }

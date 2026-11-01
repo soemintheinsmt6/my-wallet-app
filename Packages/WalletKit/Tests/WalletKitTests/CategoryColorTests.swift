@@ -5,7 +5,7 @@ import WalletDomain
 struct CategoryColorTests {
     @Test func starterCategoriesHaveDistinctStableColors() {
         let roots = CategorySeeds.categories.filter { $0.parentID == nil }
-        #expect(roots.map(\.colorToken.hex) == ["#55D80B", "#4AC3F2", "#FFA51F", "#78909C", "#AA00FF", "#FF4136", "#536DFE", "#00BFA5", "#FF4081", "#FFC329"])
+        #expect(roots.map(\.colorToken.hex) == ["#05B231", "#009EDB", "#D47A05", "#964B2C", "#A834FF", "#FE2826", "#5555FF", "#09AB99", "#D40363", "#B29000"])
         #expect(Set(roots.map(\.colorToken)).count == 10)
         for category in CategorySeeds.categories {
             let changed = WalletCategory(id: category.id, parentID: category.parentID, name: "Renamed", nature: .want, sortOrder: 999)
