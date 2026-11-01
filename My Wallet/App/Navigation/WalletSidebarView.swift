@@ -41,6 +41,7 @@ struct WalletSidebarView: View {
             // The dashboard and its charts, read together.
             HStack(spacing: 0) {
                 HomeView(records: dependencies.recordsViewModel,
+                         accounts: dependencies.accountsViewModel,
                          planning: dependencies.planningViewModel,
                          currency: dependencies.currencyViewModel,
                          insights: dependencies.insightsViewModel,

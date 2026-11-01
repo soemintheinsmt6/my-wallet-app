@@ -59,15 +59,18 @@ struct DashboardConfigurationTests {
         calendar.timeZone = TimeZone(identifier: "UTC")!
         let date = Date(timeIntervalSince1970: 1_705_320_000) // 2024-01-15 12:00 UTC
 
-        let today = DashboardPeriod.today.interval(containing: date, calendar: calendar)
+        let today = ActivityPeriod.day.interval(containing: date, calendar: calendar)
         #expect(today.duration == 86400)
 
-        let week = DashboardPeriod.week.interval(containing: date, calendar: calendar)
+        let week = ActivityPeriod.week.interval(containing: date, calendar: calendar)
         #expect(week.duration == 7 * 86400)
 
-        let month = DashboardPeriod.month.interval(containing: date, calendar: calendar)
+        let month = ActivityPeriod.month.interval(containing: date, calendar: calendar)
         #expect(month.duration == 31 * 86400) // January
         #expect(month.contains(date))
+
+        let year = ActivityPeriod.year.interval(containing: date, calendar: calendar)
+        #expect(year.duration == 366 * 86400) // 2024 is a leap year
     }
 
     @MainActor
@@ -77,15 +80,83 @@ struct DashboardConfigurationTests {
 
         let first = DashboardViewModel(defaults: defaults)
         first.configuration.setVisible(.goals, true)
-        first.configuration.period = .week
+        first.configuration.setVisible(.bills, false)
 
         let second = DashboardViewModel(defaults: defaults)
         #expect(second.configuration.visible.contains(.goals))
-        #expect(second.configuration.period == .week)
+        #expect(!second.configuration.visible.contains(.bills))
 
         second.reset()
-        #expect(second.configuration.period == .month)
         #expect(DashboardViewModel(defaults: defaults).configuration.visible == DashboardCard.defaultOrder)
+    }
+
+    /// Arrangements saved before the account cards existed get them right after Balance, and the
+    /// period and account scope they stored are ignored rather than failing to decode.
+    @MainActor
+    @Test func anOlderArrangementGainsTheAccountCardsAfterBalance() throws {
+        let defaults = UserDefaults(suiteName: "dashboard.tests.\(UUID().uuidString)")!
+        let older = #"{"order":["recent","balance","summary"],"hidden":["goals"],"period":"week","accountID":"\#(UUID().uuidString)"}"#
+        defaults.set(Data(older.utf8), forKey: WalletPreferenceKeys.dashboard)
+
+        let configuration = DashboardViewModel(defaults: defaults).configuration
+        #expect(configuration.arranged.prefix(4) == [.recent, .balance, .accounts, .summary])
+        #expect(configuration.visible.contains(.accounts))
+        #expect(!configuration.visible.contains(.goals))
+    }
+
+    /// Once the user has the card, hiding or moving it sticks across launches.
+    @MainActor
+    @Test func aHiddenAccountsCardStaysHidden() {
+        let defaults = UserDefaults(suiteName: "dashboard.tests.\(UUID().uuidString)")!
+        let first = DashboardViewModel(defaults: defaults)
+        first.configuration.setVisible(.accounts, false)
+        #expect(!DashboardViewModel(defaults: defaults).configuration.visible.contains(.accounts))
+    }
+}
+
+struct AccountActivityTests {
+    private let account = UUID()
+    private let other = UUID()
+    private let interval = DateInterval(start: Date(timeIntervalSince1970: 1_704_067_200), // 2024-01-01
+                                        duration: 31 * 86400)
+
+    private func record(_ kind: RecordKind, _ amount: Decimal, from source: UUID?, to destination: UUID? = nil,
+                        day: Int) -> WalletRecord {
+        var draft = RecordDraft()
+        draft.kind = kind
+        draft.amount = amount
+        draft.accountID = source
+        draft.destinationAccountID = destination
+        draft.date = interval.start.addingTimeInterval(Double(day) * 86400)
+        return WalletRecord(id: UUID(), draft: draft, currencyCode: "USD")
+    }
+
+    /// Income and expenses count only what was booked to this account inside the window;
+    /// transfers are listed in either direction but counted in neither total.
+    @Test func totalsCountOnlyThisAccountsIncomeAndExpenses() {
+        let records = [
+            record(.income, 500, from: account, day: 1),
+            record(.expense, 120, from: account, day: 2),
+            record(.expense, 999, from: other, day: 2),
+            record(.transfer, 50, from: account, to: other, day: 3),
+            record(.transfer, 70, from: other, to: account, day: 4),
+            record(.expense, 30, from: account, day: 40),
+        ]
+        let activity = AccountActivity(records: records, accountID: account, interval: interval)
+
+        #expect(activity.income == 500)
+        #expect(activity.expenses == 120)
+        #expect(activity.records.count == 4)
+        // Newest first.
+        #expect(activity.records.map(\.draft.amount) == [70, 50, 120, 500])
+    }
+
+    @Test func aWindowWithNothingInItIsEmpty() {
+        let activity = AccountActivity(records: [record(.expense, 10, from: other, day: 1)],
+                                       accountID: account, interval: interval)
+        #expect(activity.income == 0)
+        #expect(activity.expenses == 0)
+        #expect(activity.records.isEmpty)
     }
 }
 

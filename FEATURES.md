@@ -499,14 +499,15 @@ Shared budget tracking means a bill you front for a group counts toward **your**
 A configurable home screen that surfaces the most relevant information.
 
 - [x] Drag-and-drop card arrangement
-- [x] Customizable cards: balance, recent records, budget progress, spending chart, goals
+- [x] Customizable cards: balance, accounts, recent records, budget progress, spending chart, goals
 - [x] Quick-action buttons (add expense, add income, add transfer)
-- [x] Per-account or aggregate views
-- [x] Time period selector (today, this week, this month)
+- [x] Account cards opening a per-account screen (balance, today/week/month/year activity, its records)
 
 Implementation notes (2026-09-11): Order and visibility are stored **separately from the card list**, so a card added in a later release is appended to the user's arrangement rather than resetting it, and hiding a card keeps its position for when it comes back. A card with nothing to show — no budgets, no bills, no goals — stays out of the way rather than rendering an empty shell.
 
-Period and account scope sit above the cards, so every figure below has its limits stated rather than implied, and both feed the same `StatisticsFilter` the Statistics screen uses. Accounts excluded from statistics never appear in the scope picker. The arrangement is local and cosmetic, so it is stored as encoded JSON in preferences rather than added to the synced schema.
+The arrangement is local and cosmetic, so it is stored as encoded JSON in preferences rather than added to the synced schema.
+
+Update (2026-11-01): the dashboard no longer has its own period and account scope. It always shows the current month across every account included in statistics, so its figures never depend on a setting the user has forgotten. Narrower views moved to the screens that own them: Statistics gained a Day period alongside Week, Month, Year and Custom and keeps its account filter; Records keeps its account filter; and a new Accounts card shows every account's balance, each opening `AccountDetailView` with that account's income and expenses for today, the week, month or year and the records that touched it. Arrangements saved with the old scope still load, the scope ignored, and gain the Accounts card directly after Balance.
 
 ---
 

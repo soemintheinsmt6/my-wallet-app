@@ -5,6 +5,7 @@ import WalletDomain
 /// A card the dashboard can show.
 public enum DashboardCard: String, CaseIterable, Codable, Sendable, Identifiable {
     case balance
+    case accounts
     case quickActions
     case summary
     case spendingChart
@@ -18,6 +19,7 @@ public enum DashboardCard: String, CaseIterable, Codable, Sendable, Identifiable
     public var title: String {
         switch self {
         case .balance: "Balance"
+        case .accounts: "Accounts"
         case .quickActions: "Quick Actions"
         case .summary: "Income & Expenses"
         case .spendingChart: "Spending Chart"
@@ -31,6 +33,7 @@ public enum DashboardCard: String, CaseIterable, Codable, Sendable, Identifiable
     public var symbol: String {
         switch self {
         case .balance: "wallet.bifold"
+        case .accounts: "creditcard"
         case .quickActions: "bolt"
         case .summary: "arrow.up.arrow.down"
         case .spendingChart: "chart.bar"
@@ -43,59 +46,38 @@ public enum DashboardCard: String, CaseIterable, Codable, Sendable, Identifiable
 
     /// Shown on a fresh install, in this order.
     public static let defaultOrder: [DashboardCard] = [
-        .balance, .quickActions, .summary, .budgets, .bills, .recent,
+        .balance, .accounts, .quickActions, .summary, .budgets, .bills, .recent,
     ]
-}
-
-/// The window the dashboard's figures cover.
-public enum DashboardPeriod: String, CaseIterable, Codable, Sendable, Identifiable {
-    case today
-    case week
-    case month
-
-    public var id: String { rawValue }
-
-    public var title: String {
-        switch self {
-        case .today: "Today"
-        case .week: "This Week"
-        case .month: "This Month"
-        }
-    }
-
-    public var component: Calendar.Component {
-        switch self {
-        case .today: .day
-        case .week: .weekOfYear
-        case .month: .month
-        }
-    }
-
-    public func interval(containing date: Date, calendar: Calendar = .current) -> DateInterval {
-        calendar.dateInterval(of: component, for: date)
-            ?? DateInterval(start: calendar.startOfDay(for: date), duration: 86400)
-    }
 }
 
 /// What the user has arranged their dashboard to look like.
 ///
 /// Order and visibility are stored separately from the card list, so adding a card in a later
 /// release appends it rather than resetting an arrangement the user already made.
+///
+/// The dashboard always covers the current month across every account included in statistics;
+/// narrower views live in Statistics, Records and each account's own screen. Arrangements saved
+/// when the dashboard had its own period and account scope still decode, those keys ignored.
 public struct DashboardConfiguration: Codable, Sendable, Equatable {
     public var order: [DashboardCard]
     public var hidden: Set<DashboardCard>
-    public var period: DashboardPeriod
-    /// `nil` means every account included in statistics.
-    public var accountID: UUID?
 
     public init(order: [DashboardCard] = DashboardCard.defaultOrder,
                 hidden: Set<DashboardCard> = Set(DashboardCard.allCases)
-                    .subtracting(DashboardCard.defaultOrder),
-                period: DashboardPeriod = .month, accountID: UUID? = nil) {
+                    .subtracting(DashboardCard.defaultOrder)) {
         self.order = order
         self.hidden = hidden
-        self.period = period
-        self.accountID = accountID
+    }
+
+    /// Places a card that an older saved arrangement has never seen directly after `anchor`,
+    /// rather than letting it append at the bottom. Does nothing once the card is in the order.
+    mutating func introduce(_ card: DashboardCard, after anchor: DashboardCard) {
+        guard !order.contains(card) else { return }
+        if let index = order.firstIndex(of: anchor) {
+            order.insert(card, at: index + 1)
+        } else {
+            order.append(card)
+        }
     }
 
     /// Cards in their arranged order, with anything new appended at the end.
@@ -135,7 +117,10 @@ public final class DashboardViewModel: ObservableObject {
     public init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
         if let data = defaults.data(forKey: WalletPreferenceKeys.dashboard),
-           let stored = try? JSONDecoder().decode(DashboardConfiguration.self, from: data) {
+           var stored = try? JSONDecoder().decode(DashboardConfiguration.self, from: data) {
+            // The account cards replaced the dashboard's account picker; show them where the
+            // picker's figures used to lead, not at the bottom of an existing arrangement.
+            stored.introduce(.accounts, after: .balance)
             configuration = stored
         } else {
             configuration = DashboardConfiguration()

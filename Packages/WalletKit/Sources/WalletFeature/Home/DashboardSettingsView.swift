@@ -4,7 +4,6 @@ import WalletDomain
 /// Arranges the dashboard: which cards show, and in what order.
 struct DashboardSettingsView: View {
     @ObservedObject var dashboard: DashboardViewModel
-    let accounts: [Account]
     @Environment(\.dismiss) private var dismiss
     @State private var confirmingReset = false
 
@@ -13,28 +12,6 @@ struct DashboardSettingsView: View {
     var body: some View {
         NavigationStack {
             List {
-                Section {
-                    WalletMenuPicker("Period", selection: Binding(
-                        get: { configuration.period },
-                        set: { dashboard.configuration.period = $0 }
-                    ), value: configuration.period.title) {
-                        ForEach(DashboardPeriod.allCases) { Text($0.title).tag($0) }
-                    }
-                    WalletMenuPicker("Accounts", selection: Binding(
-                        get: { configuration.accountID },
-                        set: { dashboard.configuration.accountID = $0 }
-                    ), value: accounts.first { $0.id == configuration.accountID }?.name ?? "All accounts") {
-                        Text("All accounts").tag(nil as UUID?)
-                        ForEach(accounts.filter { !$0.settings.excludeFromStats }) {
-                            Text($0.name).tag(Optional($0.id))
-                        }
-                    }
-                } header: {
-                    Text("Scope")
-                } footer: {
-                    Text("Applies to every figure on the dashboard. Accounts excluded from statistics never appear.")
-                }
-
                 Section {
                     ForEach(configuration.arranged) { card in
                         HStack(spacing: WalletMetrics.medium) {

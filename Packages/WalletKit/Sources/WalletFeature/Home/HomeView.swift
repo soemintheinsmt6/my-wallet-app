@@ -9,6 +9,8 @@ import WalletDomain
 /// own beyond the arrangement itself.
 public struct HomeView: View {
     @ObservedObject private var records: RecordsViewModel
+    /// For the account cards' Add tile and each account's own screen.
+    @ObservedObject private var accounts: AccountsViewModel
     @ObservedObject private var planning: PlanningViewModel
     /// Optional: with no home currency configured the dashboard keeps per-currency totals.
     @ObservedObject private var currency: CurrencyViewModel
@@ -24,14 +26,18 @@ public struct HomeView: View {
     @State private var displayedCurrency = ""
     @State private var isArranging = false
     @State private var editingRecord: WalletRecord?
+    @State private var creatingAccount = false
+    @State private var openAccountID: UUID?
 
     private let recentLimit = 5
     private let previewLimit = 3
 
-    public init(records: RecordsViewModel, planning: PlanningViewModel, currency: CurrencyViewModel,
-                insights: InsightsViewModel, dashboard: DashboardViewModel, debts: DebtsViewModel,
-                selection: Binding<WalletTab>, pendingAdd: Binding<RecordKind?> = .constant(nil)) {
+    public init(records: RecordsViewModel, accounts: AccountsViewModel, planning: PlanningViewModel,
+                currency: CurrencyViewModel, insights: InsightsViewModel, dashboard: DashboardViewModel,
+                debts: DebtsViewModel, selection: Binding<WalletTab>,
+                pendingAdd: Binding<RecordKind?> = .constant(nil)) {
         self.records = records
+        self.accounts = accounts
         self.planning = planning
         self.currency = currency
         self.insights = insights
@@ -45,11 +51,19 @@ public struct HomeView: View {
 
     private var configuration: DashboardConfiguration { dashboard.configuration }
 
-    /// Accounts in scope: everything included in statistics, or the one the user picked.
+    /// Every account included in statistics. The dashboard is always the whole wallet; one
+    /// account at a time is its own screen, opened from the account cards.
     private var includedAccounts: [Account] {
-        let included = records.accounts.filter { !$0.settings.excludeFromStats }
-        guard let id = configuration.accountID else { return included }
-        return included.filter { $0.id == id }
+        records.accounts.filter { !$0.settings.excludeFromStats }
+    }
+
+    /// Every account for the cards, excluded ones too: a balance is worth seeing either way.
+    /// Ordered as the Accounts screen orders them: by type, then by name.
+    private var cardAccounts: [Account] {
+        AccountType.allCases.flatMap { type in
+            records.accounts.filter { $0.type == type }
+                .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+        }
     }
 
     private var currencies: [String] { Array(Set(includedAccounts.map(\.currencyCode))).sorted() }
@@ -68,22 +82,17 @@ public struct HomeView: View {
             .reduce(0) { $0 + $1.settings.currentBalance }
     }
 
-    private var interval: DateInterval { configuration.period.interval(containing: Date()) }
+    /// Always the current month.
+    private var interval: DateInterval { ActivityPeriod.month.interval(containing: Date()) }
 
     private var statistics: WalletStatistics {
         WalletStatistics.calculate(records: records.records, accounts: records.accounts,
                                    categories: records.categories,
-                                   filter: StatisticsFilter(interval: interval,
-                                                            currencyCode: selectedCurrency,
-                                                            accountID: configuration.accountID))
+                                   filter: StatisticsFilter(interval: interval, currencyCode: selectedCurrency))
     }
 
     private var recentRecords: [WalletRecord] {
-        let scoped = records.records.filter { record in
-            guard let id = configuration.accountID else { return true }
-            return record.draft.accountID == id || record.draft.destinationAccountID == id
-        }
-        return Array(scoped.sorted { $0.draft.date > $1.draft.date }.prefix(recentLimit))
+        Array(records.records.sorted { $0.draft.date > $1.draft.date }.prefix(recentLimit))
     }
 
     private var upcomingBills: [BillDue] {
@@ -110,7 +119,6 @@ public struct HomeView: View {
                 if includedAccounts.isEmpty {
                     if !records.isLoading { setUpSection }
                 } else {
-                    scopeSection
                     ForEach(configuration.visible) { card in
                         section(for: card)
                     }
@@ -135,7 +143,11 @@ public struct HomeView: View {
                 RecordEditorView(viewModel: records, initialKind: kind)
             }
             .sheet(isPresented: $isArranging) {
-                DashboardSettingsView(dashboard: dashboard, accounts: records.accounts)
+                DashboardSettingsView(dashboard: dashboard)
+            }
+            .sheet(isPresented: $creatingAccount) { AccountEditorView(viewModel: accounts) }
+            .navigationDestination(item: $openAccountID) { id in
+                AccountDetailView(accounts: accounts, records: records, accountID: id)
             }
             .refreshable { await planning.refresh(generate: true) }
             .overlay {
@@ -156,6 +168,7 @@ public struct HomeView: View {
     @ViewBuilder private func section(for card: DashboardCard) -> some View {
         switch card {
         case .balance: balanceSection
+        case .accounts: accountsSection
         case .quickActions: quickActionsSection
         case .summary: summarySection
         case .spendingChart: spendingChartSection
@@ -163,35 +176,6 @@ public struct HomeView: View {
         case .goals: goalsSection
         case .bills: billsSection
         case .recent: recentSection
-        }
-    }
-
-    // MARK: - Scope
-
-    /// Period and account scope, shown above the cards so every figure below has stated limits.
-    private var scopeSection: some View {
-        Section {
-            Picker("Period", selection: Binding(
-                get: { configuration.period },
-                set: { dashboard.configuration.period = $0 }
-            )) {
-                ForEach(DashboardPeriod.allCases) { Text($0.title).tag($0) }
-            }
-            .pickerStyle(.segmented)
-            .listRowInsets(EdgeInsets(top: WalletMetrics.small, leading: WalletMetrics.large,
-                                      bottom: WalletMetrics.small, trailing: WalletMetrics.large))
-
-            if records.accounts.filter({ !$0.settings.excludeFromStats }).count > 1 {
-                WalletMenuPicker("Accounts", selection: Binding(
-                    get: { configuration.accountID },
-                    set: { dashboard.configuration.accountID = $0 }
-                ), value: records.account(configuration.accountID)?.name ?? "All accounts") {
-                    Text("All accounts").tag(nil as UUID?)
-                    ForEach(records.accounts.filter { !$0.settings.excludeFromStats }) {
-                        Text($0.name).tag(Optional($0.id))
-                    }
-                }
-            }
         }
     }
 
@@ -259,10 +243,47 @@ public struct HomeView: View {
     }
 
     private var accountSummary: String {
-        if let id = configuration.accountID, let account = records.account(id) { return account.name }
         let matching = includedAccounts.filter { $0.currencyCode == selectedCurrency }.count
         let label = matching == 1 ? "1 account" : "\(matching) accounts"
         return currencies.count > 1 ? "\(label) in \(selectedCurrency)" : label
+    }
+
+    /// Every account as a card with its balance, two to a row, and a tile to add another. A card
+    /// opens that account's own screen.
+    private var accountsSection: some View {
+        Section {
+            LazyVGrid(columns: [GridItem(.flexible(), spacing: WalletMetrics.medium),
+                                GridItem(.flexible(), spacing: WalletMetrics.medium)],
+                      spacing: WalletMetrics.medium) {
+                ForEach(cardAccounts) { account in
+                    Button { openAccountID = account.id } label: { AccountCard(account: account) }
+                        .buttonStyle(.plain)
+                        .accessibilityHint("Opens the account")
+                }
+                Button { creatingAccount = true } label: {
+                    VStack(spacing: WalletMetrics.small) {
+                        Image(systemName: "plus")
+                            .font(.title3.weight(.semibold))
+                            .foregroundStyle(.white)
+                            .frame(width: WalletMetrics.Tile.largeSize, height: WalletMetrics.Tile.largeSize)
+                            .background(Color.accentColor, in: Circle())
+                        Text("Add account")
+                            .font(.subheadline.weight(.medium))
+                            .foregroundStyle(.primary)
+                    }
+                    .frame(maxWidth: .infinity, minHeight: AccountCard.height)
+                    .background(.background.opacity(0.6),
+                                in: RoundedRectangle(cornerRadius: WalletMetrics.large, style: .continuous))
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+            }
+            // Edge to edge within the section, so the cards line up with the Balance card above.
+            .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: WalletMetrics.small, trailing: 0))
+            .listRowBackground(Color.clear)
+        } header: {
+            WalletSectionHeader(title: "Accounts", actionTitle: nil) {}
+        }
     }
 
     private var quickActionsSection: some View {
@@ -288,8 +309,8 @@ public struct HomeView: View {
                     .accessibilityLabel("Add \(kind.title.lowercased())")
                 }
             }
-            .listRowInsets(EdgeInsets(top: 0, leading: WalletMetrics.large,
-                                      bottom: WalletMetrics.small, trailing: WalletMetrics.large))
+            // Same edges as the Balance card and the account cards.
+            .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: WalletMetrics.small, trailing: 0))
             .listRowBackground(Color.clear)
         }
     }
@@ -299,7 +320,7 @@ public struct HomeView: View {
         return Section {
             WalletSummaryCard(income: result.income, expenses: result.expenses, currencyCode: selectedCurrency)
         } header: {
-            WalletSectionHeader(title: configuration.period.title, actionTitle: "Details") {
+            WalletSectionHeader(title: "This Month", actionTitle: "Details") {
                 selection = .statistics
             }
         }
@@ -408,6 +429,36 @@ public struct HomeView: View {
                 selection = .records
             }
         }
+    }
+}
+
+/// An account on the dashboard: its icon, name and balance on a card.
+struct AccountCard: View {
+    let account: Account
+
+    /// Shared with the Add tile so a row of the grid lines up.
+    static let height: CGFloat = 116
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: WalletMetrics.small) {
+            WalletIconTile(symbol: account.symbol, color: account.settings.color.tint)
+            Spacer(minLength: 0)
+            Text(account.name)
+                .font(.caption.weight(.medium))
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+            Text(account.settings.currentBalance.walletFormatted(account.currencyCode))
+                .font(.system(.headline, design: .rounded, weight: .semibold))
+                .monospacedDigit()
+                .foregroundStyle(account.settings.currentBalance < 0 ? .red : .primary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.6)
+        }
+        .padding(WalletMetrics.medium)
+        .frame(maxWidth: .infinity, minHeight: Self.height, alignment: .leading)
+        .background(.background, in: RoundedRectangle(cornerRadius: WalletMetrics.large, style: .continuous))
+        .contentShape(Rectangle())
+        .accessibilityElement(children: .combine)
     }
 }
 

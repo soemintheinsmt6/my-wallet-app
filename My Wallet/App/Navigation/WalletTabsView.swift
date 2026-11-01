@@ -23,6 +23,7 @@ struct WalletTabsView: View {
     var body: some View {
         TabView(selection: $selection) {
             HomeView(records: dependencies.recordsViewModel,
+                     accounts: dependencies.accountsViewModel,
                      planning: dependencies.planningViewModel,
                      currency: dependencies.currencyViewModel,
                      insights: dependencies.insightsViewModel,
