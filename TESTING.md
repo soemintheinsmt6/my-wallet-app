@@ -390,3 +390,13 @@ Manual checks:
 5. Tap a record to edit it, delete it from the editor, and confirm the confirmation and the balance change.
 6. Choose an icon for an account on one device and confirm it appears on a second device after sync, once the schema is deployed.
 7. Cold-launch the app on a device in light mode; confirm no white flash before the launch view (delete and reinstall first, since iOS caches launch screens).
+
+## Device Validation (2026-11-01)
+
+Every feature in the README status table was tested on device by the project owner and passed, **except the Apple Watch companion**, which remains unbuilt (the watchOS platform is not installed) and unverified. This closes the device and visual checks the earlier entries left open: iCloud sync across devices, widgets on the home screen, Face ID/Touch ID and the passcode lock, the share sheet and document picker, every onboarding step, live exchange-rate downloads, Siri and Shortcuts, iPad and Mac layouts, notification delivery for budgets, bills, insights and debts, camera scanning and OCR, dashboard drag reordering, alternate app icons, drinking days, and the touch interactions listed under Interface Polish and Dashboard Validation.
+
+Still open:
+
+- **Apple Watch companion:** not compiled or embedded in the iOS app; its manual checks under Apple Watch Validation still apply.
+- **CloudKit production schema:** the account icon field (`symbolValue`) must be deployed to the production environment before release. Device tests ran against the development environment.
+- **iCloud wallet sharing (`CKShare`):** not implemented, so there is nothing to verify.

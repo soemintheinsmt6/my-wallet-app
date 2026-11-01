@@ -4,51 +4,51 @@ A SwiftUI wallet app built with modular MVVM and clean architecture, SwiftData s
 
 ## Feature Status
 
-Update this table whenever a feature is completed.
+Update this table whenever a feature is completed. As of 2026-11-01 every feature below has been tested on device and passed, except the Apple Watch companion.
 
 | Feature | Status | Current behavior |
 | --- | --- | --- |
 | Modular architecture | Complete | Domain, data and presentation modules with app-owned dependency injection |
-| Appearance | Complete locally | Settings offers System, Light and Dark; choice persists on this device and applies across app windows |
+| Appearance | Complete | Settings offers System, Light and Dark; choice persists on this device and applies across app windows |
 | Temporary data reset | Debug builds only | Confirmed deletion of wallet data; retains theme, clears last-used entry defaults and dismisses open drafts |
 | Account creation and editing | Complete | Name, current balance, type, color, an optional chosen icon (synced; CloudKit production schema deploy pending) and saved settings |
 | Account types | Complete | Cash, Checking Account, Credit Card, Savings Account, Investments, Loans & Mortgage, Other |
 | Currency selection | Complete | Search by name/code during creation; immutable after saving |
 | Local persistence | Complete | SwiftData storage, exact decimal strings and tested local schema upgrades |
 | Balance notifications | Complete | In-app notices below a minimum or above a maximum; configurable independently |
-| Exclude from stats | Setting complete | Persisted toggle and filtered account collection; excluded accounts still show alerts |
+| Exclude from stats | Complete | Persisted toggle and filtered account collection; excluded accounts still show alerts |
 | Categories and subcategories | Complete | Create/edit names and independent None, Must, Need or Want natures; two-level hierarchy |
-| Starter categories | Complete locally | 10 categories and 50 editable subcategories; repeat seeding preserves edits; cross-device validation pending |
+| Starter categories | Complete | 10 categories and 50 editable subcategories; repeat seeding preserves edits, across devices too |
 | Category icons and suggested natures | Complete | Relevant icons for all 60 starter items; editable nature defaults with existing user choices preserved |
 | Category and nature colors | Complete | Fixed category palette for UI/future charts; separate colored nature badges; colors cannot be edited |
 | Labels / tags | Complete | Create/edit name and color; assign one label per record; confirmed deletion detaches labels |
-| Record creation | Complete locally | Expense, income and transfer; category/subcategory, most-used shortcuts, date/time, labels and optional details/photo |
-| Budgets | Complete locally | Weekly/monthly/custom category or global limits, positive rollover, progress and threshold notices |
-| Recurring transactions | Complete locally | Anchored schedules, launch/foreground catch-up, pause/cancel, skip/modify and idempotent occurrence receipts |
-| Financial reports | Complete locally | Monthly/yearly/custom summaries, category breakdowns, running account statements and shareable PDF |
-| Bill reminders | Complete locally | Due dates, recurrence, local notifications, calendar filtering and optional expense on payment |
-| iCloud synchronization | Configured; device verification pending | Private CloudKit container and platform entitlements |
-| Record editing/deletion | Complete locally | Tap a record to edit all fields; confirmed deletion from the editor, swipe or context menu; atomic ledger balance recalculation |
-| Account deletion | Complete locally | Impact summary and cascade/unlink strategies, including transfers |
-| Category deletion | Complete locally | Delete or reassign children; Uncategorized fallback; retain at least one category |
-| Statistics dashboard | Complete locally | Day to year and custom periods; account/category/label filters in a filter sheet; currency-separated totals, category charts, trends and reconstructed balance history |
-| Record search and filtering | Complete locally | Search payee, note, amount, category and label names; combine with type/account/category/label/payment/date/amount filters; relevance, date or amount ordering and local recent searches |
-| Home screen widgets | Complete locally; App Group provisioning and device rendering pending | Balance, this month, recent records, budget progress and quick-add widgets reading a shared snapshot the app writes; `mywallet://` deep links open the matching tab or editor |
-| App lock | Complete locally; device biometric verification pending | Face ID/Touch ID as the lock on its own or over an optional 4- or 6-digit passcode held as a salted keychain verifier, immediate/1-minute/5-minute auto-lock and throttled retries |
-| Export and import | Complete locally; device file-picker verification pending | RFC 4180 record CSV and a versioned JSON backup, plus CSV import with header matching, a reviewed plan and duplicate detection; receipt images excluded |
-| Onboarding | Complete locally; welcome step verified on simulator | First-launch welcome, first account, starter-category overview, optional monthly budget and Skip; completion is per-device and not synced |
-| Multi-currency | Complete locally; live rate download and CloudKit migration verification pending | Optional home currency with ECB-backed rates, converted `≈` totals that never replace per-currency figures, per-record pinned rates and transfer gain/loss |
-| Siri and Shortcuts | Complete locally; Siri and Spotlight device verification pending | Add Expense, Show Balance and Monthly Summary App Intents with account/category pickers, Siri phrases, and Spotlight indexing of names only |
+| Record creation | Complete | Expense, income and transfer; category/subcategory, most-used shortcuts, date/time, labels and optional details/photo |
+| Budgets | Complete | Weekly/monthly/custom category or global limits, positive rollover, progress and threshold notices |
+| Recurring transactions | Complete | Anchored schedules, launch/foreground catch-up, pause/cancel, skip/modify and idempotent occurrence receipts |
+| Financial reports | Complete | Monthly/yearly/custom summaries, category breakdowns, running account statements and shareable PDF |
+| Bill reminders | Complete | Due dates, recurrence, local notifications, calendar filtering and optional expense on payment |
+| iCloud synchronization | Complete | Private CloudKit container and platform entitlements; sync verified across devices |
+| Record editing/deletion | Complete | Tap a record to edit all fields; confirmed deletion from the editor, swipe or context menu; atomic ledger balance recalculation |
+| Account deletion | Complete | Impact summary and cascade/unlink strategies, including transfers |
+| Category deletion | Complete | Delete or reassign children; Uncategorized fallback; retain at least one category |
+| Statistics dashboard | Complete | Week, month, year and custom periods; account/category/label filters in a filter sheet; currency-separated totals, category charts, trends and reconstructed balance history |
+| Record search and filtering | Complete | Search payee, note, amount, category and label names; combine with type/account/category/label/payment/date/amount filters; relevance, date or amount ordering and local recent searches |
+| Home screen widgets | Complete | Balance, this month, recent records, budget progress and quick-add widgets reading a shared snapshot the app writes; `mywallet://` deep links open the matching tab or editor |
+| App lock | Complete | Face ID/Touch ID as the lock on its own or over an optional 4- or 6-digit passcode held as a salted keychain verifier, immediate/1-minute/5-minute auto-lock and throttled retries |
+| Export and import | Complete | RFC 4180 record CSV and a versioned JSON backup, plus CSV import with header matching, a reviewed plan and duplicate detection; receipt images excluded |
+| Onboarding | Complete | First-launch welcome, first account, starter-category overview, optional monthly budget and Skip; completion is per-device and not synced |
+| Multi-currency | Complete | Optional home currency with ECB-backed rates, converted `≈` totals that never replace per-currency figures, per-record pinned rates and transfer gain/loss |
+| Siri and Shortcuts | Complete | Add Expense, Show Balance and Monthly Summary App Intents with account/category pickers, Siri phrases, and Spotlight indexing of names only |
 | Apple Watch companion | Written but **not compiled** — watchOS platform not installed | Watch app with balance, today's spending and quick expense entry, plus two complications; syncs over WatchConnectivity. Watch app is not yet embedded in the iOS app |
-| iPad and Mac layout | Complete locally; split view verified on an iPad simulator | Sidebar and split view at regular width with the dashboard beside statistics, ⌘N/⌘F/⌘1–⌘5 shortcuts, drag a record onto a category to refile it, and multi-window |
-| Insights and alerts | Complete locally; notification delivery verification pending | Week and month comparisons, unusual-spending detection against a category's own average, logging and under-budget streaks, all opt-in per notice |
-| Receipt scanning | Complete locally; camera and OCR device verification pending | Multi-page VisionKit scanning stored per record with a gallery, plus on-device OCR that suggests an amount and date for you to accept |
-| Debt tracking | Complete locally; notification verification pending | Debts per person netted by currency, partial payments, optional ledger record on settlement and due-date reminders |
-| Savings goals | Complete locally; device verification pending | Targets with a progress ring, contribution and withdrawal history, a rate-based projection against an optional deadline, and a celebration when reached |
-| Custom dashboard | Complete locally; drag reordering not device-tested | Reorderable, toggleable Dashboard cards for the current month across all accounts: balance with this month's change, account cards that open each account's own screen, quick-add buttons, Balance Trend, Expenses by category or label, and Top Expenses |
-| Theming | Complete locally; app icon switching needs a device | Accent colors, three alternate app icons (placeholder artwork), per-category icon overrides, list density and a Dynamic Type nudge |
-| Drinking days | Complete locally; not yet checked on a simulator or device | A month calendar in More for marking alcohol drinking days with an optional drink count and note, plus a GitHub-style year chart shaded by drinks; monthly and yearly drinking/alcohol-free counts, days since the last drink and the longest alcohol-free run; synced through iCloud, kept out of wallet statistics, reset and export |
-| Expense splitting | Splitting complete locally; iCloud wallet sharing **not implemented** | Split a record equally, by amount or by percentage, track who paid and who owes, get settlement suggestions, and charge only your share to your budget |
+| iPad and Mac layout | Complete | Sidebar and split view at regular width with the dashboard beside statistics, ⌘N/⌘F/⌘1–⌘5 shortcuts, drag a record onto a category to refile it, and multi-window |
+| Insights and alerts | Complete | Week and month comparisons, unusual-spending detection against a category's own average, logging and under-budget streaks, all opt-in per notice |
+| Receipt scanning | Complete | Multi-page VisionKit scanning stored per record with a gallery, plus on-device OCR that suggests an amount and date for you to accept |
+| Debt tracking | Complete | Debts per person netted by currency, partial payments, optional ledger record on settlement and due-date reminders |
+| Savings goals | Complete | Targets with a progress ring, contribution and withdrawal history, a rate-based projection against an optional deadline, and a celebration when reached |
+| Custom dashboard | Complete | Reorderable, toggleable Dashboard cards for the current month across all accounts: balance with this month's change, account cards that open each account's own screen, quick-add buttons, Balance Trend, Expenses by category or label, and Top Expenses |
+| Theming | Complete | Accent colors, three alternate app icons (placeholder artwork), per-category icon overrides, list density and a Dynamic Type nudge |
+| Drinking days | Complete | A month calendar in More for marking alcohol drinking days with an optional drink count and note, plus a GitHub-style year chart shaded by drinks; monthly and yearly drinking/alcohol-free counts, days since the last drink and the longest alcohol-free run; synced through iCloud, kept out of wallet statistics, reset and export |
+| Expense splitting | Splitting complete; iCloud wallet sharing **not implemented** | Split a record equally, by amount or by percentage, track who paid and who owes, get settlement suggestions, and charge only your share to your budget |
 
 ## Getting Started
 

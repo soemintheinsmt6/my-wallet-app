@@ -12,7 +12,7 @@ These features close the gaps listed in the current Feature Status table and are
 
 ### 1.1 Record Editing
 
-> **Status:** Implemented locally; visual/device verification pending
+> **Status:** Implemented; verified on device
 > **Modules:** `WalletDomain/Records`, `WalletData`, `WalletFeature/Records`
 
 Allow users to open a saved record, modify any field (amount, category, account, date, tags, note, payee, payment type, photo) and save the changes. Balance adjustments must be recalculated atomically: reverse the old record's effect, apply the new values. Changing the account or switching between expense/income/transfer must handle the debit/credit swap correctly.
@@ -27,7 +27,7 @@ Allow users to open a saved record, modify any field (amount, category, account,
 
 ### 1.2 Record Deletion
 
-> **Status:** Implemented locally; visual/device verification pending
+> **Status:** Implemented; verified on device
 > **Modules:** `WalletDomain/Records`, `WalletData`, `WalletFeature/Records`
 
 Delete a single record with confirmation. Reverse its balance effect on the associated account(s). Support swipe-to-delete and context-menu delete from the records list, plus a delete button in the detail view.
@@ -42,7 +42,7 @@ Delete a single record with confirmation. Reverse its balance effect on the asso
 
 ### 1.3 Account Deletion
 
-> **Status:** Implemented locally; visual/device verification pending
+> **Status:** Implemented; verified on device
 > **Modules:** `WalletDomain/Accounts`, `WalletData`, `WalletFeature/Accounts`
 
 Delete an account with full disclosure of the consequences. Show the number of records that will be orphaned or deleted. Offer two strategies: delete all associated records, or keep records as archived/unlinked entries. Transfers involving the deleted account need explicit handling.
@@ -57,7 +57,7 @@ Delete an account with full disclosure of the consequences. Show the number of r
 
 ### 1.4 Category Deletion
 
-> **Status:** Implemented locally; CloudKit device verification pending
+> **Status:** Implemented; verified on device, iCloud sync included
 > **Modules:** `WalletDomain/Categories`, `WalletData`, `WalletFeature/Categories`
 
 Delete a root category or subcategory. Deleting a root category should offer to reassign its subcategories or delete them. Records using a deleted category/subcategory should fall back to an "Uncategorized" state rather than losing data.
@@ -72,7 +72,7 @@ Delete a root category or subcategory. Deleting a root category should offer to 
 
 ### 1.5 Statistics Dashboard
 
-> **Status:** Implemented locally; visual/device verification pending
+> **Status:** Implemented; verified on device
 > **Modules:** `WalletDomain` (new `Statistics/`), `WalletFeature` (new `Statistics/`)
 
 A dedicated tab or section showing spending and income analytics. Reuse `category.colorToken.color` for chart marks as noted in the design system.
@@ -99,7 +99,7 @@ Features that help users understand and control their finances beyond basic trac
 
 ### 2.1 Budgets
 
-> **Status:** Implemented locally; notification/device verification pending
+> **Status:** Implemented; verified on device, notifications included
 > **Modules:** `WalletDomain` (new `Budgets/`), `WalletData`, `WalletFeature` (new `Budgets/`)
 
 Set monthly or custom-period spending limits per category or overall. Track progress against the budget with visual indicators.
@@ -115,7 +115,7 @@ Set monthly or custom-period spending limits per category or overall. Track prog
 
 ### 2.2 Recurring Transactions
 
-> **Status:** Implemented locally; notification/device verification pending
+> **Status:** Implemented; verified on device, notifications included
 > **Modules:** `WalletDomain/Records` (extend), `WalletData`, `WalletFeature/Records`
 
 Define transactions that repeat on a schedule. The app creates records automatically or prompts the user to confirm.
@@ -131,7 +131,7 @@ Define transactions that repeat on a schedule. The app creates records automatic
 
 ### 2.3 Financial Reports
 
-> **Status:** Implemented locally; notification/device verification pending
+> **Status:** Implemented; verified on device, PDF export included
 > **Modules:** `WalletFeature` (new `Reports/`)
 
 Generate downloadable or shareable reports summarizing financial activity.
@@ -146,7 +146,7 @@ Generate downloadable or shareable reports summarizing financial activity.
 
 ### 2.4 Bill Reminders
 
-> **Status:** Implemented locally; notification/device verification pending
+> **Status:** Implemented; verified on device, notifications included
 > **Modules:** `WalletDomain` (new `Reminders/`), `WalletData`, `WalletFeature` (new `Reminders/`)
 
 Track upcoming bills and due dates with push notification reminders.
@@ -169,7 +169,7 @@ Polish and convenience features that make daily use smoother.
 
 ### 3.1 Search and Filtering
 
-> **Status:** Implemented locally; visual/device verification pending
+> **Status:** Implemented; verified on device
 > **Modules:** `WalletDomain/Records`, `WalletFeature/Records`
 
 Full-text search across records with advanced filtering.
@@ -186,7 +186,7 @@ Implementation notes (2026-09-10): `RecordSearch` is a pure domain calculation o
 
 ### 3.2 Home Screen Widgets
 
-> **Status:** Implemented locally; on-device widget rendering verification pending
+> **Status:** Implemented; widget rendering verified on device
 > **Modules:** `WalletDomain` (new `Widgets/`), `WalletFeature` (new `Widgets/`), new `WalletWidgets` extension target
 
 Glanceable financial summaries on the home screen.
@@ -209,7 +209,7 @@ Widgets lead with the currency holding the most accounts, ties broken by code so
 
 ### 3.3 Biometric / Passcode Lock
 
-> **Status:** Implemented locally; on-device biometric verification pending
+> **Status:** Implemented; Face ID/Touch ID and passcode verified on device
 > **Modules:** `WalletDomain` (new `Security/`), `WalletFeature` (new `Security/`), App entry point
 
 Protect sensitive financial data with Face ID, Touch ID, or a custom passcode.
@@ -233,7 +233,7 @@ Update (2026-09-11): biometrics can now hold the lock on their own. With no wall
 
 ### 3.4 Data Export / Import
 
-> **Status:** Implemented locally; document-picker and share-sheet device verification pending
+> **Status:** Implemented; document picker and share sheet verified on device
 > **Modules:** `WalletDomain` (new `DataExchange/`), `WalletFeature` (new `DataExchange/`), `WalletFeature/Settings`
 
 Let users export their data for backup or migration, and import from external sources.
@@ -254,7 +254,7 @@ Import is planned before anything is written. Columns are matched by header name
 
 ### 3.5 Onboarding Flow
 
-> **Status:** Implemented locally; welcome step verified on simulator, later steps device-verification pending
+> **Status:** Implemented; every step verified on device
 > **Modules:** `WalletFeature` (new `Onboarding/`), App entry point
 
 Guide new users through initial setup to reduce friction.
@@ -274,7 +274,7 @@ The account step writes through `AccountsViewModel`, so it gets the same validat
 
 ### 3.6 Multi-Currency Support
 
-> **Status:** Implemented locally; live rate download and CloudKit migration verification pending
+> **Status:** Implemented; live rate download and iCloud sync verified on device
 > **Modules:** `WalletDomain` (new `Currency/`), `WalletData` (new `Remote/`), `WalletFeature` (new `Currency/`)
 
 Enhanced multi-currency handling beyond the current per-account currency.
@@ -304,7 +304,7 @@ Broader platform integration and ecosystem features.
 
 ### 4.1 Siri Shortcuts / App Intents
 
-> **Status:** Implemented locally; Siri and Shortcuts device verification pending
+> **Status:** Implemented; Siri and Shortcuts verified on device
 > **Modules:** `My Wallet/App/Intents/` (AppIntents, CoreSpotlight)
 
 Voice-driven and automation-friendly record creation.
@@ -349,7 +349,7 @@ The snapshot gained accounts, most-used expense categories and today's spend so 
 
 ### 4.3 iPad Optimizations
 
-> **Status:** Implemented locally; split view verified on an iPad simulator
+> **Status:** Implemented; verified on iPad and Mac
 > **Modules:** `My Wallet/App/Navigation/`, `WalletFeature/Shared/Navigation/`, `WalletFeature/Records/`
 
 Take advantage of larger screens with richer layouts.
@@ -374,7 +374,7 @@ Multi-window is enabled through `UIApplicationSupportsMultipleScenes`. The compo
 
 ### 4.4 Notifications & Insights
 
-> **Status:** Implemented locally; notification delivery verification pending
+> **Status:** Implemented; notification delivery verified on device
 > **Modules:** `WalletDomain` (new `Insights/`), `WalletFeature` (new `Insights/`), `My Wallet/App/`
 
 Proactive financial awareness through smart alerts.
@@ -395,7 +395,7 @@ Every notice is off until switched on, and the settings footer says so. Unusual-
 
 ### 4.5 Camera Receipt Capture
 
-> **Status:** Implemented locally; camera and OCR device verification pending
+> **Status:** Implemented; camera scanning and OCR verified on device
 > **Modules:** `WalletDomain` (new `Receipts/`), `WalletData`, `WalletFeature` (new `Receipts/`)
 
 Capture receipts directly from the camera and optionally extract data.
@@ -428,7 +428,7 @@ Features for power users and long-term product differentiation.
 
 ### 5.1 Debt Tracking
 
-> **Status:** Implemented locally; notification and device verification pending
+> **Status:** Implemented; verified on device, reminders included
 > **Modules:** `WalletDomain` (new `Debts/`), `WalletData`, `WalletFeature` (new `Debts/`)
 
 Track money owed to or by other people.
@@ -449,7 +449,7 @@ Reminders reuse the notification client under a `wallet.debt.` prefix, disjoint 
 
 ### 5.2 Savings Goals
 
-> **Status:** Implemented locally; device verification pending
+> **Status:** Implemented; verified on device
 > **Modules:** `WalletDomain` (new `Goals/`), `WalletData`, `WalletFeature` (new `Goals/`)
 
 Set and track progress toward specific financial goals.
@@ -472,7 +472,7 @@ Update (2026-11-01): Each goal now has a visible Add Money row under its progres
 
 ### 5.3 Shared Wallets / Expense Splitting
 
-> **Status:** Splitting implemented locally. **`CKShare` is not implemented** — see the blocker below
+> **Status:** Splitting implemented and verified on device. **`CKShare` is not implemented** — see the blocker below
 > **Modules:** `WalletDomain` (new `Sharing/`), `WalletData`, `WalletFeature` (new `Sharing/`)
 
 Collaborative expense tracking for households or trips.
@@ -495,7 +495,7 @@ Shared budget tracking means a bill you front for a group counts toward **your**
 
 ### 5.4 Custom Dashboard
 
-> **Status:** Implemented locally; drag reordering not exercised on a device
+> **Status:** Implemented; verified on device, drag reordering included
 > **Modules:** `WalletFeature/Home/`
 
 A configurable home screen that surfaces the most relevant information.
@@ -523,7 +523,7 @@ Update (2026-11-01): three chart cards follow the month's summary, all in the Ba
 
 ### 5.5 Theming & Customization
 
-> **Status:** Implemented locally; app icon switching needs a device
+> **Status:** Implemented; verified on device, app icon switching included
 > **Modules:** `WalletFeature` (new `Theming/`), `My Wallet/App/`
 
 Go beyond light/dark with richer visual personalization.
