@@ -25,6 +25,8 @@ public struct GoalsView: View {
                         .swipeActions {
                             Button("Delete", role: .destructive) { deleting = progress }
                         }
+                    Button("Add Money", systemImage: "plus.circle.fill") { contributing = progress }
+                        .font(.body.weight(.medium))
                     if !progress.contributions.isEmpty { history(progress) }
                 }
             }
