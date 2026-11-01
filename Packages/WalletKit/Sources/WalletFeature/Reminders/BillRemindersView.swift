@@ -37,6 +37,7 @@ struct BillRemindersView: View {
                     Text("Calendar").tag(true)
                 }
                 .pickerStyle(.segmented)
+                .labelsHidden()
                 .listRowInsets(EdgeInsets(top: WalletMetrics.small, leading: WalletMetrics.large,
                                           bottom: WalletMetrics.small, trailing: WalletMetrics.large))
                 .listRowSeparator(.hidden)

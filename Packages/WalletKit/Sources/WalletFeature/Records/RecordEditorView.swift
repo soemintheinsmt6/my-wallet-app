@@ -228,6 +228,7 @@ struct RecordEditorView: View {
                 ForEach(RecordKind.allCases) { Text($0.title).tag($0) }
             }
             .pickerStyle(.segmented)
+            .labelsHidden()
             RecordAmountField(
                 kind: draft.kind, currency: currency, amount: $amount, focus: $focusedField, field: InputField.amount)
             if let converted = convertedAmount, let home = currencyModel?.homeCurrency {

@@ -92,6 +92,7 @@ struct AccountDetailView: View {
                 ForEach(ActivityPeriod.allCases) { Text($0.title).tag($0) }
             }
             .pickerStyle(.segmented)
+            .labelsHidden()
             .listRowSeparator(.hidden)
 
             HStack {

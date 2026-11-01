@@ -174,6 +174,7 @@ struct ExpenseBreakdownView: View {
                 ForEach(Grouping.allCases) { Text($0.rawValue).tag($0) }
             }
             .pickerStyle(.segmented)
+            .labelsHidden()
 
             if total <= 0 {
                 Text("No expenses this month.")

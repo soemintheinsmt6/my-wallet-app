@@ -361,6 +361,8 @@ public struct HomeView: View {
             // Edge to edge within the section, so the cards line up with the Balance card above.
             .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: WalletMetrics.small, trailing: 0))
             .listRowBackground(Color.clear)
+            // The cards are the surface; macOS would otherwise draw rules peeking out around them.
+            .listRowSeparator(.hidden)
         } header: {
             WalletSectionHeader(title: "Accounts", actionTitle: nil) {}
         }
@@ -392,6 +394,7 @@ public struct HomeView: View {
             // Same edges as the Balance card and the account cards.
             .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: WalletMetrics.small, trailing: 0))
             .listRowBackground(Color.clear)
+            .listRowSeparator(.hidden)
         }
     }
 

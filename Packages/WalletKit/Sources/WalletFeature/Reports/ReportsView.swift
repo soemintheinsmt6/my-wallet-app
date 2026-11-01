@@ -100,6 +100,7 @@ struct ReportsView: View {
                 ForEach(Period.allCases) { Text($0.title).tag($0) }
             }
             .pickerStyle(.segmented)
+            .labelsHidden()
             .listRowInsets(EdgeInsets(top: WalletMetrics.small, leading: WalletMetrics.large,
                                       bottom: WalletMetrics.small, trailing: WalletMetrics.large))
 
@@ -141,7 +142,7 @@ struct ReportsView: View {
         } header: {
             Text("Summary · \(currency)")
         } footer: {
-            Text(pace.inProgress
+            WalletListFooter(pace.inProgress
                  ? "Spending is compared with the same days of the previous \(comparisonUnit). Transfers, unlinked activity and accounts excluded from stats are left out."
                  : "Transfers, unlinked activity and accounts excluded from stats are left out.")
         }
@@ -289,7 +290,7 @@ struct ReportsView: View {
         } header: {
             Text("Export")
         } footer: {
-            Text("The PDF mirrors what is shown above. Receipt images are not included.")
+            WalletListFooter("The PDF mirrors what is shown above. Receipt images are not included.")
         }
     }
 

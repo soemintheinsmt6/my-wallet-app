@@ -147,6 +147,7 @@ public struct StatisticsView: View {
                 ForEach(Period.allCases) { Text($0.title).tag($0) }
             }
             .pickerStyle(.segmented)
+            .labelsHidden()
             .listRowInsets(EdgeInsets(top: WalletMetrics.small, leading: WalletMetrics.large,
                                       bottom: WalletMetrics.small, trailing: WalletMetrics.large))
 
@@ -221,7 +222,7 @@ public struct StatisticsView: View {
                 if currencies.count > 1 { currencyMenu }
             }
         } footer: {
-            Text(inProgress
+            WalletListFooter(inProgress
                  ? "Spending is compared with the same days of the previous \(comparisonUnit). Transfers and accounts excluded from stats are left out."
                  : "Transfers and accounts excluded from stats are left out.")
         }
@@ -332,6 +333,7 @@ public struct StatisticsView: View {
                     ForEach(groupingOptions, id: \.self) { Text($0.rawValue.capitalized).tag($0) }
                 }
                 .pickerStyle(.segmented)
+                .labelsHidden()
                 .listRowInsets(EdgeInsets(top: WalletMetrics.small, leading: WalletMetrics.large,
                                           bottom: WalletMetrics.small, trailing: WalletMetrics.large))
             }
@@ -381,7 +383,7 @@ public struct StatisticsView: View {
         } header: {
             Text("Account balance history")
         } footer: {
-            Text("Reconstructed from the current base balance and records. Manual balance corrections apply retrospectively. Category and label filters affect activity charts only.")
+            WalletListFooter("Reconstructed from the current base balance and records. Manual balance corrections apply retrospectively. Category and label filters affect activity charts only.")
         }
     }
 
