@@ -40,8 +40,15 @@ struct AccountEditorView: View {
         NavigationStack {
             Form {
                 Section {
-                    TextField("Name", text: $name)
-                        .onAppear { if currencyCode.isEmpty { currencyCode = defaultCurrency } }
+                    // Label leading and the field trailing, like Currency, Balance and Type below it
+                    // and the Name row in the category and label editors.
+                    HStack(spacing: 16) {
+                        Text("Name")
+                        TextField("Name", text: $name)
+                            .multilineTextAlignment(.trailing)
+                            .accessibilityLabel("Name")
+                    }
+                    .onAppear { if currencyCode.isEmpty { currencyCode = defaultCurrency } }
                     if account == nil {
                         // Reads as the row it is — a label, the choice, and somewhere to go —
                         // rather than as a line of button-tinted text.
