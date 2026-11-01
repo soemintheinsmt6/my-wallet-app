@@ -209,3 +209,7 @@ Open **Planning** for Budgets, Recurring, Bills and Reports. **Dashboard** summa
 Notifications require system permission. The app refreshes up to 60 eligible notices on activity, removes obsolete pending requests, and remembers delivered bill occurrences/budget thresholds locally. No push server or periodic background execution is required. Device notification delivery, simultaneous offline CloudKit schedule generation, and accessibility/UI interactions remain manual verification items. Local occurrence IDs/receipts protect retries; they do not establish global uniqueness across independently syncing CloudKit replicas.
 
 Phase 2 adds `BudgetRecord`, `RecurringSeriesRecord`, `ScheduledOccurrenceRecord`, and `BillReminderRecord`. Their optional Codable payloads and default IDs are compatible with the configured CloudKit model requirements. Schedule/occurrence payloads use external storage for attached photos. Existing model fields, container IDs and entitlements are unchanged. Local migration/reopening tests preserve prior accounts, exact decimal values, photos and occurrence receipts; deploy the additive CloudKit schema before releasing. Reset Wallet Data also removes all plans and pending notices after refresh.
+
+## License
+
+Released under the [MIT License](LICENSE). You may use, modify and distribute the code, including commercially, provided the copyright and license notice are kept.
