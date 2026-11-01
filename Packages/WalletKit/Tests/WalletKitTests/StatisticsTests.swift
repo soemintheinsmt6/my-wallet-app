@@ -95,6 +95,38 @@ struct StatisticsTests {
         #expect(result.balanceHistory.last?.date == start.addingTimeInterval(3 * 86400))
     }
 
+    @Test func comparisonCutsAPeriodInProgressToTheSameDaysOfThePreviousOne() throws {
+        let january = try #require(calendar.dateInterval(of: .month, for: start.addingTimeInterval(86400)))
+        let february = try #require(calendar.dateInterval(of: .month, for: january.end.addingTimeInterval(86400)))
+        // Ten days into February, compared with January's first ten.
+        let partial = PeriodComparison(interval: february, component: .month,
+                                       now: february.start.addingTimeInterval(10 * 86400), calendar: calendar)
+        #expect(partial.previous == DateInterval(start: january.start, duration: 10 * 86400))
+        #expect(partial.current.duration == 10 * 86400)
+        #expect(partial.elapsedDays == 10)
+        // A finished month compares whole months, though February is shorter.
+        let whole = PeriodComparison(interval: february, component: .month,
+                                     now: february.end.addingTimeInterval(86400), calendar: calendar)
+        #expect(whole.current == february)
+        #expect(whole.previous.start == january.start)
+        #expect(whole.previous.duration == february.duration)
+        // A custom range steps back by its own length.
+        let range = DateInterval(start: february.start, duration: 5 * 86400)
+        let custom = PeriodComparison(interval: range, component: nil, now: february.end, calendar: calendar)
+        #expect(custom.previous == DateInterval(start: range.start.addingTimeInterval(-5 * 86400), duration: 5 * 86400))
+        #expect(PeriodComparison.change(from: 100, to: 112) == 0.12)
+        #expect(PeriodComparison.change(from: 0, to: 50) == nil)
+    }
+
+    @Test func summariesOpenInTheDefaultCurrencyWhenAnAccountHoldsIt() {
+        let accounts = [Account(name: "A", type: .cash, currencyCode: "MMK"),
+                        Account(name: "B", type: .cash, currencyCode: "MMK"),
+                        Account(name: "C", type: .cash, currencyCode: "USD")]
+        #expect(accounts.preferredCurrency(default: "USD") == "USD")
+        #expect(accounts.preferredCurrency(default: "EUR") == "MMK")
+        #expect([Account]().preferredCurrency(default: "EUR") == nil)
+    }
+
     @Test func missingCategoriesAreGroupedAsUncategorizedAndEmptyPeriodsHaveZeroTotals() {
         let account = Account(name: "Cash", type: .cash)
         let missing = WalletCategory(name: "Deleted")

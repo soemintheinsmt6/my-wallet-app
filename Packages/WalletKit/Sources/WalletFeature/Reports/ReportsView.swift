@@ -8,12 +8,24 @@ struct ReportsView: View {
     @State private var date = Date()
     @State private var start = Calendar.current.startOfDay(for: Date())
     @State private var end = Date()
-    @State private var currency = "USD"
+    /// The currency picked in the options; empty until the user picks one.
+    @State private var pickedCurrency = ""
     @State private var accountID: UUID?
     @State private var shareURL: URL?
     @State private var exportDescription = ""
     @State private var isExporting = false
     @State private var error: String?
+    @Environment(\.defaultCurrency) private var defaultCurrency
+
+    private var currencies: [String] { Array(Set(records.accounts.map(\.currencyCode))).sorted() }
+
+    /// The picked currency, else the default currency, else the one most accounts use.
+    private var currency: String {
+        if currencies.contains(pickedCurrency) { return pickedCurrency }
+        let included = records.accounts.filter { !$0.settings.excludeFromStats }
+        return included.preferredCurrency(default: defaultCurrency)
+            ?? records.accounts.preferredCurrency(default: defaultCurrency) ?? defaultCurrency
+    }
 
     private enum Period: String, CaseIterable, Identifiable {
         case monthly, yearly, custom
@@ -98,8 +110,9 @@ struct ReportsView: View {
                 ForEach(records.accounts) { Text("Statement: \($0.name)").tag(Optional($0.id)) }
             }
             if accountID == nil {
-                WalletMenuPicker("Currency", selection: $currency, value: currency) {
-                    ForEach(Array(Set(records.accounts.map(\.currencyCode) + [currency])).sorted(), id: \.self) { Text($0).tag($0) }
+                WalletMenuPicker("Currency", selection: Binding(get: { currency }, set: { pickedCurrency = $0 }),
+                                 value: currency) {
+                    ForEach(Array(Set(currencies + [currency])).sorted(), id: \.self) { Text($0).tag($0) }
                 }
             }
         } header: {
@@ -113,26 +126,59 @@ struct ReportsView: View {
     // MARK: - Financial summary
 
     @ViewBuilder private func summarySections(_ result: WalletStatistics) -> some View {
+        let pace = self.pace
         Section {
-            HStack(spacing: WalletMetrics.medium) {
-                WalletStatTile(title: "Income", value: money(result.income, currency), symbol: "arrow.down.left", tint: .green)
-                WalletStatTile(title: "Expenses", value: money(result.expenses, currency), symbol: "arrow.up.right", tint: .red)
-            }
-            .listRowInsets(EdgeInsets(top: 0, leading: WalletMetrics.large, bottom: WalletMetrics.small, trailing: WalletMetrics.large))
-            .listRowBackground(Color.clear)
-            LabeledContent("Net") { WalletAmountText.net(result.net, currencyCode: currency) }
+            WalletSummaryCard(income: result.income, expenses: result.expenses, currencyCode: currency,
+                              dailyAverage: pace.dailyAverage,
+                              comparison: .init(label: comparisonLabel, change: pace.change))
         } header: {
             Text("Summary · \(currency)")
+        } footer: {
+            Text(pace.inProgress
+                 ? "Spending is compared with the same days of the previous \(comparisonUnit). Transfers, unlinked activity and accounts excluded from stats are left out."
+                 : "Transfers, unlinked activity and accounts excluded from stats are left out.")
         }
 
         categorySection("Expense breakdown", totals: result.expensesByCategory)
         categorySection("Income breakdown", totals: result.incomeByCategory)
+    }
 
-        Section {
-            Text("Transfers, unlinked activity and accounts excluded from stats are omitted. Currency totals are kept separate.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+    /// Spending per day so far and against the same stretch of the previous period.
+    private var pace: (dailyAverage: Decimal, change: Double?, inProgress: Bool) {
+        let comparison = PeriodComparison(interval: interval, component: period.component)
+        func expenses(_ window: DateInterval) -> Decimal {
+            WalletStatistics.calculate(records: records.records, accounts: records.accounts, categories: records.categories,
+                                       filter: StatisticsFilter(interval: window, currencyCode: currency,
+                                                                granularity: .month)).expenses
         }
+        let soFar = expenses(comparison.current)
+        return (soFar / Decimal(comparison.elapsedDays),
+                PeriodComparison.change(from: expenses(comparison.previous), to: soFar),
+                comparison.current.end < interval.end)
+    }
+
+    private var comparisonUnit: String {
+        switch period {
+        case .monthly: "month"
+        case .yearly: "year"
+        case .custom: "range"
+        }
+    }
+
+    private var comparisonLabel: String {
+        switch period {
+        case .monthly: "vs last month"
+        case .yearly: "vs last year"
+        case .custom: "vs previous \(Int((interval.duration / 86400).rounded())) days"
+        }
+    }
+
+    /// The comparison in words, for the PDF.
+    private func changeDescription(_ change: Double?) -> String {
+        guard let change else { return "no spending in the previous period" }
+        let percent = abs(change).formatted(.percent.precision(.fractionLength(0)))
+        if abs(change) < 0.005 { return "about the same" }
+        return change > 0 ? "\(percent) more" : "\(percent) less"
     }
 
     private func categorySection(_ title: String, totals: [CategoryTotal]) -> some View {
@@ -278,7 +324,9 @@ struct ReportsView: View {
             totals.isEmpty ? ["No activity in this period."] : totals.map { "\(records.categoryName($0.categoryID)): \(value($0.amount))" }
         }
         return FinancialReport(title: "Financial Summary - \(currency)", subtitle: subtitle, sections: [
-            .init(title: "Summary", lines: ["Income: \(value(result.income))", "Expenses: \(value(result.expenses))", "Net: \(value(result.net))"]),
+            .init(title: "Summary", lines: ["Income: \(value(result.income))", "Expenses: \(value(result.expenses))", "Net: \(value(result.net))",
+                                            "Spent per day: \(value(pace.dailyAverage))",
+                                            "Spending \(comparisonLabel): \(changeDescription(pace.change))"]),
             .init(title: "Top Spending Categories", lines: lines(Array(result.expensesByCategory.prefix(5)))),
             .init(title: "Expense Breakdown", lines: lines(result.expensesByCategory)),
             .init(title: "Income Breakdown", lines: lines(result.incomeByCategory)),

@@ -68,13 +68,10 @@ public struct HomeView: View {
 
     private var currencies: [String] { Array(Set(includedAccounts.map(\.currencyCode))).sorted() }
 
-    /// The currency holding the most accounts, so a single-currency wallet never sees a picker.
+    /// The currency picked in the menu, else the default currency, else the one most accounts use.
     private var selectedCurrency: String {
         if currencies.contains(displayedCurrency) { return displayedCurrency }
-        let counts = Dictionary(grouping: includedAccounts, by: \.currencyCode).mapValues(\.count)
-        return counts.max { left, right in
-            left.value == right.value ? left.key > right.key : left.value < right.value
-        }?.key ?? currencies.first ?? "USD"
+        return includedAccounts.preferredCurrency(default: currency.defaultCurrency) ?? currency.defaultCurrency
     }
 
     private var totalBalance: Decimal {

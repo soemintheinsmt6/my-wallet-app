@@ -6,6 +6,7 @@ public struct StatisticsView: View {
     @ObservedObject private var viewModel: RecordsViewModel
     private let planning: PlanningViewModel?
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.defaultCurrency) private var defaultCurrency
     @State private var period = Period.month
     @State private var anchor = Date()
     @State private var customStart = Calendar.current.startOfDay(for: Date())
@@ -37,7 +38,11 @@ public struct StatisticsView: View {
 
     private var accounts: [Account] { viewModel.accounts.filter { !$0.settings.excludeFromStats } }
     private var currencies: [String] { Array(Set(accounts.map(\.currencyCode))).sorted() }
-    private var selectedCurrency: String { currencies.contains(currency) ? currency : currencies.first ?? "USD" }
+    /// The currency picked here, else the default currency, else the one most accounts use.
+    private var selectedCurrency: String {
+        if currencies.contains(currency) { return currency }
+        return accounts.preferredCurrency(default: defaultCurrency) ?? defaultCurrency
+    }
 
     private var interval: DateInterval {
         let calendar = Calendar.current
@@ -235,13 +240,62 @@ public struct StatisticsView: View {
     // MARK: - Summary
 
     private func summarySection(_ result: WalletStatistics) -> some View {
-        Section {
-            WalletSummaryCard(income: result.income, expenses: result.expenses, currencyCode: selectedCurrency)
+        let comparison = PeriodComparison(interval: interval, component: period.component)
+        let soFar = expenses(in: comparison.current)
+        let inProgress = comparison.current.end < interval.end
+        return Section {
+            WalletSummaryCard(income: result.income, expenses: result.expenses, currencyCode: selectedCurrency,
+                              dailyAverage: soFar / Decimal(comparison.elapsedDays),
+                              comparison: .init(label: comparisonLabel,
+                                                change: PeriodComparison.change(from: expenses(in: comparison.previous),
+                                                                                to: soFar)))
         } header: {
-            Text("Summary · \(selectedCurrency)")
+            HStack {
+                Text("Summary")
+                Spacer()
+                if currencies.count > 1 { currencyMenu }
+            }
         } footer: {
-            Text("Totals stay separate per currency. Transfers are excluded from income and expenses. Accounts excluded from stats and unlinked records are omitted.")
+            Text(inProgress
+                 ? "Spending is compared with the same days of the previous \(comparisonUnit). Transfers and accounts excluded from stats are left out."
+                 : "Transfers and accounts excluded from stats are left out.")
         }
+    }
+
+    /// Expenses under the current filters over another window, for the comparison.
+    private func expenses(in window: DateInterval) -> Decimal {
+        WalletStatistics.calculate(records: viewModel.records, accounts: viewModel.accounts,
+                                   categories: viewModel.categories,
+                                   filter: StatisticsFilter(interval: window, currencyCode: selectedCurrency,
+                                                            accountID: accountID, categoryID: categoryID,
+                                                            tagID: tagID, granularity: .month)).expenses
+    }
+
+    private var comparisonUnit: String { period == .custom ? "range" : period.rawValue }
+
+    private var comparisonLabel: String {
+        switch period {
+        case .week: "vs last week"
+        case .month: "vs last month"
+        case .year: "vs last year"
+        case .custom: "vs previous \(Int((interval.duration / 86400).rounded())) days"
+        }
+    }
+
+    private var currencyMenu: some View {
+        Menu {
+            Picker("Currency", selection: Binding(get: { selectedCurrency }, set: { currency = $0 })) {
+                ForEach(currencies, id: \.self) { Text($0).tag($0) }
+            }
+        } label: {
+            HStack(spacing: WalletMetrics.tight) {
+                Text(selectedCurrency)
+                Image(systemName: "chevron.up.chevron.down").imageScale(.small)
+            }
+            .font(.footnote.weight(.semibold))
+        }
+        .textCase(nil)
+        .accessibilityLabel("Currency \(selectedCurrency)")
     }
 
     // MARK: - Charts

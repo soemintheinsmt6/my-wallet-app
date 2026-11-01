@@ -93,6 +93,37 @@ public struct StatisticsPoint: Identifiable, Sendable {
     }
 }
 
+/// A period set against the one before it, cut to the same length so a period still in progress
+/// is compared like for like: the first ten days of this month against the first ten of last.
+public struct PeriodComparison: Sendable, Equatable {
+    /// The period up to now, or the whole period once it has ended.
+    public let current: DateInterval
+    /// The same stretch of the previous period.
+    public let previous: DateInterval
+
+    /// - Parameter component: the calendar unit the period spans, so "previous" is last month
+    ///   rather than the 30 days before; `nil` for a custom range, which steps back by its length.
+    public init(interval: DateInterval, component: Calendar.Component?, now: Date = Date(),
+                calendar: Calendar = .current) {
+        let elapsedEnd = now > interval.start && now < interval.end ? now : interval.end
+        let elapsed = elapsedEnd.timeIntervalSince(interval.start)
+        let previousStart = component.flatMap { calendar.date(byAdding: $0, value: -1, to: interval.start) }
+            ?? interval.start.addingTimeInterval(-interval.duration)
+        current = DateInterval(start: interval.start, end: elapsedEnd)
+        previous = DateInterval(start: previousStart,
+                                end: min(previousStart.addingTimeInterval(elapsed), interval.start))
+    }
+
+    /// Whole days covered so far, at least one, for a per-day average.
+    public var elapsedDays: Int { max(1, Int((current.duration / 86400).rounded(.up))) }
+
+    /// The relative change from `previous` to `current`; `nil` when there is nothing to compare.
+    public static func change(from previous: Decimal, to current: Decimal) -> Double? {
+        guard previous > 0 else { return nil }
+        return NSDecimalNumber(decimal: (current - previous) / previous).doubleValue
+    }
+}
+
 public struct WalletStatistics: Sendable {
     public let income: Decimal
     public let expenses: Decimal

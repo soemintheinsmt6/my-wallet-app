@@ -60,3 +60,15 @@ public struct AccountSettings: Equatable, Sendable {
     public var isBelowMinimum: Bool { notifyBelowMinimum && currentBalance < minimumBalance }
     public var isAboveMaximum: Bool { notifyAboveMaximum && currentBalance > maximumBalance }
 }
+
+public extension Array where Element == Account {
+    /// The currency a summary opens in: the user's default currency when an account holds it,
+    /// otherwise the currency most accounts use (alphabetical on a tie), or `nil` with no accounts.
+    func preferredCurrency(default defaultCurrency: String) -> String? {
+        if contains(where: { $0.currencyCode == defaultCurrency }) { return defaultCurrency }
+        let counts = Dictionary(grouping: self, by: \.currencyCode).mapValues(\.count)
+        return counts.max { left, right in
+            left.value == right.value ? left.key > right.key : left.value < right.value
+        }?.key
+    }
+}
