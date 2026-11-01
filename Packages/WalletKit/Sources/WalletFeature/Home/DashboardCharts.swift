@@ -89,8 +89,9 @@ struct BalanceTrendChart: View {
                 RuleMark(x: .value("Date", point.date, unit: .day))
                     .foregroundStyle(Color.secondary.opacity(0.4))
                     .lineStyle(StrokeStyle(lineWidth: 1))
+                    // Kept inside the plot, so it never covers the balance above the chart.
                     .annotation(position: .top, spacing: WalletMetrics.tight,
-                                overflowResolution: .init(x: .fit(to: .chart), y: .disabled)) {
+                                overflowResolution: .init(x: .fit(to: .chart), y: .fit(to: .chart))) {
                         VStack(spacing: WalletMetrics.hair) {
                             Text(point.date.formatted(.dateTime.day().month(.abbreviated)))
                                 .font(.caption2)
@@ -98,10 +99,18 @@ struct BalanceTrendChart: View {
                             Text(point.amount.walletFormatted(currencyCode))
                                 .font(.caption.weight(.semibold))
                                 .monospacedDigit()
+                                .foregroundStyle(.primary)
                         }
                         .padding(.horizontal, WalletMetrics.small)
                         .padding(.vertical, WalletMetrics.tight)
-                        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: WalletMetrics.small))
+                        // A solid card fill with a hairline edge: a material renders as solid
+                        // black inside a chart annotation on device, hiding the text on it.
+                        .background(Color.walletCard, in: RoundedRectangle(cornerRadius: WalletMetrics.small))
+                        .overlay {
+                            RoundedRectangle(cornerRadius: WalletMetrics.small)
+                                .strokeBorder(Color.secondary.opacity(0.3), lineWidth: 0.5)
+                        }
+                        .shadow(color: .black.opacity(0.12), radius: 4, y: 1)
                     }
                 PointMark(x: .value("Date", point.date, unit: .day),
                           y: .value("Balance", point.amount.doubleValue))
