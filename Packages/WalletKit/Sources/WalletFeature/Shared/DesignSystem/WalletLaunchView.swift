@@ -40,6 +40,10 @@ public struct WalletLaunchView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        // Centered on the whole screen, not the safe area: the first copy shows before the tab
+        // bar exists and the dashboard's copy shows above it, and centering in each one's safe
+        // area made the mark jump up by the tab bar's height between them.
+        .ignoresSafeArea()
         .background(Color.walletGroupedBackground.ignoresSafeArea())
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Opening your wallet")
