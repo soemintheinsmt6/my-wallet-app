@@ -342,12 +342,12 @@ public struct StatisticsView: View {
         Section {
             Chart(result.balanceHistory) { point in
                 AreaMark(x: .value("Date", point.date), y: .value("Balance", point.amount.doubleValue))
-                    .interpolationMethod(.stepEnd)
+                    .interpolationMethod(.monotone)
                     .foregroundStyle(.linearGradient(colors: [Color.accentColor.opacity(0.28), Color.accentColor.opacity(0.02)],
                                                      startPoint: .top, endPoint: .bottom))
                     .accessibilityHidden(true)
                 LineMark(x: .value("Date", point.date), y: .value("Balance", point.amount.doubleValue))
-                    .interpolationMethod(.stepEnd)
+                    .interpolationMethod(.monotone)
                     .lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round))
                     .foregroundStyle(Color.accentColor)
                     .accessibilityLabel(point.date.formatted(date: .abbreviated, time: .omitted))
