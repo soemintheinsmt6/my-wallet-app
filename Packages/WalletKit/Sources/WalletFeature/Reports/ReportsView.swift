@@ -50,6 +50,12 @@ struct ReportsView: View {
         return Calendar.current.dateInterval(of: component, for: date)!
     }
 
+    private var periodTitle: String {
+        period == .yearly
+            ? interval.start.formatted(.dateTime.year())
+            : interval.start.formatted(.dateTime.month(.wide).year())
+    }
+
     private var subtitle: String {
         "\(interval.start.formatted(date: .abbreviated, time: .omitted)) - \(interval.end.addingTimeInterval(-1).formatted(date: .abbreviated, time: .omitted))"
     }
@@ -100,8 +106,9 @@ struct ReportsView: View {
             if period == .custom {
                 DatePicker("From", selection: $start, displayedComponents: .date)
                 DatePicker("Through", selection: $end, in: start..., displayedComponents: .date)
-            } else {
-                DatePicker("Date in period", selection: $date, displayedComponents: .date)
+            } else if let component = period.component {
+                WalletPeriodStepper(title: periodTitle, unit: period == .yearly ? "year" : "month",
+                                    date: $date, component: component)
             }
 
             WalletMenuPicker("Report", selection: $accountID,

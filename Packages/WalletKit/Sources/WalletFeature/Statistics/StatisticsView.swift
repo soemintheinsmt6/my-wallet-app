@@ -153,46 +153,11 @@ public struct StatisticsView: View {
             if period == .custom {
                 DatePicker("From", selection: $customStart, displayedComponents: .date)
                 DatePicker("Through", selection: $customEnd, in: customStart..., displayedComponents: .date)
-            } else {
-                periodStepper
+            } else if let component = period.component {
+                WalletPeriodStepper(title: periodTitle, unit: period.title.lowercased(),
+                                    date: $anchor, component: component)
             }
         }
-    }
-
-    /// Stepping whole periods is how people actually read statistics; a raw date picker made the
-    /// user pick an arbitrary day inside the period they wanted.
-    private var periodStepper: some View {
-        HStack {
-            Button { shift(by: -1) } label: {
-                Image(systemName: "chevron.left").frame(width: WalletMetrics.touchTarget, height: WalletMetrics.touchTarget)
-            }
-            .buttonStyle(.borderless)
-            .accessibilityLabel("Previous \(period.title.lowercased())")
-
-            Spacer()
-            Text(periodTitle)
-                .font(.body.weight(.semibold))
-                .lineLimit(1)
-                .minimumScaleFactor(0.7)
-                .contentTransition(.identity)
-            Spacer()
-
-            Button { shift(by: 1) } label: {
-                Image(systemName: "chevron.right").frame(width: WalletMetrics.touchTarget, height: WalletMetrics.touchTarget)
-            }
-            .buttonStyle(.borderless)
-            .disabled(isAtCurrentPeriod)
-            .accessibilityLabel("Next \(period.title.lowercased())")
-        }
-        .accessibilityElement(children: .contain)
-    }
-
-    private var isAtCurrentPeriod: Bool { interval.contains(Date()) || interval.start > Date() }
-
-    private func shift(by amount: Int) {
-        guard let component = period.component,
-              let moved = Calendar.current.date(byAdding: component, value: amount, to: anchor) else { return }
-        anchor = moved
     }
 
     // MARK: - Filters
