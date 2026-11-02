@@ -14,6 +14,7 @@ struct RecordRow: View {
     private var draft: RecordDraft { record.draft }
 
     private var title: String {
+        if draft.isAdjustment, draft.categoryID == nil { return RecordDraft.adjustmentTitle }
         if draft.kind == .transfer, draft.categoryID == nil { return draft.kind.title }
         return viewModel.categoryName(draft.categoryID)
     }
@@ -25,6 +26,8 @@ struct RecordRow: View {
             return "\(account) → \(destination)"
         }
         if !draft.payee.isEmpty { return "\(account) · \(draft.payee)" }
+        // An adjustment's note, such as "Interest", is usually the only thing saying what it was.
+        if draft.isAdjustment, !draft.note.isEmpty { return "\(account) · \(draft.note)" }
         return account
     }
 
@@ -66,6 +69,8 @@ struct RecordRow: View {
     @ViewBuilder private var tile: some View {
         if let category = viewModel.category(draft.categoryID) {
             CategoryIcon(category: category)
+        } else if draft.isAdjustment {
+            WalletIconTile(symbol: RecordDraft.adjustmentSymbol, color: RecordDraft.adjustmentTint)
         } else {
             WalletIconTile(symbol: draft.kind.symbol, color: draft.kind.tint)
         }

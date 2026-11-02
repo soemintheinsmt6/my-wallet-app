@@ -42,13 +42,16 @@ public struct RecordCSVRow: Sendable, Equatable {
     public var payee: String
     public var note: String
     public var paymentType: PaymentType
+    /// A balance adjustment: `kind` is `.income` for an increase and `.expense` for a decrease.
+    public var isAdjustment: Bool
 
     public init(date: Date, kind: RecordKind, amount: Decimal, currencyCode: String = "",
                 accountName: String, destinationAccountName: String = "", categoryPath: String = "",
                 labelNames: [String] = [], payee: String = "", note: String = "",
-                paymentType: PaymentType = .unspecified) {
+                paymentType: PaymentType = .unspecified, isAdjustment: Bool = false) {
         self.date = date
         self.kind = kind
+        self.isAdjustment = isAdjustment
         self.amount = amount
         self.currencyCode = currencyCode
         self.accountName = accountName
@@ -73,7 +76,8 @@ public enum RecordCSVError: LocalizedError, Equatable {
         case .missingColumns(let columns):
             "The file is missing required columns: \(columns.map(\.rawValue).joined(separator: ", "))."
         case .invalidDate(let row, let value): "Row \(row): “\(value)” is not a date this app can read."
-        case .invalidType(let row, let value): "Row \(row): “\(value)” is not expense, income or transfer."
+        case .invalidType(let row, let value):
+            "Row \(row): “\(value)” is not expense, income, transfer, \(RecordCSV.adjustmentIncrease) or \(RecordCSV.adjustmentDecrease)."
         case .invalidAmount(let row, let value): "Row \(row): “\(value)” is not a positive amount."
         case .missingAccount(let row): "Row \(row): the account name is empty."
         }
@@ -87,6 +91,26 @@ public enum RecordCSVError: LocalizedError, Equatable {
 public enum RecordCSV {
     public static let labelSeparator = "; "
     public static let categorySeparator = " / "
+    /// Type-column values for balance adjustments, which have no record kind of their own.
+    public static let adjustmentIncrease = "adjustment increase"
+    public static let adjustmentDecrease = "adjustment decrease"
+
+    static func typeText(for draft: RecordDraft) -> String {
+        guard draft.isAdjustment else { return draft.kind.rawValue }
+        return draft.kind == .income ? adjustmentIncrease : adjustmentDecrease
+    }
+
+    /// The kind and adjustment flag a Type value names, or `nil` when it names neither.
+    static func type(from text: String) -> (kind: RecordKind, isAdjustment: Bool)? {
+        if let kind = RecordKind(rawValue: text) { return (kind, false) }
+        // Accept "adjustment-increase" or "adjustment_increase" too, as spreadsheets rewrite them.
+        let spaced = text.replacingOccurrences(of: "-", with: " ").replacingOccurrences(of: "_", with: " ")
+        switch spaced {
+        case adjustmentIncrease: return (.income, true)
+        case adjustmentDecrease: return (.expense, true)
+        default: return nil
+        }
+    }
 
     private static var formatter: ISO8601DateFormatter {
         let formatter = ISO8601DateFormatter()
@@ -106,7 +130,7 @@ public enum RecordCSV {
             let labels = draft.tagIDs.compactMap { tagsByID[$0]?.name }.sorted()
             rows.append([
                 formatter.string(from: draft.date),
-                draft.kind.rawValue,
+                typeText(for: draft),
                 string(from: draft.amount),
                 record.currencyCode,
                 draft.accountID.flatMap { accountsByID[$0]?.name } ?? "",
@@ -171,7 +195,7 @@ public enum RecordCSV {
                 throw RecordCSVError.invalidDate(row: number, value: rawDate)
             }
             let rawType = value(.type).lowercased()
-            guard let kind = RecordKind(rawValue: rawType) else {
+            guard let (kind, isAdjustment) = type(from: rawType) else {
                 throw RecordCSVError.invalidType(row: number, value: value(.type))
             }
             let rawAmount = value(.amount)
@@ -190,7 +214,8 @@ public enum RecordCSV {
                                 accountName: account, destinationAccountName: value(.toAccount),
                                 categoryPath: value(.category), labelNames: labels,
                                 payee: value(.payee), note: value(.note),
-                                paymentType: paymentType(from: value(.paymentType)))
+                                paymentType: paymentType(from: value(.paymentType)),
+                                isAdjustment: isAdjustment)
         }
     }
 

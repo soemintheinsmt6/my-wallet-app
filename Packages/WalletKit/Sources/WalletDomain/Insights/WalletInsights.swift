@@ -87,7 +87,7 @@ public enum WalletInsightsCalculator {
         let included = Set(accounts.filter { !$0.settings.excludeFromStats && $0.currencyCode == currency }
             .map(\.id))
         let expenses = records.filter {
-            $0.draft.kind == .expense && $0.draft.accountID.map(included.contains) == true
+            $0.draft.kind == .expense && $0.draft.countsAsActivity && $0.draft.accountID.map(included.contains) == true
         }
 
         return WalletInsights(

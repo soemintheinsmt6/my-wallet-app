@@ -13,6 +13,7 @@ struct AccountDetailView: View {
     @State private var anchor = Date()
     @State private var editingAccount: Account?
     @State private var editingRecord: WalletRecord?
+    @State private var adjusting = false
 
     /// Read live, so an edit or a new record shows without leaving the screen.
     private var account: Account? { records.account(accountID) }
@@ -33,7 +34,7 @@ struct AccountDetailView: View {
                         WalletSummaryCard(income: activity.income, expenses: activity.expenses,
                                           currencyCode: account.currencyCode)
                     } footer: {
-                        WalletListFooter("Transfers between your accounts are listed below but not counted as income or expenses.")
+                        WalletListFooter("Transfers between your accounts and balance adjustments are listed below but not counted as income or expenses.")
                     }
                     recordsSection(activity.records)
                 }
@@ -56,6 +57,10 @@ struct AccountDetailView: View {
         }
         .sheet(item: $editingAccount) { AccountEditorView(viewModel: accounts, account: $0) }
         .sheet(item: $editingRecord) { RecordEditorView(viewModel: records, record: $0) }
+        .sheet(isPresented: $adjusting) {
+            RecordEditorView(viewModel: records,
+                             initialDraft: .adjustment(accountID: accountID, increase: true))
+        }
         .onChange(of: period) { _, _ in anchor = Date() }
     }
 
@@ -83,6 +88,16 @@ struct AccountDetailView: View {
             .accessibilityElement(children: .combine)
             .walletFirstRow(true)
             .listRowSeparator(.hidden, edges: .bottom)
+
+            // Records interest, fees or any difference from a statement as its own entry, so the
+            // balance's history explains every change rather than being silently overwritten.
+            Button { adjusting = true } label: {
+                Label("Adjust Balance", systemImage: RecordDraft.adjustmentSymbol)
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.bordered)
+            .buttonBorderShape(.capsule)
+            .listRowSeparator(.hidden)
         }
     }
 

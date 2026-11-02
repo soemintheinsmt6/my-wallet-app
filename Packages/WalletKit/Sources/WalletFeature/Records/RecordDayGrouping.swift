@@ -46,7 +46,7 @@ enum RecordDayGrouping {
     }
 
     private static func net(for results: [RecordSearchResult]) -> (Decimal?, String?) {
-        let counted = results.map(\.record).filter { $0.draft.kind != .transfer }
+        let counted = results.map(\.record).filter(\.draft.countsAsActivity)
         let currencies = Set(counted.map(\.currencyCode))
         guard let currency = currencies.first, currencies.count == 1 else { return (nil, nil) }
         let total = counted.reduce(Decimal(0)) { partial, record in

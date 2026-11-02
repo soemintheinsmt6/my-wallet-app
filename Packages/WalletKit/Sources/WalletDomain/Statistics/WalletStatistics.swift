@@ -151,7 +151,7 @@ public struct WalletStatistics: Sendable {
         }.map(\.id))
         let activity = records.filter {
             let draft = $0.draft
-            return draft.kind != .transfer && draft.accountID.map { accountIDs.contains($0) } == true &&
+            return draft.countsAsActivity && draft.accountID.map { accountIDs.contains($0) } == true &&
                 draft.date >= filter.interval.start && draft.date < filter.interval.end &&
                 (filter.categoryID == nil || draft.categoryID.map { selectedCategories.contains($0) } == true) &&
                 (filter.tagID == nil || draft.tagIDs.contains(filter.tagID!))
@@ -233,7 +233,7 @@ public struct WalletStatistics: Sendable {
         var values: [UUID?: Decimal] = [:]
         for record in records {
             let draft = record.draft
-            guard draft.kind == .expense, let account = draft.accountID, accountIDs.contains(account),
+            guard draft.kind == .expense, draft.countsAsActivity, let account = draft.accountID, accountIDs.contains(account),
                   draft.date >= filter.interval.start, draft.date < filter.interval.end else { continue }
             let labels = draft.tagIDs.filter { known.contains($0) }
             if labels.isEmpty {

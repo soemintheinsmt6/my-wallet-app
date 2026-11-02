@@ -61,7 +61,7 @@ public struct BudgetProgress: Identifiable, Sendable {
         let accountIDs = Set(accounts.filter { !$0.settings.excludeFromStats && $0.currencyCode == budget.currencyCode }.map(\.id))
         let categoryIDs = Set(categories.filter { $0.id == budget.categoryID || $0.parentID == budget.categoryID }.map(\.id))
         let expenses = records.filter {
-            $0.draft.kind == .expense && $0.draft.accountID.map { accountIDs.contains($0) } == true &&
+            $0.draft.kind == .expense && $0.draft.countsAsActivity && $0.draft.accountID.map { accountIDs.contains($0) } == true &&
                 (budget.categoryID == nil || $0.draft.categoryID.map { categoryIDs.contains($0) } == true)
         }
         var carried: Decimal = 0

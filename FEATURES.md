@@ -89,6 +89,26 @@ A dedicated tab or section showing spending and income analytics. Reuse `categor
 
 ---
 
+### 1.6 Balance Adjustments
+
+> **Status:** Implemented; unit-tested and built, not yet verified on device
+> **Modules:** `WalletDomain/Records`, `WalletData`, `WalletFeature/Accounts`, `WalletFeature/Records`
+
+An account's balance changes for reasons the user did not enter as income or an expense, such as bank interest, a fee, or a difference found against a statement. **Adjust Balance** on an account's screen records the change as its own entry, so the balance's history explains every change instead of the number being overwritten.
+
+- [x] Increase or decrease by an amount, with a date, note, label and photo, and a preview of the balance once saved
+- [x] Recorded in the ledger and listed with the account's records as "Balance adjustment", with the note beside the account name
+- [x] Editing or deleting an adjustment reverses its effect like any other record
+- [x] Left out of income, expense, budget, insight, widget and day totals, like transfers; balance history and statements include it
+- [x] CSV export and import as `adjustment increase` / `adjustment decrease`; backups keep the flag
+- [x] Unit tests for balances, edit/delete reversal, validation, totals, older drafts decoding and CSV round-tripping
+
+An adjustment is an ordinary record with an `isAdjustment` flag: an increase is stored with the income kind and a decrease with the expense kind. Balance arithmetic therefore needs no new case, and an older build that sees a synced adjustment reads it as income or an expense of the same amount, so balances still agree across devices. The flag is a defaulted attribute, a lightweight CloudKit-compatible addition that is **unverified against a deployed CloudKit schema**. Adjustments need no category and offer no payee, payment type, split or repeat, since they correct a balance rather than pay someone. Interest that should count as income in statistics can still be entered as an Income record under a category instead.
+
+Changing the balance in the account editor still rewrites the opening balance without a record, and the editor's footer points to Adjust Balance for changes worth keeping.
+
+---
+
 Implementation notes (2026-09-06): Phase 1 is implemented. Statistics keeps currencies separate; automatic conversion remains Phase 3.6. Balance history is reconstructed from current base balances and the ledger, so manual balance corrections apply retrospectively. Category deletion adds an optional `deletionDate` tombstone to preserve deleted starter IDs across reseeding. Archived account records retain currency snapshots and surviving transfer legs; editing an unlinked record requires selecting valid accounts again. Phase 2 is implemented below; Phases 3–5 remain planned.
 
 ## Phase 2 — Financial Intelligence

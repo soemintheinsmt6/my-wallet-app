@@ -39,7 +39,7 @@ public enum ActivityPeriod: String, CaseIterable, Sendable, Identifiable {
 ///
 /// Totals count only income and expenses booked to this account, matching the labels the summary
 /// card uses; transfers move money between the user's own accounts, so they are listed but left
-/// out of both totals. Unlike Statistics, an account excluded from statistics still shows its own
+/// out of both totals, as are balance adjustments. Unlike Statistics, an account excluded from statistics still shows its own
 /// activity here — excluding it hides it from the wallet-wide figures, not from itself.
 public struct AccountActivity: Equatable, Sendable {
     public let income: Decimal
@@ -54,7 +54,7 @@ public struct AccountActivity: Equatable, Sendable {
             guard draft.date >= interval.start, draft.date < interval.end else { return false }
             return draft.accountID == accountID || draft.destinationAccountID == accountID
         }
-        let own = touching.filter { $0.draft.accountID == accountID }
+        let own = touching.filter { $0.draft.accountID == accountID && $0.draft.countsAsActivity }
         income = own.filter { $0.draft.kind == .income }.reduce(0) { $0 + $1.draft.amount }
         expenses = own.filter { $0.draft.kind == .expense }.reduce(0) { $0 + $1.draft.amount }
         self.records = touching.sorted { $0.draft.date > $1.draft.date }

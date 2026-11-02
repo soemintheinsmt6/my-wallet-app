@@ -21,6 +21,10 @@ final class TransactionRecord {
     /// Optional so the addition is a lightweight, CloudKit-compatible migration; existing records
     /// simply have no pinned rate and keep using market rates.
     var manualRateValue: String?
+    /// A balance adjustment rather than income or an expense. Defaulted, so existing records need
+    /// only a lightweight, CloudKit-compatible migration; an older build reading a synced
+    /// adjustment sees ordinary income or an expense of the same amount, so balances still agree.
+    var isAdjustment: Bool = false
     var hasPhoto: Bool = false
     @Attribute(.externalStorage) var photoData: Data?
 
@@ -44,6 +48,7 @@ final class TransactionRecord {
         payee = draft.payee.trimmingCharacters(in: .whitespacesAndNewlines)
         paymentValue = draft.paymentType.rawValue
         manualRateValue = draft.manualRate.map { NSDecimalNumber(decimal: $0).stringValue }
+        isAdjustment = draft.isAdjustment
         photoData = draft.photoData
         hasPhoto = draft.photoData != nil
     }
@@ -62,6 +67,7 @@ final class TransactionRecord {
         draft.payee = payee
         draft.paymentType = PaymentType(rawValue: paymentValue) ?? .unspecified
         draft.manualRate = manualRateValue.flatMap { Decimal(string: $0, locale: Locale(identifier: "en_US_POSIX")) }
+        draft.isAdjustment = isAdjustment
         return WalletRecord(id: id, draft: draft, currencyCode: currencyCode, destinationCurrencyCode: destinationCurrencyCode, hasPhoto: hasPhoto)
     }
 }

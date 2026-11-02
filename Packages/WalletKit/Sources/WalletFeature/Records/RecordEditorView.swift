@@ -42,15 +42,17 @@ struct RecordEditorView: View {
     private enum SelectionScreen: String, Hashable { case account, destination, category, tags, payment, note, payee }
 
     /// `initialKind` preselects the segmented type for a new record; widget quick-add uses it.
-    init(viewModel: RecordsViewModel, record: WalletRecord? = nil, title: String? = nil, allowsRecurrence: Bool = true, initialKind: RecordKind? = nil, saveAction: ((UUID, RecordDraft) async throws -> Void)? = nil) {
+    /// `initialDraft` starts a new record from prepared values, such as a balance adjustment on
+    /// one account; its account is kept rather than replaced by the last one used.
+    init(viewModel: RecordsViewModel, record: WalletRecord? = nil, title: String? = nil, allowsRecurrence: Bool = true, initialKind: RecordKind? = nil, initialDraft: RecordDraft? = nil, saveAction: ((UUID, RecordDraft) async throws -> Void)? = nil) {
         self.viewModel = viewModel
         self.record = record
         self.saveAction = saveAction
         self.editorTitle = title
         self.allowsRecurrence = allowsRecurrence
-        var initialDraft = record?.draft ?? RecordDraft()
-        if record == nil, let initialKind { initialDraft.kind = initialKind }
-        _draft = State(initialValue: initialDraft)
+        var startingDraft = record?.draft ?? initialDraft ?? RecordDraft()
+        if record == nil, let initialKind { startingDraft.kind = initialKind }
+        _draft = State(initialValue: startingDraft)
         _recordID = State(initialValue: record?.id ?? UUID())
         _amount = State(initialValue: record.map { AccountAmountInput.text($0.draft.amount) } ?? "")
         _receivedAmount = State(initialValue: record?.draft.receivedAmount.map { AccountAmountInput.text($0) } ?? "")
@@ -91,7 +93,9 @@ struct RecordEditorView: View {
                     amountSection
                     generalSection
                     detailsSection
-                    if record == nil && allowsRecurrence { recurrenceSection }
+                    // An adjustment corrects one moment's balance; interest and fees differ each
+                    // time, so repeating a fixed amount would only record the wrong figure.
+                    if record == nil && allowsRecurrence && !draft.isAdjustment { recurrenceSection }
                     if let errorMessage { Text(errorMessage).foregroundStyle(.red).padding(20) }
                     if canDelete {
                         // Laid out as a form row so its icon and title line up with the rows above.
@@ -143,7 +147,7 @@ struct RecordEditorView: View {
                 }
                 .background(.background)
             }
-            .navigationTitle(editorTitle ?? (record == nil ? "Add Record" : "Edit Record"))
+            .navigationTitle(editorTitle ?? defaultTitle)
             #if !os(macOS)
                 .navigationBarTitleDisplayMode(.inline)
             #endif
@@ -185,10 +189,10 @@ struct RecordEditorView: View {
             .task {
                 guard !didFocusAmount else { return }
                 didFocusAmount = true
-                if record == nil, let id = UUID(uuidString: lastUsedAccountID), viewModel.account(id) != nil {
+                if record == nil, draft.accountID == nil, let id = UUID(uuidString: lastUsedAccountID), viewModel.account(id) != nil {
                     draft.accountID = id
                 }
-                if record == nil { draft.paymentType = PaymentType(rawValue: lastUsedPaymentType) ?? .unspecified }
+                if record == nil, !draft.isAdjustment { draft.paymentType = PaymentType(rawValue: lastUsedPaymentType) ?? .unspecified }
                 await loadOriginalPhoto()
                 await Task.yield()
                 focusedField = .amount
@@ -224,13 +228,30 @@ struct RecordEditorView: View {
     @ViewBuilder
     private var amountSection: some View {
         VStack(spacing: 12) {
-            Picker("Record type", selection: $draft.kind) {
-                ForEach(RecordKind.allCases) { Text($0.title).tag($0) }
+            if draft.isAdjustment {
+                Picker("Adjustment", selection: $draft.kind) {
+                    ForEach([RecordKind.income, .expense]) { Text($0.adjustmentTitle).tag($0) }
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+            } else {
+                Picker("Record type", selection: $draft.kind) {
+                    ForEach(RecordKind.allCases) { Text($0.title).tag($0) }
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
             }
-            .pickerStyle(.segmented)
-            .labelsHidden()
             RecordAmountField(
                 kind: draft.kind, currency: currency, amount: $amount, focus: $focusedField, field: InputField.amount)
+            if let adjustedBalance {
+                LabeledContent("Balance after") {
+                    Text(adjustedBalance.walletFormatted(currency))
+                        .monospacedDigit()
+                        .foregroundStyle(adjustedBalance < 0 ? .red : .primary)
+                }
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+            }
             if let converted = convertedAmount, let home = currencyModel?.homeCurrency {
                 ConvertedAmountText(amount: converted, currencyCode: home, font: .footnote)
                     .frame(maxWidth: .infinity, alignment: .trailing)
@@ -255,6 +276,24 @@ struct RecordEditorView: View {
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 12)
+    }
+
+    private var defaultTitle: String {
+        if draft.isAdjustment { return record == nil ? "Adjust Balance" : "Edit Adjustment" }
+        return record == nil ? "Add Record" : "Edit Record"
+    }
+
+    /// For an adjustment, the account's balance once it is saved: today's balance without this
+    /// record's saved effect, plus the amount being entered. Shown so the user can match it to a
+    /// bank statement before saving.
+    private var adjustedBalance: Decimal? {
+        guard draft.isAdjustment, let account = viewModel.account(draft.accountID) else { return nil }
+        var balance = account.settings.currentBalance
+        if let saved = record?.draft, saved.accountID == account.id, saved.kind != .transfer {
+            balance -= saved.kind == .income ? saved.amount : -saved.amount
+        }
+        let value = (try? AccountAmountInput.parse(amount)) ?? 0
+        return balance + (draft.kind == .income ? value : -value)
     }
 
     /// The amount being entered, in the home currency, using the pinned rate when one is typed.
@@ -291,28 +330,7 @@ struct RecordEditorView: View {
                     "To account", value: viewModel.account(draft.destinationAccountID)?.name, screen: .destination)
             }
         }
-        recordRow(
-            viewModel.category(draft.categoryID)?.symbol ?? "questionmark",
-            color: viewModel.category(draft.categoryID)?.colorToken.color ?? .gray, categoryTile: true
-        ) {
-            Button {
-                focusedField = nil
-                selectionScreen = .category
-            } label: {
-                HStack {
-                    Text("Category").foregroundStyle(.primary)
-                    Spacer()
-                    Text(
-                        draft.categoryID == nil
-                            ? (draft.kind == .transfer ? "Optional" : (record == nil ? "Required" : "Uncategorized"))
-                            : viewModel.category(draft.categoryID)?.name ?? "Uncategorized"
-                    )
-                    .foregroundStyle(draft.categoryID == nil && draft.kind != .transfer ? Color.red : Color.secondary)
-                    chevron
-                }
-            }
-            .buttonStyle(.plain)
-        }
+        if !draft.isAdjustment { categoryRow }
         recordRow("calendar") {
             RecordDateTimeField(date: $draft.date) { focusedField = nil }
         }
@@ -335,11 +353,37 @@ struct RecordEditorView: View {
         }
     }
 
+    /// Adjustments are not filed under a category, so they leave this row out.
+    private var categoryRow: some View {
+        recordRow(
+            viewModel.category(draft.categoryID)?.symbol ?? "questionmark",
+            color: viewModel.category(draft.categoryID)?.colorToken.color ?? .gray, categoryTile: true
+        ) {
+            Button {
+                focusedField = nil
+                selectionScreen = .category
+            } label: {
+                HStack {
+                    Text("Category").foregroundStyle(.primary)
+                    Spacer()
+                    Text(
+                        draft.categoryID == nil
+                            ? (draft.kind == .transfer ? "Optional" : (record == nil ? "Required" : "Uncategorized"))
+                            : viewModel.category(draft.categoryID)?.name ?? "Uncategorized"
+                    )
+                    .foregroundStyle(draft.categoryID == nil && draft.kind != .transfer ? Color.red : Color.secondary)
+                    chevron
+                }
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
     /// Divides this record between people. Only offered once the record has an amount and a saved
     /// identity to attach the split to.
     @ViewBuilder private var splitRow: some View {
         if let splits = splitsViewModel, let value = try? AccountAmountInput.parse(amount), value > 0,
-           draft.kind != .transfer, !currency.isEmpty {
+           draft.countsAsActivity, !currency.isEmpty {
             recordRow("person.2") {
                 Button {
                     isSplitting = true
@@ -422,13 +466,16 @@ struct RecordEditorView: View {
         recordRow("square.and.pencil") {
             selectionButton("Note", value: draft.note.isEmpty ? nil : draft.note, screen: .note)
         }
-        recordRow("person") {
-            selectionButton("Payee", value: draft.payee.isEmpty ? nil : draft.payee, screen: .payee)
-        }
-        recordRow("creditcard") {
-            selectionButton(
-                "Payment type", value: draft.paymentType == .unspecified ? nil : draft.paymentType.title,
-                screen: .payment)
+        // An adjustment is a correction to a balance, not a payment to or from someone.
+        if !draft.isAdjustment {
+            recordRow("person") {
+                selectionButton("Payee", value: draft.payee.isEmpty ? nil : draft.payee, screen: .payee)
+            }
+            recordRow("creditcard") {
+                selectionButton(
+                    "Payment type", value: draft.paymentType == .unspecified ? nil : draft.paymentType.title,
+                    screen: .payment)
+            }
         }
         exchangeRateRow
         splitRow

@@ -165,7 +165,8 @@ private struct ImportPreviewView: View {
                         ForEach(plan.importable.prefix(10)) { entry in
                             HStack(spacing: WalletMetrics.medium) {
                                 VStack(alignment: .leading, spacing: WalletMetrics.hair) {
-                                    Text(entry.row.categoryPath.isEmpty ? entry.row.kind.title : entry.row.categoryPath)
+                                    Text(!entry.row.categoryPath.isEmpty ? entry.row.categoryPath
+                                         : entry.row.isAdjustment ? RecordDraft.adjustmentTitle : entry.row.kind.title)
                                         .font(.callout.weight(.medium))
                                         .lineLimit(1)
                                     Text("\(entry.row.accountName) · \(entry.row.date.formatted(date: .abbreviated, time: .shortened))")

@@ -41,6 +41,7 @@ Tests live in `Packages/WalletKit/Tests/WalletKitTests/` and use Swift Testing (
 | `CategoryColorTests` | Fixed palette, independence from names/natures and deterministic custom/root-child color mapping |
 | `TagTests` | Ten colors, name validation/uniqueness, stable edit identity, selective/idempotent deletion, notifications, view-model failure state and migration/reopening |
 | `RecordTests` | Ledger balances, idempotent creation, transfers and received amounts, reference/amount validation, details/photos, label detachment, most-used ranking and additive migration/reopening |
+| `BalanceAdjustmentTests` | Adjustment increases/decreases changing balances without a category, edit/delete reversal, transfers rejected as adjustments, totals excluding adjustments while balance history and statements include them, older drafts decoding and CSV round-tripping |
 | `RecordSearchTests` | Field matching (payee, note, amount, category and parent, label), multi-term AND, case/diacritic insensitivity, relevance ranking and tie-breaks, intersecting filter groups, transfer account legs, date/amount bounds, sort determinism and recent-search history |
 | `SettingsTests` | Confirmed-reset operation, deletion notifications, starter reseeding, preference retention/clearing, failure state and appearance mapping |
 
@@ -400,3 +401,17 @@ Still open:
 - **Apple Watch companion:** not compiled or embedded in the iOS app; its manual checks under Apple Watch Validation still apply.
 - **CloudKit production schema:** the account icon field (`symbolValue`) must be deployed to the production environment before release. Device tests ran against the development environment.
 - **iCloud wallet sharing (`CKShare`):** not implemented, so there is nothing to verify.
+
+## Balance Adjustment Validation (2026-11-02)
+
+**312 tests across 51 suites passed**, and unsigned iOS Simulator and macOS builds passed. The new `BalanceAdjustmentTests` suite covers increases and decreases changing the balance without a category, edit and delete reversing the effect, a transfer being rejected as an adjustment, statistics and account activity leaving adjustments out of income and expenses while balance history and statements include them, drafts encoded before the flag existed still decoding, and CSV export and import by direction.
+
+**Not verified:** the app was not run, so the Adjust Balance button, the editor's Increase/Decrease mode and balance preview, and the adjustment row's icon and note were checked only by build. The `isAdjustment` attribute's CloudKit sync and production schema deploy are unverified.
+
+Manual checks:
+
+1. Open an account, choose Adjust Balance, enter an increase with a note such as "Interest", and confirm the preview matches the balance after saving.
+2. Confirm the adjustment is listed with the plus-minus icon and its note, and the period's income and expense totals do not change.
+3. Edit it into a decrease, then delete it, and confirm the balance follows each time.
+4. Export a CSV and confirm the Type column reads `adjustment increase` or `adjustment decrease`.
+5. Record an adjustment on one device and confirm it syncs to a second, once the schema is deployed.

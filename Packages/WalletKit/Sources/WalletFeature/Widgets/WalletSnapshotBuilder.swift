@@ -90,7 +90,7 @@ public enum WalletSnapshotBuilder {
             .map(\.id))
         return records.reduce(Decimal.zero) { total, record in
             let draft = record.draft
-            guard draft.kind == .expense, let account = draft.accountID, included.contains(account),
+            guard draft.kind == .expense, draft.countsAsActivity, let account = draft.accountID, included.contains(account),
                   draft.date >= day.start, draft.date < day.end else { return total }
             return total + draft.amount
         }
@@ -122,7 +122,8 @@ public enum WalletSnapshotBuilder {
                 title = category.name
             }
         } else {
-            title = draft.kind == .transfer ? draft.kind.title : "Uncategorized"
+            title = draft.isAdjustment ? RecordDraft.adjustmentTitle
+                : draft.kind == .transfer ? draft.kind.title : "Uncategorized"
         }
 
         let account = draft.accountID.flatMap { accounts[$0] }

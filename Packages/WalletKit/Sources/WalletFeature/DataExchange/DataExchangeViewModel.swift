@@ -121,6 +121,7 @@ public final class DataExchangeViewModel: ObservableObject {
             progress = "Importing \(index + 1) of \(entries.count)…"
             var draft = RecordDraft()
             draft.kind = entry.row.kind
+            draft.isAdjustment = entry.row.isAdjustment
             draft.accountID = entry.accountID
             draft.destinationAccountID = entry.destinationAccountID
             draft.amount = entry.row.amount
