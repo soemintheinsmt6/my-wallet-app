@@ -47,7 +47,7 @@ Update this table whenever a feature is completed. As of 2026-11-01 every featur
 | Debt tracking | Complete | Debts per person netted by currency, partial payments, optional ledger record on settlement and due-date reminders |
 | Savings goals | Complete | Targets with a progress ring, contribution and withdrawal history, a rate-based projection against an optional deadline, and a celebration when reached |
 | Custom dashboard | Complete | Reorderable, toggleable Dashboard cards for the current month across all accounts: balance with this month's change, account cards that open each account's own screen, quick-add buttons, Balance Trend, Expenses by category or label, and Top Expenses |
-| Theming | Complete | Accent colors, three alternate app icons (placeholder artwork), per-category icon overrides, list density and a Dynamic Type nudge |
+| Theming | Complete | Accent colors, three alternate app icons (Midnight, Forest, Sunset) sharing the wallet mark, per-category icon overrides, list density and a Dynamic Type nudge |
 | Drinking days | Complete | A month calendar in More for marking alcohol drinking days with an optional drink count and note, plus a GitHub-style year chart shaded by drinks; monthly and yearly drinking/alcohol-free counts, days since the last drink and the longest alcohol-free run; synced through iCloud, kept out of wallet statistics, reset and export |
 | Expense splitting | Splitting complete; iCloud wallet sharing **not implemented** | Split a record equally, by amount or by percentage, track who paid and who owes, get settlement suggestions, and charge only your share to your budget |
 

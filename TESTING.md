@@ -421,3 +421,9 @@ Manual checks:
 Editing an account's balance now saves the difference as a balance adjustment instead of rewriting the opening balance. **314 tests across 51 suites passed**, and unsigned iOS Simulator and macOS builds passed. Two new tests cover a raised and then lowered balance producing one adjustment each while the statement's opening balance stays put, and a name-only edit producing no record. The existing account and record suites passed unchanged. Not run in the app.
 
 Manual check: edit an account's balance, save, and confirm a "Balance adjustment · Balance edited" row appears for the difference, and that last month's balance history has not moved.
+
+## App Icon Refresh (2026-11-02)
+
+Replaced every icon with the new wallet-and-cards artwork: default, dark and tinted iOS icons, the seven macOS sizes and the 120/180 px Midnight, Forest and Sunset alternates. The iOS and alternate images are opaque with no alpha channel. The tinted icon sits on black, and the macOS icons are clipped to a rounded square with a transparent margin. Unsigned iOS Simulator and macOS builds passed with no icon warnings. Each rendered image was inspected, but none was seen on a Home Screen, Dock or in Settings.
+
+Manual checks: confirm the icon in light, dark and tinted Home Screen modes; switch to each alternate in Settings and confirm the swatch color matches the icon; check the Dock icon on macOS.
