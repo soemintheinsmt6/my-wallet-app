@@ -41,7 +41,7 @@ Tests live in `Packages/WalletKit/Tests/WalletKitTests/` and use Swift Testing (
 | `CategoryColorTests` | Fixed palette, independence from names/natures and deterministic custom/root-child color mapping |
 | `TagTests` | Ten colors, name validation/uniqueness, stable edit identity, selective/idempotent deletion, notifications, view-model failure state and migration/reopening |
 | `RecordTests` | Ledger balances, idempotent creation, transfers and received amounts, reference/amount validation, details/photos, label detachment, most-used ranking and additive migration/reopening |
-| `BalanceAdjustmentTests` | Adjustment increases/decreases changing balances without a category, edit/delete reversal, transfers rejected as adjustments, totals excluding adjustments while balance history and statements include them, older drafts decoding and CSV round-tripping |
+| `BalanceAdjustmentTests` | Adjustment increases/decreases changing balances without a category, account balance edits recorded as adjustments without shifting earlier history (and none for a name-only edit), edit/delete reversal, transfers rejected as adjustments, totals excluding adjustments while balance history and statements include them, older drafts decoding and CSV round-tripping |
 | `RecordSearchTests` | Field matching (payee, note, amount, category and parent, label), multi-term AND, case/diacritic insensitivity, relevance ranking and tie-breaks, intersecting filter groups, transfer account legs, date/amount bounds, sort determinism and recent-search history |
 | `SettingsTests` | Confirmed-reset operation, deletion notifications, starter reseeding, preference retention/clearing, failure state and appearance mapping |
 
@@ -415,3 +415,9 @@ Manual checks:
 3. Edit it into a decrease, then delete it, and confirm the balance follows each time.
 4. Export a CSV and confirm the Type column reads `adjustment increase` or `adjustment decrease`.
 5. Record an adjustment on one device and confirm it syncs to a second, once the schema is deployed.
+
+### Account Balance Edits as Adjustments (2026-11-02)
+
+Editing an account's balance now saves the difference as a balance adjustment instead of rewriting the opening balance. **314 tests across 51 suites passed**, and unsigned iOS Simulator and macOS builds passed. Two new tests cover a raised and then lowered balance producing one adjustment each while the statement's opening balance stays put, and a name-only edit producing no record. The existing account and record suites passed unchanged. Not run in the app.
+
+Manual check: edit an account's balance, save, and confirm a "Balance adjustment · Balance edited" row appears for the difference, and that last month's balance history has not moved.

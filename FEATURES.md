@@ -105,7 +105,7 @@ An account's balance changes for reasons the user did not enter as income or an 
 
 An adjustment is an ordinary record with an `isAdjustment` flag: an increase is stored with the income kind and a decrease with the expense kind. Balance arithmetic therefore needs no new case, and an older build that sees a synced adjustment reads it as income or an expense of the same amount, so balances still agree across devices. The flag is a defaulted attribute, a lightweight CloudKit-compatible addition that is **unverified against a deployed CloudKit schema**. Adjustments need no category and offer no payee, payment type, split or repeat, since they correct a balance rather than pay someone. Interest that should count as income in statistics can still be entered as an Income record under a category instead.
 
-Changing the balance in the account editor still rewrites the opening balance without a record, and the editor's footer points to Adjust Balance for changes worth keeping.
+Changing the balance in the account editor is recorded the same way: the difference from today's balance is saved as an adjustment dated now, with the note "Balance edited", in the same save as the account's other edits. The opening balance is therefore set only when the account is created, and earlier history never shifts. Before 2026-11-02, editing the balance rewrote the opening balance instead, so corrections made then still apply retrospectively.
 
 ---
 

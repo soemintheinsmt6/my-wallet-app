@@ -47,6 +47,48 @@ struct BalanceAdjustmentTests {
         #expect(try await balance(repository, bank) == 1000)
     }
 
+    @Test func editingTheAccountBalanceRecordsTheDifferenceAndLeavesEarlierHistory() async throws {
+        let (repository, bank) = try await setup()
+        let useCases = AccountUseCases(repository: repository)
+        var expense = RecordDraft()
+        expense.kind = .expense
+        expense.accountID = bank.id
+        expense.categoryID = try #require(try await repository.fetchCategories().first).id
+        expense.amount = 200
+        expense.date = now
+        try await repository.createRecord(id: UUID(), draft: expense)
+
+        var settings = bank.settings
+        settings.currentBalance = 850
+        try await useCases.update(id: bank.id, name: "Bank", type: .savings, settings: settings)
+        #expect(try await balance(repository, bank) == 850)
+        let increase = try #require(try await repository.fetchRecords().first { $0.draft.isAdjustment })
+        #expect(increase.draft.kind == .income)
+        #expect(increase.draft.amount == 50)
+
+        settings.currentBalance = 800
+        try await useCases.update(id: bank.id, name: "Bank", type: .savings, settings: settings)
+        #expect(try await balance(repository, bank) == 800)
+        let adjustments = try await repository.fetchRecords().filter { $0.draft.isAdjustment }
+        #expect(adjustments.count == 2)
+        #expect(adjustments.contains { $0.draft.kind == .expense && $0.draft.amount == 50 })
+
+        // Earlier history is untouched: the opening balance is still the one the account began with.
+        let account = try #require(try await repository.fetchAccounts().first)
+        let statement = AccountStatement.calculate(account: account, records: try await repository.fetchRecords(),
+                                                   interval: DateInterval(start: .distantPast, end: .distantFuture))
+        #expect(statement.openingBalance == 1000)
+    }
+
+    @Test func editingOnlyTheNameRecordsNoAdjustment() async throws {
+        let (repository, bank) = try await setup()
+        let current = try #require(try await repository.fetchAccounts().first)
+        try await AccountUseCases(repository: repository).update(id: bank.id, name: "Main Bank", type: .savings,
+                                                                 settings: current.settings)
+        #expect(try await repository.fetchRecords().isEmpty)
+        #expect(try await repository.fetchAccounts().first?.name == "Main Bank")
+    }
+
     @Test func aTransferCannotBeAnAdjustment() async throws {
         let (repository, bank) = try await setup()
         var draft = RecordDraft.adjustment(accountID: bank.id, increase: true, amount: 10, date: now)

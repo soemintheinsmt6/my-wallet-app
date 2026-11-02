@@ -134,7 +134,8 @@ public struct WalletStatistics: Sendable {
     public var net: Decimal { income - expenses }
 
     /// Currency totals are never combined without an exchange rate. Transfers affect only history.
-    /// History uses the current stored base balance, so manual balance corrections are retrospective.
+    /// History starts from the stored base (opening) balance; later balance edits are dated
+    /// adjustment records, so they apply from their own date rather than retrospectively.
     /// It is sampled on its own schedule (see `StatisticsGranularity.history(for:)`) and stops at
     /// the step containing `now`, so a period still in progress does not plot days yet to come.
     public static func calculate(records: [WalletRecord], accounts: [Account], categories: [WalletCategory],

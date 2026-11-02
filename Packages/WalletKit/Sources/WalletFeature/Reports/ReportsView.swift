@@ -258,7 +258,7 @@ struct ReportsView: View {
         }
 
         Section {
-            Text("Balances are reconstructed from current base balances and records. Manual balance corrections apply retrospectively. Transfers use this account's currency.")
+            Text("Balances are reconstructed from opening balances and records, including dated balance adjustments. Transfers use this account's currency.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
@@ -323,7 +323,7 @@ struct ReportsView: View {
                 .init(title: "Transactions", lines: statement.entries.isEmpty ? ["No records in this period."] : statement.entries.map {
                     "\($0.record.draft.date.formatted(date: .abbreviated, time: .shortened)) | \($0.record.draft.kind.title) | \(records.categoryName($0.record.draft.categoryID))\nChange: \(value($0.change)) | Balance: \(value($0.balance))\n\($0.record.draft.payee) \($0.record.draft.note)"
                 }),
-                .init(title: "Method", lines: ["Balances are reconstructed from current base balances and records. Manual balance corrections apply retrospectively. Transfers use this account's currency."])
+                .init(title: "Method", lines: ["Balances are reconstructed from opening balances and records, including dated balance adjustments. Transfers use this account's currency."])
             ])
         }
         let result = statistics

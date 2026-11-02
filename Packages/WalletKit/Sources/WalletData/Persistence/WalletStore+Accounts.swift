@@ -3,17 +3,27 @@ import SwiftData
 import WalletDomain
 
 extension WalletStore {
-    func updateAccount(id: UUID, name: String, type: AccountType, settings: AccountSettings) throws {
+    /// `settings.currentBalance` is the balance the user wants shown. A difference from today's
+    /// balance is saved as a balance adjustment dated `date`, in the same save as the other edits,
+    /// rather than by rewriting the base balance, which would silently change all past history.
+    func updateAccount(id: UUID, name: String, type: AccountType, settings: AccountSettings, date: Date = Date()) throws {
         try Task.checkCancellation()
         let context = ModelContext(modelContainer)
         context.autosaveEnabled = false
         let descriptor = FetchDescriptor<AccountRecord>(predicate: #Predicate { $0.id == id })
         let records = try context.fetch(descriptor)
-        guard !records.isEmpty else { throw AccountValidationError.accountNotFound }
-        let changes = try recordBalanceChanges(in: context)
+        guard let stored = records.first else { throw AccountValidationError.accountNotFound }
+        let base = stored.account.settings.currentBalance
+        let difference = settings.currentBalance - (base + (try recordBalanceChanges(in: context))[id, default: 0])
         var baseSettings = settings
-        baseSettings.currentBalance -= changes[id, default: 0]
+        baseSettings.currentBalance = base
         for record in records { record.apply(name: name, type: type, settings: baseSettings) }
+        if difference != 0 {
+            var adjustment = RecordDraft.adjustment(accountID: id, increase: difference > 0,
+                                                    amount: abs(difference), date: date)
+            adjustment.note = "Balance edited"
+            try writeRecord(id: UUID(), draft: adjustment, in: context)
+        }
         try context.save()
     }
 

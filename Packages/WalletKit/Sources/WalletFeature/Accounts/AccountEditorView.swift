@@ -106,7 +106,7 @@ struct AccountEditorView: View {
                     if account == nil {
                         Text("Currency is chosen once when you create an account. Enter amounts using your local decimal separator; thousands are grouped for you. Leave the balance empty to open the account at zero.")
                     } else {
-                        Text("Changing the balance here corrects the opening balance without leaving a record. To record interest, fees or another change, use Adjust Balance on the account.")
+                        Text("Changing the balance records the difference as a balance adjustment dated now, so earlier history stays as it was. To choose the date or add a note, use Adjust Balance on the account.")
                     }
                 }
 

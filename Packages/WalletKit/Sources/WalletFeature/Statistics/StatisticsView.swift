@@ -383,7 +383,7 @@ public struct StatisticsView: View {
         } header: {
             Text("Account balance history")
         } footer: {
-            WalletListFooter("Reconstructed from the current base balance and records. Manual balance corrections apply retrospectively. Category and label filters affect activity charts only.")
+            WalletListFooter("Reconstructed from opening balances and records, including dated balance adjustments. Category and label filters affect activity charts only.")
         }
     }
 
