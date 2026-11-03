@@ -4,7 +4,7 @@ import WalletDomain
 struct CategoryDetailView: View {
     @ObservedObject var viewModel: CategoriesViewModel
     let categoryID: UUID
-    var planning: PlanningViewModel? = nil
+    var planning: PlanningViewModel?
     @State private var editor: CategoryEditorRoute?
     @State private var deleting: WalletCategory?
     @State private var choosingSymbol = false

@@ -121,7 +121,8 @@ struct PasscodeHasherTests {
         #expect(first.salt.count == 32)
 
         let encoded = try JSONEncoder().encode(first)
-        #expect(!String(decoding: encoded, as: UTF8.self).contains("1234"))
+        // A strict decode, so invalid bytes fail the test rather than hide the number.
+        #expect(try !#require(String(data: encoded, encoding: .utf8)).contains("1234"))
     }
 
     @Test func makingAVerifierRejectsAnInvalidPasscode() {

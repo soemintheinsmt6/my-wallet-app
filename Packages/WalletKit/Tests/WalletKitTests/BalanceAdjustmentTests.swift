@@ -140,7 +140,7 @@ struct BalanceAdjustmentTests {
         var plain = RecordDraft()
         plain.amount = 5
         let encoded = try JSONEncoder().encode(plain)
-        #expect(!String(decoding: encoded, as: UTF8.self).contains("adjustment"))
+        #expect(try !#require(String(data: encoded, encoding: .utf8)).contains("adjustment"))
         let decoded = try JSONDecoder().decode(RecordDraft.self, from: encoded)
         #expect(decoded.isAdjustment == false)
 

@@ -61,7 +61,7 @@ struct AccountDetailView: View {
                 }
             }
         }
-        .sheet(item: $editingAccount, onDismiss: { if accountDeleted { dismiss() } }) {
+        .sheet(item: $editingAccount, onDismiss: leaveIfDeleted) {
             AccountEditorView(viewModel: accounts, account: $0) { accountDeleted = true }
         }
         .sheet(item: $editingRecord) { RecordEditorView(viewModel: records, record: $0) }
@@ -70,6 +70,11 @@ struct AccountDetailView: View {
                              initialDraft: .adjustment(accountID: accountID, increase: true))
         }
         .onChange(of: period) { _, _ in anchor = Date() }
+    }
+
+    /// After the editor closes, leaves this screen if the account was deleted from it.
+    private func leaveIfDeleted() {
+        if accountDeleted { dismiss() }
     }
 
     private func header(_ account: Account) -> some View {

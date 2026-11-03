@@ -22,6 +22,13 @@ xcodebuild -project 'My Wallet.xcodeproj' -scheme 'My Wallet' -destination 'gene
 # macOS compilation, without signing
 xcodebuild -project 'My Wallet.xcodeproj' -scheme 'My Wallet' -destination 'generic/platform=macOS' CODE_SIGNING_ALLOWED=NO build
 
+# Watch app and complications, which the My Wallet scheme does not build
+xcodebuild -project 'My Wallet.xcodeproj' -scheme WalletWatch -destination 'generic/platform=watchOS Simulator' CODE_SIGNING_ALLOWED=NO build
+xcodebuild -project 'My Wallet.xcodeproj' -scheme WalletWatchWidgets -destination 'generic/platform=watchOS Simulator' CODE_SIGNING_ALLOWED=NO build
+
+# Lint with the project's .swiftlint.yml (brew install swiftlint)
+swiftlint lint
+
 # Whitespace errors in tracked changes
 git diff --check
 ```
@@ -557,3 +564,25 @@ Manual checks:
 1. With iCloud on two devices, add a record on one and confirm it appears on the other without leaving the screen.
 2. Add, edit and delete records and confirm the Records list, Dashboard balance and Accounts balances update straight away and match after a pull to refresh.
 3. In Instruments (Time Profiler), with a large wallet, confirm a save no longer shows `fetchRecords` or `fetchAccounts`.
+
+## SwiftLint Configuration (2026-11-03)
+
+SwiftLint 0.65.1 was installed and run. With default rules it reported 523 violations (42 errors) in 125 files, nearly all where the defaults conflict with the project's established style, and no bugs. The new `.swiftlint.yml` sets limits from measurements of the code:
+
+- line length 160 (99% of lines are 125 characters or fewer) and an error limit of 500, above the longest single-line strings
+- type length 400, file length 500, function body length 80
+- tuples of up to 4 members and up to 6 function parameters
+- short names allowed (`a`, `b`, `x`, `y`, `id`, `to`) and `My_WalletApp` exempted
+- `trailing_comma` and `statement_position` disabled, since trailing commas and compact one-line `if`/`else` chains are deliberate
+
+The remaining **69 warnings and 0 errors** are long lines, the two largest screens (`HomeView`, `RecordEditorView`), and six complex functions, which is an accurate list of what is worth splitting later.
+
+Small cleanups made:
+
+- `RecurringView` builds an occurrence's draft in a helper instead of a `let _ =` assignment inside a view builder, and falls back to the draft's date instead of force-unwrapping the rule's.
+- Removed a doubled trailing newline, an explicit `= nil` and redundant parentheses in a `guard`.
+- CSV decoding states that Latin-1 accepts any bytes instead of keeping an unreachable lossy fallback.
+- Two tests decode strictly, so invalid bytes fail them instead of hiding what they check for.
+- The Delete Account sheets name their dismiss handlers instead of passing an inline closure next to the trailing content.
+
+**342 tests across 53 suites passed**, and unsigned iOS Simulator and macOS builds passed with no compiler warnings.

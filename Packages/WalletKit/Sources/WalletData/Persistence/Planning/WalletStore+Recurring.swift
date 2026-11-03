@@ -45,7 +45,8 @@ extension WalletStore {
         let id = occurrence.id
         let models = try context.fetch(FetchDescriptor<ScheduledOccurrenceRecord>(predicate: #Predicate { $0.id == id }))
         let deferred = try models.first?.value
-        guard (occurrence.index >= series.nextIndex || deferred?.completed == false), series.rule.date(start: series.startDate, index: occurrence.index) != nil else {
+        guard occurrence.index >= series.nextIndex || deferred?.completed == false,
+              series.rule.date(start: series.startDate, index: occurrence.index) != nil else {
             throw PlanningError.completedOccurrence
         }
         if let draft = occurrence.overrideDraft { try draft.validate() }

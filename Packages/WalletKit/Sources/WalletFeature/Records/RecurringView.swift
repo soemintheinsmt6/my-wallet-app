@@ -172,9 +172,8 @@ private struct RecurringDetailView: View {
         }
         .sheet(item: $editingOccurrence) { occurrence in
             if let series {
-                var draft = occurrence.overrideDraft ?? series.template
-                let _ = draft.date = occurrence.overrideDraft?.date ?? series.rule.date(start: series.startDate, index: occurrence.index)!
-                RecordEditorView(viewModel: viewModel.records, record: preview(draft), title: "Modify Occurrence", allowsRecurrence: false) { _, values in
+                RecordEditorView(viewModel: viewModel.records, record: preview(draft(for: occurrence, in: series)),
+                                 title: "Modify Occurrence", allowsRecurrence: false) { _, values in
                     var updated = occurrence
                     updated.overrideDraft = values
                     updated.skipped = false
@@ -244,6 +243,16 @@ private struct RecurringDetailView: View {
         }
         return pending + upcoming.filter { !$0.completed }
     }
+    /// The occurrence's own edit if it has one, otherwise the series template, dated for this
+    /// occurrence. Falls back to the draft's own date rather than crashing should the rule have none.
+    private func draft(for occurrence: ScheduledOccurrence, in series: RecurringSeries) -> RecordDraft {
+        var draft = occurrence.overrideDraft ?? series.template
+        draft.date = occurrence.overrideDraft?.date
+            ?? series.rule.date(start: series.startDate, index: occurrence.index)
+            ?? draft.date
+        return draft
+    }
+
     private func preview(_ draft: RecordDraft) -> WalletRecord {
         WalletRecord(id: UUID(), draft: draft, currencyCode: viewModel.records.account(draft.accountID)?.currencyCode ?? "USD")
     }

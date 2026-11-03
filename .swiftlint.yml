@@ -1,0 +1,64 @@
+# SwiftLint, tuned to this project's existing style rather than the defaults.
+# Run from the repository root: swiftlint lint
+# Limits were set from measuring the code on 2026-11-03; raise them only with a reason.
+
+included:
+  - My Wallet
+  - Packages/WalletKit/Sources
+  - Packages/WalletKit/Tests
+  - WalletWidgets
+  - WalletWatch
+  - WalletWatchWidgets
+
+excluded:
+  - Packages/WalletKit/.build
+  - build
+  - DerivedData
+
+disabled_rules:
+  # Multi-line arrays and argument lists end with a trailing comma on purpose, so adding an item
+  # touches one line.
+  - trailing_comma
+  # Compact one-line chains (`if x { a }` then `else { b }` on the next line) are used deliberately
+  # alongside the usual `} else {`.
+  - statement_position
+
+# SwiftUI view bodies run long; 99% of lines are 125 characters or fewer. The error limit sits above
+# the longest single-line strings and declaration lists, which cannot be wrapped without harm.
+line_length:
+  warning: 160
+  error: 500
+  ignores_urls: true
+
+identifier_name:
+  # Short names read well in tight scopes: `a`/`b` accounts in tests, `x`/`y` drawing coordinates.
+  excluded: [a, b, i, x, y, id, to]
+
+type_name:
+  # Xcode derives `My_WalletApp` from the product name "My Wallet".
+  excluded: [My_WalletApp]
+
+# Screens are SwiftUI views composed in one type; these still flag the largest for splitting.
+type_body_length:
+  warning: 400
+  error: 650
+file_length:
+  warning: 500
+  error: 1000
+  ignore_comment_only_lines: true
+function_body_length:
+  warning: 80
+  error: 150
+
+cyclomatic_complexity:
+  # A switch over an enum is one decision, not one per case.
+  ignores_case_statements: true
+
+# Test setup helpers return a repository with a few fixtures.
+large_tuple:
+  warning: 4
+  error: 5
+
+function_parameter_count:
+  warning: 6
+  error: 8

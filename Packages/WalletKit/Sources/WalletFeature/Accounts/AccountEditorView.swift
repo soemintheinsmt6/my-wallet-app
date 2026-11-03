@@ -222,11 +222,7 @@ struct AccountEditorView: View {
                                     type: type, color: settings.color.tint, selection: $settings.symbol)
             }
             // Closes only after the deletion sheet has gone, so the two never dismiss at once.
-            .sheet(isPresented: $confirmingDeletion, onDismiss: {
-                guard wasDeleted else { return }
-                onDeleted()
-                dismiss()
-            }) {
+            .sheet(isPresented: $confirmingDeletion, onDismiss: closeIfDeleted) {
                 if let account {
                     AccountDeletionView(viewModel: viewModel, account: account) { wasDeleted = true }
                 }
@@ -236,6 +232,13 @@ struct AccountEditorView: View {
         #if os(macOS)
         .frame(minWidth: 480, minHeight: 680)
         #endif
+    }
+
+    /// After the deletion sheet closes, closes this editor too if the account was deleted.
+    private func closeIfDeleted() {
+        guard wasDeleted else { return }
+        onDeleted()
+        dismiss()
     }
 
     private func save() async {

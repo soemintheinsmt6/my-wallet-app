@@ -78,11 +78,11 @@ public final class DataExchangeViewModel: ObservableObject {
         }
     }
 
-    /// Files exported from other tools are not always UTF-8.
+    /// Files exported from other tools are not always UTF-8. Latin-1 maps every byte to a character,
+    /// so it accepts whatever UTF-8 rejected; the empty fallback is never reached in practice.
     private func decodeText(_ data: Data) -> String {
         if let text = String(data: data, encoding: .utf8) { return text }
-        if let text = String(data: data, encoding: .isoLatin1) { return text }
-        return String(decoding: data, as: UTF8.self)
+        return String(data: data, encoding: .isoLatin1) ?? ""
     }
 
     public func cancelImport() {
