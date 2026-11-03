@@ -489,3 +489,14 @@ Manual checks:
 1. On a build from before this change, give a category a custom icon; update and confirm the icon is still there.
 2. On two signed devices with the same iCloud account, change a subcategory's icon on one and confirm it appears on the other after sync, then reset it and confirm both return to the starter icon.
 3. Confirm the new icon shows in the category list, record rows and the Recent Records widget.
+
+## Delete Account from the Editor (2026-11-03)
+
+The account editor gained a Delete Account row in its own section at the end, shown only when editing. It opens the existing deletion impact sheet; after a delete the sheet closes, then the editor, then the account's detail screen when the editor was opened from there. The deletion logic is unchanged and already covered. **320 tests across 51 suites passed**, and unsigned iOS Simulator and macOS builds passed; after rebasing onto the category icon change, **325 tests** and both builds passed again. The presentation sequence is UI-only and was not run in the app.
+
+Manual checks:
+
+1. Accounts → tap an account → Delete Account → Keep as unlinked records → Delete Account → Delete; confirm the sheets close and the account is gone from the list.
+2. Dashboard → tap an account card → Edit → Delete Account → delete; confirm you land back on the Dashboard, not on "Account unavailable".
+3. Open Delete Account, then Cancel; confirm the editor stays open with its edits intact.
+4. Create Account shows no Delete Account row.

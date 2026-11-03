@@ -14,6 +14,10 @@ struct AccountDetailView: View {
     @State private var editingAccount: Account?
     @State private var editingRecord: WalletRecord?
     @State private var adjusting = false
+    /// Set when the account is deleted from its editor, so this screen leaves once the editor closes
+    /// instead of showing "Account unavailable".
+    @State private var accountDeleted = false
+    @Environment(\.dismiss) private var dismiss
 
     /// Read live, so an edit or a new record shows without leaving the screen.
     private var account: Account? { records.account(accountID) }
@@ -55,7 +59,9 @@ struct AccountDetailView: View {
                 }
             }
         }
-        .sheet(item: $editingAccount) { AccountEditorView(viewModel: accounts, account: $0) }
+        .sheet(item: $editingAccount, onDismiss: { if accountDeleted { dismiss() } }) {
+            AccountEditorView(viewModel: accounts, account: $0) { accountDeleted = true }
+        }
         .sheet(item: $editingRecord) { RecordEditorView(viewModel: records, record: $0) }
         .sheet(isPresented: $adjusting) {
             RecordEditorView(viewModel: records,

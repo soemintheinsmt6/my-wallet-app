@@ -4,6 +4,8 @@ import WalletDomain
 struct AccountDeletionView: View {
     @ObservedObject var viewModel: AccountsViewModel
     let account: Account
+    /// Called once the account is gone, before this sheet closes, so a presenter can close too.
+    var onDeleted: () -> Void = {}
     @Environment(\.dismiss) private var dismiss
     @State private var impact: AccountDeletionImpact?
     @State private var strategy = AccountDeletionStrategy.keepRecords
@@ -46,7 +48,11 @@ struct AccountDeletionView: View {
                 Button("Cancel", role: .cancel) {}
                 Button("Delete", role: .destructive) {
                     Task {
-                        do { try await viewModel.delete(id: account.id, strategy: strategy); dismiss() }
+                        do {
+                            try await viewModel.delete(id: account.id, strategy: strategy)
+                            onDeleted()
+                            dismiss()
+                        }
                         catch { errorMessage = error.localizedDescription }
                     }
                 }

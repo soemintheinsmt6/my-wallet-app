@@ -15,11 +15,16 @@ struct AccountEditorView: View {
     @State private var errorMessage: String?
     @State private var choosingCurrency = false
     @State private var choosingSymbol = false
+    @State private var confirmingDeletion = false
+    @State private var wasDeleted = false
     @Environment(\.mainCurrency) private var mainCurrency
+    /// Called after the account is deleted from here, once this editor has closed.
+    private let onDeleted: () -> Void
 
-    init(viewModel: AccountsViewModel, account: Account? = nil) {
+    init(viewModel: AccountsViewModel, account: Account? = nil, onDeleted: @escaping () -> Void = {}) {
         self.viewModel = viewModel
         self.account = account
+        self.onDeleted = onDeleted
         let settings = account?.settings ?? AccountSettings()
         _name = State(initialValue: account?.name ?? "")
         _type = State(initialValue: account?.type ?? .cash)
@@ -157,6 +162,13 @@ struct AccountEditorView: View {
                 } footer: {
                     Text("Keep this account visible while excluding it from statistics. Balance alerts remain active.")
                 }
+                // Last, like Delete Record in the record editor. Opens the same sheet as swiping an
+                // account, which shows what happens to its records before anything is deleted.
+                if account != nil {
+                    Section {
+                        WalletDestructiveRow(title: "Delete Account") { confirmingDeletion = true }
+                    }
+                }
                 if let errorMessage {
                     Section { Text(errorMessage).foregroundStyle(.red).accessibilityLabel("Error: \(errorMessage)") }
                 }
@@ -181,6 +193,16 @@ struct AccountEditorView: View {
             .sheet(isPresented: $choosingSymbol) {
                 AccountSymbolPicker(name: trimmedName.isEmpty ? "New account" : trimmedName,
                                     type: type, color: settings.color.tint, selection: $settings.symbol)
+            }
+            // Closes only after the deletion sheet has gone, so the two never dismiss at once.
+            .sheet(isPresented: $confirmingDeletion, onDismiss: {
+                guard wasDeleted else { return }
+                onDeleted()
+                dismiss()
+            }) {
+                if let account {
+                    AccountDeletionView(viewModel: viewModel, account: account) { wasDeleted = true }
+                }
             }
             .interactiveDismissDisabled(viewModel.isSaving)
         }
