@@ -447,3 +447,9 @@ Manual check: switch Count Large Amounts In between Lakhs and Millions and confi
 **Not verified:** the `WalletWatch` and `WalletWatchWidgets` schemes do not build on `main`, before and after this change: `WatchWalletStore.swift` lacks `import Combine` and, once that is added, has Swift 6 data-race errors in its WatchConnectivity delegate. The complication edits were therefore not compiled. Nothing was run on a device, simulator or watch.
 
 Manual check: with an MMK balance over one lakh, add the small Balance widget and the watch Balance complication, switch Count Large Amounts In between Lakhs and Millions, and confirm both change between "52.7L" and "5.3M".
+
+## Watch Build Fix (2026-11-03)
+
+`WalletWatch` and `WalletWatchWidgets` build again. `WatchWalletStore.swift` now imports Combine, and its WatchConnectivity delegate reads reachability, pending-transfer counts and the decoded snapshot on the delegate queue, passing only those `Sendable` values to the main actor instead of capturing `WCSession` and its payload dictionaries. Unsigned watchOS Simulator builds of both schemes passed with no warnings in the watch sources, which also compiles the complication edits from the entry above for the first time. The `My Wallet` scheme does not build the watch targets, so build them explicitly. Not run on a watch or simulator.
+
+Manual checks: on a paired watch, confirm the app shows the phone's balance, the reachability state updates when the phone goes out of range, and a quick expense queues and then clears from the pending count once delivered.

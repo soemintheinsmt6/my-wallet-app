@@ -40,7 +40,7 @@ Update this table whenever a feature is completed. As of 2026-11-01 every featur
 | Onboarding | Complete | First-launch welcome, first account, starter-category overview, optional monthly budget and Skip; completion is per-device and not synced |
 | Multi-currency | Complete | Optional home currency with ECB-backed rates, converted `≈` totals that never replace per-currency figures, per-record pinned rates and transfer gain/loss |
 | Siri and Shortcuts | Complete | Add Expense, Show Balance and Monthly Summary App Intents with account/category pickers, Siri phrases, and Spotlight indexing of names only |
-| Apple Watch companion | Written but **not compiled** — watchOS platform not installed | Watch app with balance, today's spending and quick expense entry, plus two complications; syncs over WatchConnectivity. Watch app is not yet embedded in the iOS app |
+| Apple Watch companion | Builds for watchOS Simulator (unsigned, `WalletWatch` and `WalletWatchWidgets` schemes); **not run** on a watch or simulator | Watch app with balance, today's spending and quick expense entry, plus two complications; syncs over WatchConnectivity. Watch app is not yet embedded in the iOS app |
 | iPad and Mac layout | Complete | Sidebar and split view at regular width with the dashboard beside statistics, ⌘N/⌘F/⌘1–⌘5 shortcuts, drag a record onto a category to refile it, and multi-window |
 | Insights and alerts | Complete | Week and month comparisons, unusual-spending detection against a category's own average, logging and under-budget streaks, all opt-in per notice |
 | Receipt scanning | Complete | Multi-page VisionKit scanning stored per record with a gallery, plus on-device OCR that suggests an amount and date for you to accept |

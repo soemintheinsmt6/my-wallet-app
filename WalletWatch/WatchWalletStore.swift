@@ -1,3 +1,4 @@
+import Combine
 import Foundation
 import WalletDomain
 import WatchConnectivity
@@ -53,8 +54,8 @@ final class WatchWalletStore: NSObject, ObservableObject {
         }
     }
 
-    private func apply(_ payload: [String: Any]) {
-        guard let received = WalletWatchTransfer.decodeSnapshot(from: payload) else { return }
+    private func apply(_ received: WalletSnapshot?) {
+        guard let received else { return }
         snapshot = received
         // Persist so the watch app and its complications survive a relaunch out of range.
         try? WalletSnapshotStore.write(received, groupID: groupID)
@@ -64,32 +65,42 @@ final class WatchWalletStore: NSObject, ObservableObject {
     }
 }
 
+/// Delegate callbacks arrive on a WatchConnectivity queue. `WCSession` and its `[String: Any]`
+/// payloads are not `Sendable`, so each callback reads plain values there — reachability, counts,
+/// the decoded snapshot — and hands only those to the main actor.
 extension WatchWalletStore: WCSessionDelegate {
     nonisolated func session(_ session: WCSession, activationDidCompleteWith state: WCSessionActivationState,
                              error: (any Error)?) {
+        let reachable = session.isReachable
+        // The phone may have sent context before this side was listening.
+        let received = WalletWatchTransfer.decodeSnapshot(from: session.receivedApplicationContext)
         Task { @MainActor in
-            self.isReachable = session.isReachable
-            // The phone may have sent context before this side was listening.
-            self.apply(session.receivedApplicationContext)
+            self.isReachable = reachable
+            self.apply(received)
         }
     }
 
     nonisolated func session(_ session: WCSession, didReceiveApplicationContext context: [String: Any]) {
-        Task { @MainActor in self.apply(context) }
+        let received = WalletWatchTransfer.decodeSnapshot(from: context)
+        Task { @MainActor in self.apply(received) }
     }
 
     nonisolated func sessionReachabilityDidChange(_ session: WCSession) {
+        let reachable = session.isReachable
+        let pending = session.outstandingUserInfoTransfers.count
         Task { @MainActor in
-            self.isReachable = session.isReachable
-            self.pendingCount = session.outstandingUserInfoTransfers.count
+            self.isReachable = reachable
+            self.pendingCount = pending
         }
     }
 
     nonisolated func session(_ session: WCSession, didFinish userInfoTransfer: WCSessionUserInfoTransfer,
                              error: (any Error)?) {
+        let pending = session.outstandingUserInfoTransfers.count
+        let failed = error != nil
         Task { @MainActor in
-            self.pendingCount = session.outstandingUserInfoTransfers.count
-            if error != nil { self.lastError = "An expense could not be sent to your iPhone." }
+            self.pendingCount = pending
+            if failed { self.lastError = "An expense could not be sent to your iPhone." }
         }
     }
 }
