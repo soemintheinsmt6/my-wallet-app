@@ -49,7 +49,7 @@ Tests live in `Packages/WalletKit/Tests/WalletKitTests/` and use Swift Testing (
 | `TagTests` | Ten colors, name validation/uniqueness, stable edit identity, selective/idempotent deletion, notifications, view-model failure state and migration/reopening |
 | `RecordTests` | Ledger balances, idempotent creation, transfers and received amounts, reference/amount validation, details/photos, label detachment, most-used ranking and additive migration/reopening |
 | `BalanceAdjustmentTests` | Adjustment increases/decreases changing balances without a category, account balance edits recorded as adjustments without shifting earlier history (and none for a name-only edit), edit/delete reversal, transfers rejected as adjustments, totals excluding adjustments while balance history and statements include them, older drafts decoding and CSV round-tripping |
-| `BankStatementImportTests` | Bank header aliases (the app's own names winning), signed amounts, Debit/Credit columns (including negative debits), bank Type values, sign reversal, day-first date detection, bank date forms, accounting negatives, a chosen account filling missing or empty Account cells, typed rows keeping their strict checks, exports unchanged; date-only rows matched one-for-one against existing records; per-kind category fallbacks; and the view model's account choice, sign flip, fallback categories and re-import detection. `ManualEntryMatchingTests` covers matching records entered by hand by day within the posting lag, transfers on both accounts, same-day-first assignment and Import Anyway |
+| `BankStatementImportTests` | Bank header aliases (the app's own names winning), signed amounts, Debit/Credit columns (including negative debits), bank Type values, sign reversal, day-first date detection, bank date forms, accounting negatives, a chosen account filling missing or empty Account cells, typed rows keeping their strict checks, exports unchanged; date-only rows matched one-for-one against existing records; per-kind category fallbacks; and the view model's account choice, sign flip, fallback categories and re-import detection. `ManualEntryMatchingTests` covers matching records entered by hand by day within the posting lag, transfers on both accounts, same-day-first assignment, near amounts within 5% after exact ones, and Import Anyway |
 | `RecordSearchTests` | Field matching (payee, note, amount, category and parent, label), multi-term AND, case/diacritic insensitivity, relevance ranking and tie-breaks, intersecting filter groups, transfer account legs, date/amount bounds, sort determinism and recent-search history |
 | `SettingsTests` | Confirmed-reset operation, deletion notifications, starter reseeding, preference retention/clearing, failure state and appearance mapping |
 
@@ -628,3 +628,25 @@ Manual checks:
 1. Enter a few purchases by hand, then import a bank statement covering those days. Confirm they appear under "Matched to your records" with the right dates and are not imported again.
 2. Enter a transfer between two accounts, then import each account's statement. Confirm the transfer is matched in both.
 3. Tap Import Anyway on a matched row and confirm it moves to Ready to import.
+
+## Near-Amount Matching on Bank Import (2026-11-03)
+
+Bank rows now also match records whose amount is within 5% of the bank's, after every exact match has been made. **371 tests across 57 suites passed**, and unsigned builds passed for the app on iOS Simulator and macOS and for `WalletWatch` and `WalletWatchWidgets` on watchOS Simulator. SwiftLint still reports 68 warnings, none new.
+
+New tests in `ManualEntryMatchingTests` cover:
+
+- a 103.50 charge matching a 100 record, with the entered amount reported, while 105.50 does not match
+- an exact match reporting no difference
+- an exact amount within the lag beating a near amount on the same day
+- a near row earlier in the file not taking another row's exact match
+- the closest of several near amounts being chosen
+- a transfer's received amount matching within the tolerance
+
+`aTransferEnteredByHandMatchesBothAccountsStatements` now uses a received amount of 80 instead of 98. Within the tolerance a 100 credit would match 98, so the old figure no longer showed that the destination leg uses the received amount.
+
+**Not verified:** the app was not run, so the entered amount shown in "Matched to your records" was checked only by build. Matching speed on a large wallet was not measured. The new day index reads at most four days of records per row, where before it scanned every record in the account with that amount.
+
+Manual checks:
+
+1. Enter a purchase at a round figure, then import a statement where it settled slightly higher, for example with a foreign-transaction fee. Confirm the row is matched and the review shows the amount you entered.
+2. Confirm that a purchase with a tip of 15% or more is not matched, and that Import Anyway still works on a near match you judge wrong.

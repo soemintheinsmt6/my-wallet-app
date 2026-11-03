@@ -194,8 +194,9 @@ private struct ImportPreviewView: View {
                     } header: {
                         Text("Matched to your records")
                     } footer: {
-                        Text("These rows match a record already in the account with the same amount, dated the same day "
-                             + "or up to \(LedgerMatcher.postingLagDays) days earlier, and are skipped. "
+                        Text("These rows match a record already in the account with the same amount, or one within "
+                             + "\(LedgerMatcher.amountTolerance * 100)%, dated the same day or up to "
+                             + "\(LedgerMatcher.postingLagDays) days earlier, and are skipped. "
                              + "Use Import Anyway for a purchase you never entered.")
                     }
                 }
@@ -298,8 +299,10 @@ private struct ImportPreviewView: View {
         let statement = entry.row.date.formatted(date: .abbreviated, time: .omitted)
         guard let recorded = entry.matchedRecordDate else { return statement }
         let same = Calendar.current.isDate(recorded, inSameDayAs: entry.row.date)
-        return same ? "\(statement), matches your record that day"
+        let description = same ? "\(statement), matches your record that day"
             : "\(statement), matches your record on \(recorded.formatted(date: .abbreviated, time: .omitted))"
+        guard let entered = entry.differingMatchedAmount else { return description }
+        return "\(description) of \(entered.formatted(.currency(code: viewModel.currencyCode(for: entry))))"
     }
 
     private func summary(_ title: String, count: Int, symbol: String, tint: Color) -> some View {

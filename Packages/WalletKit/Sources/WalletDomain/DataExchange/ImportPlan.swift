@@ -21,15 +21,25 @@ public struct ImportPlan: Sendable, Equatable {
         /// For a date-only row matched to an existing record, that record's date and time, which
         /// may be a few days before the row's own date.
         public let matchedRecordDate: Date?
+        /// What that record moved through the row's account, which may differ slightly from the row.
+        public let matchedRecordAmount: Decimal?
         /// The row's position among the parsed rows, stable across re-planning.
         public let rowIndex: Int
 
         public var isImportable: Bool { issue == nil }
 
+        /// The matched record's amount when it is not the row's, so the review can point it out.
+        public var differingMatchedAmount: Decimal? {
+            guard let matchedRecordAmount, matchedRecordAmount != row.amount else { return nil }
+            return matchedRecordAmount
+        }
+
         public init(id: UUID = UUID(), row: RecordCSVRow, accountID: UUID?, destinationAccountID: UUID?,
                     categoryID: UUID?, tagIDs: Set<UUID>, newLabelNames: [String], issue: Issue?,
-                    isUncategorized: Bool = false, matchedRecordDate: Date? = nil, rowIndex: Int = 0) {
+                    isUncategorized: Bool = false, matchedRecordDate: Date? = nil, matchedRecordAmount: Decimal? = nil,
+                    rowIndex: Int = 0) {
             self.matchedRecordDate = matchedRecordDate
+            self.matchedRecordAmount = matchedRecordAmount
             self.rowIndex = rowIndex
             self.id = id
             self.row = row
@@ -151,8 +161,8 @@ public enum ImportPlanner {
         var entries: [ImportPlan.Entry] = []
         for (index, row) in rows.enumerated() {
             let (accountID, destinationID, resolvedIssue) = resolved[index]
-            let matchedDate = matches[index]
-            var issue = matchedDate == nil ? resolvedIssue : .duplicate
+            let match = matches[index]
+            var issue = match == nil ? resolvedIssue : .duplicate
 
             var tagIDs: Set<UUID> = []
             var newLabels: [String] = []
@@ -173,8 +183,8 @@ public enum ImportPlanner {
                                             destinationAccountID: destinationID,
                                             categoryID: categoryID,
                                             tagIDs: tagIDs, newLabelNames: newLabels, issue: issue,
-                                            isUncategorized: isUncategorized, matchedRecordDate: matchedDate,
-                                            rowIndex: index))
+                                            isUncategorized: isUncategorized, matchedRecordDate: match?.date,
+                                            matchedRecordAmount: match?.amount, rowIndex: index))
         }
         return ImportPlan(entries: entries)
     }
@@ -209,24 +219,38 @@ public enum ImportPlanner {
 /// Matches bank rows, which have a day but no time, to records already in the wallet, whether
 /// imported earlier or entered by hand.
 ///
-/// A row matches a record moving the same amount the same way through the same account, dated
-/// the same day or up to `postingLagDays` earlier, because a bank posts a purchase a day or more
-/// after it was made, never before. A transfer counts as money out of its source account and money
-/// in to its destination, so a transfer entered by hand matches both banks' statements.
+/// A row matches a record moving money the same way through the same account, dated the same day
+/// or up to `postingLagDays` earlier, because a bank posts a purchase a day or more after it was
+/// made, never before. The amounts must agree, or differ by at most `amountTolerance` of the
+/// bank's amount: a card charge in another currency or a rounded entry settles slightly off what
+/// was typed. A transfer counts as money out of its source account and money in to its destination
+/// at its received amount, so a transfer entered by hand matches both banks' statements.
 ///
 /// Matching is one-for-one: two identical coffees on one day are two purchases, so each record
-/// absorbs one row. Same-day matches are made for every row before any lagged one, so a row with
-/// an exact match is never beaten to it; within the lag the closest earlier record wins.
+/// absorbs one row. Matches are settled in rounds, each for every row before the next: exact
+/// amount on the same day, then exact amount within the lag, then a near amount within the lag.
+/// So a row is never beaten to its exact match by a looser one. Within a round the closest
+/// earlier record wins, then the closest amount.
 public struct LedgerMatcher {
     public static let postingLagDays = 3
+    /// The largest difference still treated as the same transaction, as a fraction of the bank's amount.
+    public static let amountTolerance = Decimal(string: "0.05")!
+
+    /// The record a row matched.
+    public struct Match: Sendable, Equatable {
+        public let date: Date
+        /// What the record moved through this account, which may differ slightly from the row.
+        public let amount: Decimal
+    }
 
     private struct Leg {
         /// A record and which side of it, so a transfer's two accounts are matched separately.
         let id: String
-        let day: Date
         let date: Date
+        let amount: Decimal
     }
 
+    /// Legs by account, direction and calendar day, so a row reads only the days in its window.
     private var legs: [String: [Leg]] = [:]
     private let calendar = Calendar.current
 
@@ -250,14 +274,24 @@ public struct LedgerMatcher {
     }
 
     private mutating func add(_ record: WalletRecord, side: String, account: UUID, direction: String, amount: Decimal) {
-        let leg = Leg(id: "\(record.id.uuidString)|\(side)", day: calendar.startOfDay(for: record.draft.date),
-                      date: record.draft.date)
-        legs[Self.key(account: account, direction: direction, amount: amount), default: []].append(leg)
+        let leg = Leg(id: "\(record.id.uuidString)|\(side)", date: record.draft.date, amount: amount)
+        legs[key(account: account, direction: direction, day: record.draft.date), default: []].append(leg)
     }
 
-    private static func key(account: UUID, direction: String, amount: Decimal) -> String {
-        "\(account.uuidString)|\(direction)|\(RecordCSV.string(from: amount))"
+    private func key(account: UUID, direction: String, day: Date) -> String {
+        let parts = calendar.dateComponents([.year, .month, .day], from: day)
+        return "\(account.uuidString)|\(direction)|\(parts.year ?? 0)-\(parts.month ?? 0)-\(parts.day ?? 0)"
     }
+
+    /// A matching round: how far back to look, and whether the amount must be exact.
+    private struct Round {
+        let days: ClosedRange<Int>
+        let exactAmount: Bool
+    }
+
+    private static let rounds = [Round(days: 0...0, exactAmount: true),
+                                 Round(days: 1...postingLagDays, exactAmount: true),
+                                 Round(days: 0...postingLagDays, exactAmount: false)]
 
     private static func direction(of kind: RecordKind) -> String {
         switch kind {
@@ -267,26 +301,33 @@ public struct LedgerMatcher {
         }
     }
 
-    /// The matched record's date for each candidate row that has one, keyed by the row's index.
-    public func match(_ candidates: [(index: Int, row: RecordCSVRow, accountID: UUID)]) -> [Int: Date] {
+    /// The matched record for each candidate row that has one, keyed by the row's index.
+    public func match(_ candidates: [(index: Int, row: RecordCSVRow, accountID: UUID)]) -> [Int: Match] {
         var consumed = Set<String>()
-        var matched: [Int: Date] = [:]
-        for lag in [0...0, 1...Self.postingLagDays] {
+        var matched: [Int: Match] = [:]
+        for round in Self.rounds {
             for candidate in candidates where matched[candidate.index] == nil {
-                let key = Self.key(account: candidate.accountID, direction: Self.direction(of: candidate.row.kind),
-                                   amount: candidate.row.amount)
-                let rowDay = calendar.startOfDay(for: candidate.row.date)
-                let best = (legs[key] ?? [])
-                    .filter { !consumed.contains($0.id) }
-                    .compactMap { leg -> (leg: Leg, days: Int)? in
-                        guard let days = calendar.dateComponents([.day], from: leg.day, to: rowDay).day,
-                              lag.contains(days) else { return nil }
-                        return (leg, days)
+                let row = candidate.row
+                let direction = Self.direction(of: row.kind)
+                let allowed = round.exactAmount ? 0 : row.amount * Self.amountTolerance
+                var best: (leg: Leg, days: Int, difference: Decimal)?
+                for days in round.days {
+                    guard let day = calendar.date(byAdding: .day, value: -days, to: row.date) else { continue }
+                    for leg in legs[key(account: candidate.accountID, direction: direction, day: day)] ?? []
+                    where !consumed.contains(leg.id) {
+                        let difference = abs(leg.amount - row.amount)
+                        guard difference <= allowed else { continue }
+                        // Closest day, then closest amount, then the earliest record for a stable choice.
+                        if let current = best,
+                           (current.days, current.difference, current.leg.date) <= (days, difference, leg.date) {
+                            continue
+                        }
+                        best = (leg, days, difference)
                     }
-                    .min { ($0.days, $0.leg.date) < ($1.days, $1.leg.date) }
+                }
                 if let best {
                     consumed.insert(best.leg.id)
-                    matched[candidate.index] = best.leg.date
+                    matched[candidate.index] = Match(date: best.leg.date, amount: best.leg.amount)
                 }
             }
         }

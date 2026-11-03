@@ -396,11 +396,51 @@ struct ManualEntryMatchingTests {
     }
 
     @Test func aTransferEnteredByHandMatchesBothAccountsStatements() {
-        let transfer = entered(5, .transfer, amount: 100, to: savings, received: 98)
-        let result = plan([bankRow(6, amount: 100), bankRow(6, .income, amount: 98, account: "Savings")], [transfer])
+        // Sent in one currency, received as 80 in the other.
+        let transfer = entered(5, .transfer, amount: 100, to: savings, received: 80)
+        let result = plan([bankRow(6, amount: 100), bankRow(6, .income, amount: 80, account: "Savings")], [transfer])
         #expect(result.duplicates.count == 2)
         // The source leg is not money in, and the destination receives the received amount.
         #expect(plan([bankRow(6, .income, amount: 100, account: "Savings")], [transfer]).duplicates.isEmpty)
+    }
+
+    private func amount(_ text: String) -> Decimal { Decimal(string: text)! }
+
+    @Test func anAmountWithinFivePercentMatchesAndReportsWhatWasEntered() {
+        // A card charge entered as 100 that settled at 103.50 after a foreign-transaction fee.
+        let result = plan([bankRow(5, amount: amount("103.50"))], [entered(4, amount: 100)])
+        #expect(result.duplicates.count == 1)
+        #expect(result.entries[0].matchedRecordAmount == 100)
+        #expect(result.entries[0].differingMatchedAmount == 100)
+
+        #expect(plan([bankRow(5, amount: amount("105.50"))], [entered(4, amount: 100)]).duplicates.isEmpty)
+        // An exact match reports no difference.
+        #expect(plan([bankRow(5)], [entered(5)]).entries[0].differingMatchedAmount == nil)
+    }
+
+    @Test func anExactAmountWithinTheLagBeatsANearAmountOnTheSameDay() {
+        let near = entered(5, amount: amount("4.10"))
+        let exact = entered(3)
+        let result = plan([bankRow(5)], [near, exact])
+        #expect(result.entries[0].matchedRecordDate == day(3, hour: 15))
+        #expect(result.entries[0].matchedRecordAmount == 4)
+    }
+
+    /// The near row comes first in the file but must not take the record the exact row matches.
+    @Test func aRowsExactMatchIsNotTakenByAnotherRowsNearMatch() {
+        let result = plan([bankRow(5, amount: amount("4.10")), bankRow(5)], [entered(5)])
+        #expect(result.entries.map(\.issue) == [nil, .duplicate])
+    }
+
+    @Test func amongNearAmountsTheClosestIsMatched() {
+        let result = plan([bankRow(5)], [entered(5, amount: amount("4.15")), entered(5, amount: amount("3.95"))])
+        #expect(result.entries[0].matchedRecordAmount == amount("3.95"))
+    }
+
+    @Test func aTransfersReceivedAmountMatchesWithinTheTolerance() {
+        let transfer = entered(5, .transfer, amount: 100, to: savings, received: 98)
+        let result = plan([bankRow(5, .income, amount: amount("97.20"), account: "Savings")], [transfer])
+        #expect(result.entries[0].matchedRecordAmount == 98)
     }
 
     @Test func importingAnywayFreesTheRecordForAnotherRow() {
