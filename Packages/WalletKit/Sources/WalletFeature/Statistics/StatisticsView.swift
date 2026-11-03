@@ -424,7 +424,8 @@ public struct StatisticsView: View {
             AxisGridLine()
             AxisValueLabel {
                 if let amount = value.as(Double.self) {
-                    Text(amount.formatted(.number.notation(.compactName).precision(.fractionLength(0...1))))
+                    Text(amount.walletAxisLabel(selectedCurrency,
+                                                scale: NumberScale(rawValue: numberScale) ?? .automatic))
                 }
             }
         }

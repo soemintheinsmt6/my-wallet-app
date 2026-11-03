@@ -21,6 +21,7 @@ public struct HomeView: View {
     /// Set by a widget quick-add deep link; presents the editor with that kind preselected.
     @Binding private var pendingAdd: RecordKind?
     @Environment(\.scenePhase) private var scenePhase
+    @AppStorage(WalletPreferenceKeys.numberScale) private var numberScale = NumberScale.automatic.rawValue
     @State private var creating = false
     /// Which currency the balance header shows when more than one is in use.
     @State private var displayedCurrency = ""
@@ -470,7 +471,8 @@ public struct HomeView: View {
                         AxisGridLine()
                         AxisValueLabel {
                             if let amount = value.as(Double.self) {
-                                Text(amount.formatted(.number.notation(.compactName).precision(.fractionLength(0...1))))
+                                Text(amount.walletAxisLabel(selectedCurrency,
+                                                            scale: NumberScale(rawValue: numberScale) ?? .automatic))
                             }
                         }
                     }

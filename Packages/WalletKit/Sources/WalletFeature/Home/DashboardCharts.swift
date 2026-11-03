@@ -66,6 +66,7 @@ struct BalanceTrendChart: View {
     let points: [StatisticsPoint]
     let currencyCode: String
     @State private var selected: Date?
+    @AppStorage(WalletPreferenceKeys.numberScale) private var numberScale = NumberScale.automatic.rawValue
 
     private var selectedPoint: StatisticsPoint? {
         guard let selected else { return nil }
@@ -125,7 +126,8 @@ struct BalanceTrendChart: View {
                 AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
                 AxisValueLabel {
                     if let amount = value.as(Double.self) {
-                        Text(amount.formatted(.number.notation(.compactName).precision(.fractionLength(0...1))))
+                        Text(amount.walletAxisLabel(currencyCode,
+                                                    scale: NumberScale(rawValue: numberScale) ?? .automatic))
                     }
                 }
             }

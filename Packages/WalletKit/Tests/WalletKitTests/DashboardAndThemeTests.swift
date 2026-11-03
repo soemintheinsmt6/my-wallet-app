@@ -18,6 +18,13 @@ struct ShortAmountTests {
         // Below one lakh, the lakh scale falls back to the compact figure.
         #expect(Decimal(85_000).walletShort("USD", scale: .lakhs).unit == "USD")
     }
+
+    @Test func chartAxisLabelsFollowTheChosenScale() {
+        #expect(5_000_000.0.walletAxisLabel("MMK", scale: .automatic) == "50L")
+        #expect(5_000_000.0.walletAxisLabel("USD", scale: .lakhs) == "50L")
+        #expect(5_000_000.0.walletAxisLabel("MMK", scale: .millions) != "50L")
+        #expect(50_000.0.walletAxisLabel("MMK", scale: .lakhs) != "0.5L")
+    }
 }
 
 struct DashboardConfigurationTests {

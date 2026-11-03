@@ -57,3 +57,13 @@ extension Decimal {
         return (number.formatted(.number.notation(.compactName).precision(.fractionLength(0...1))), currencyCode)
     }
 }
+
+extension Double {
+    /// A chart axis label counted the same way as `walletShort`, e.g. "52.7L" or "5.3M".
+    func walletAxisLabel(_ currencyCode: String, scale: NumberScale) -> String {
+        if scale.usesLakhs(for: currencyCode), abs(self) >= 100_000 {
+            return (self / 100_000).formatted(.number.precision(.fractionLength(0...1))) + "L"
+        }
+        return formatted(.number.notation(.compactName).precision(.fractionLength(0...1)))
+    }
+}
