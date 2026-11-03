@@ -120,6 +120,8 @@ public struct DebtsView: View {
                         .lineLimit(1)
                 }
             }
+            // Tapping opens the debt's editor.
+            WalletDisclosure()
         }
         .frame(minHeight: WalletMetrics.touchTarget)
         .padding(.vertical, WalletMetrics.tight)

@@ -500,3 +500,9 @@ Manual checks:
 2. Dashboard → tap an account card → Edit → Delete Account → delete; confirm you land back on the Dashboard, not on "Account unavailable".
 3. Open Delete Account, then Cancel; confirm the editor stays open with its edits intact.
 4. Create Account shows no Delete Account row.
+
+## Chevrons Back on Rows That Open a Sheet (2026-11-03)
+
+Without a chevron, rows such as a category's subcategories did not read as tappable, so the right chevron is back on every row that opens something, whether it pushes or presents a sheet. This reverses the code of the earlier "No Chevron on Rows That Open a Sheet" entry on all 13 rows (account, budget, label, subcategory, drinking-day and balance-alert rows; Icon in the account and category editors; Currency in the account editor; Split with people and Photo; receipts; onboarding Currency), and the same rule was applied to rows that never had one: the Debts and Goals list rows and the App Lock Passcode row. The account editor's Currency row now uses the shared `WalletDisclosure` instead of a hand-drawn chevron. Rows still open what they did; nothing moved from a sheet to a pushed screen. **325 tests across 51 suites passed**, and unsigned iOS Simulator and macOS builds passed. Not seen in the app.
+
+Manual check: open a category with subcategories and confirm each subcategory row shows a chevron and opens its editor; confirm the same on Accounts, Budgets, Labels, Debts, Goals and Drinking Days, and on Settings → Passcode.

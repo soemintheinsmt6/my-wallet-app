@@ -74,6 +74,7 @@ struct CategoryDetailView: View {
                             .lineLimit(1)
                         CategoryNatureBadge(nature: child.nature).fixedSize()
                         Spacer(minLength: WalletMetrics.small)
+                        WalletDisclosure()
                     }
                     .frame(minHeight: WalletMetrics.touchTarget)
                     .padding(.vertical, WalletMetrics.hair)

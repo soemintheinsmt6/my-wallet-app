@@ -62,6 +62,7 @@ struct AccountEditorView: View {
                                 Text("Currency").foregroundStyle(.primary)
                                 Spacer()
                                 Text(currencyCode).foregroundStyle(.secondary)
+                                WalletDisclosure()
                             }
                             .contentShape(.rect)
                         }
@@ -92,8 +93,11 @@ struct AccountEditorView: View {
                     }
                     Button { choosingSymbol = true } label: {
                         LabeledContent("Icon") {
-                            // Follows the type being edited until an icon is chosen.
-                            WalletIconTile(symbol: settings.symbol ?? type.symbol, color: settings.color.tint)
+                            HStack(spacing: WalletMetrics.small) {
+                                // Follows the type being edited until an icon is chosen.
+                                WalletIconTile(symbol: settings.symbol ?? type.symbol, color: settings.color.tint)
+                                WalletDisclosure()
+                            }
                         }
                         .contentShape(Rectangle())
                     }

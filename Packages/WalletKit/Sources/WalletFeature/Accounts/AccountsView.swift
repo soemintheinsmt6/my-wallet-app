@@ -122,6 +122,7 @@ public struct AccountsView: View {
                                     .foregroundStyle(.secondary)
                             }
                             Spacer(minLength: WalletMetrics.small)
+                            WalletDisclosure()
                         }
                         .frame(minHeight: WalletMetrics.touchTarget)
                         .padding(.vertical, WalletMetrics.tight)
@@ -163,6 +164,7 @@ public struct AccountsView: View {
                     .foregroundStyle(account.settings.currentBalance < 0 ? .red : .primary)
                     .lineLimit(1)
                     .minimumScaleFactor(0.6)
+                WalletDisclosure()
             }
             .frame(minHeight: WalletMetrics.touchTarget)
             .padding(.vertical, WalletMetrics.tight)

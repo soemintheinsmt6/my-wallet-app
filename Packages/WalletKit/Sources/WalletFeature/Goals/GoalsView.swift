@@ -76,6 +76,17 @@ public struct GoalsView: View {
     }
 
     private func row(_ progress: GoalProgress) -> some View {
+        // The chevron sits beside the whole card, centered, so it reads as "this row opens".
+        HStack(spacing: WalletMetrics.medium) {
+            goalDetails(progress)
+            WalletDisclosure()
+        }
+        .padding(.vertical, WalletMetrics.tight)
+        .contentShape(Rectangle())
+        .accessibilityElement(children: .combine)
+    }
+
+    private func goalDetails(_ progress: GoalProgress) -> some View {
         VStack(alignment: .leading, spacing: WalletMetrics.small) {
             HStack(alignment: .firstTextBaseline) {
                 Text(progress.goal.name)
@@ -114,9 +125,6 @@ public struct GoalsView: View {
                 .foregroundStyle(.secondary)
                 .lineLimit(2)
         }
-        .padding(.vertical, WalletMetrics.tight)
-        .contentShape(Rectangle())
-        .accessibilityElement(children: .combine)
     }
 
     /// Says in words where the goal stands; the ring only reinforces it.

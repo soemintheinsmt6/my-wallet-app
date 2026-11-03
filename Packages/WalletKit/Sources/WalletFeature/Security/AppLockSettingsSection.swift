@@ -37,7 +37,12 @@ struct AppLockSettingsSection: View {
                 Button {
                     sheet = .change
                 } label: {
-                    LabeledContent("Passcode", value: "\(viewModel.passcodeLength.rawValue) digits")
+                    LabeledContent("Passcode") {
+                        HStack(spacing: WalletMetrics.small) {
+                            Text("\(viewModel.passcodeLength.rawValue) digits")
+                            WalletDisclosure()
+                        }
+                    }
                 }
                 .foregroundStyle(.primary)
 

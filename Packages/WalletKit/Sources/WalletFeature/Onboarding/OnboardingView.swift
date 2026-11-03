@@ -188,7 +188,10 @@ public struct OnboardingView: View {
 
                 field("Currency") {
                     Button { isChoosingCurrency = true } label: {
-                        Text(viewModel.currencyCode).foregroundStyle(.primary)
+                        HStack {
+                            Text(viewModel.currencyCode).foregroundStyle(.primary)
+                            WalletDisclosure()
+                        }
                     }
                 }
 
