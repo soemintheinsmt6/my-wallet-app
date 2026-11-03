@@ -15,20 +15,32 @@ import WalletDomain
 public final class WalletSnapshotCoordinator {
     private let records: RecordsViewModel
     private let planning: PlanningViewModel
+    private let preferences: UserDefaults
     private var cancellables: Set<AnyCancellable> = []
     private var lastWritten: WalletSnapshot?
     /// Set by the app to mirror each new snapshot to a paired Apple Watch.
     public var onSnapshot: ((WalletSnapshot) -> Void)?
 
-    public init(records: RecordsViewModel, planning: PlanningViewModel) {
+    public init(records: RecordsViewModel, planning: PlanningViewModel, preferences: UserDefaults = .standard) {
         self.records = records
         self.planning = planning
+        self.preferences = preferences
+    }
+
+    private var numberScale: NumberScale {
+        preferences.string(forKey: WalletPreferenceKeys.numberScale).flatMap(NumberScale.init(rawValue:))
+            ?? .automatic
     }
 
     /// Starts observing. Safe to call more than once; later calls replace the subscriptions.
     public func start() {
         cancellables.removeAll()
-        Publishers.Merge(records.objectWillChange, planning.objectWillChange)
+        // Preference changes are included so a new counting choice reaches widgets and the watch;
+        // unrelated preference writes are dropped by the change check in `refresh()`.
+        let preferenceChanges = NotificationCenter.default
+            .publisher(for: UserDefaults.didChangeNotification, object: preferences)
+            .map { _ in () }
+        Publishers.Merge3(records.objectWillChange, planning.objectWillChange, preferenceChanges)
             .debounce(for: .milliseconds(400), scheduler: RunLoop.main)
             .sink { [weak self] _ in self?.refresh() }
             .store(in: &cancellables)
@@ -43,7 +55,7 @@ public final class WalletSnapshotCoordinator {
         guard !records.isLoading else { return }
         let snapshot = WalletSnapshotBuilder.make(records: records.records, accounts: records.accounts,
                                                   categories: records.categories,
-                                                  budgets: planning.progress())
+                                                  budgets: planning.progress(), numberScale: numberScale)
         guard hasMeaningfulChange(from: lastWritten, to: snapshot) else { return }
         do {
             try WalletSnapshotStore.write(snapshot)
@@ -69,6 +81,7 @@ public final class WalletSnapshotCoordinator {
             || previous.month != next.month
             || previous.recent != next.recent
             || previous.budgets != next.budgets
+            || previous.numberScale != next.numberScale
     }
 
     private func reloadWidgets() {

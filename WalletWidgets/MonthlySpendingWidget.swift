@@ -20,6 +20,7 @@ struct MonthlySpendingWidgetView: View {
     let entry: WalletEntry
 
     private var month: WalletSnapshot.Month? { entry.snapshot?.month }
+    private var scale: NumberScale { entry.snapshot?.numberScale ?? .automatic }
 
     var body: some View {
         Group {
@@ -71,7 +72,7 @@ struct MonthlySpendingWidgetView: View {
         let magnitude = abs(month.net)
         let prefix = month.net > 0 ? "+" : month.net < 0 ? "−" : ""
         return prefix + (family == .systemSmall
-                         ? magnitude.widgetCompact(month.currencyCode)
+                         ? magnitude.widgetCompact(month.currencyCode, scale: scale)
                          : magnitude.widgetFormatted(month.currencyCode))
     }
 
@@ -81,7 +82,7 @@ struct MonthlySpendingWidgetView: View {
             Text(title)
                 .font(.caption2)
                 .foregroundStyle(.secondary)
-            Text(compact ? amount.widgetCompact(currency) : amount.widgetFormatted(currency))
+            Text(compact ? amount.widgetCompact(currency, scale: scale) : amount.widgetFormatted(currency))
                 .font(compact ? .callout.weight(.semibold) : .title3.weight(.semibold))
                 .monospacedDigit()
                 .foregroundStyle(tint)

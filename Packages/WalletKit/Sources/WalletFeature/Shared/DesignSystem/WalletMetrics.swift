@@ -1,4 +1,5 @@
 import SwiftUI
+import WalletDomain
 
 /// Shared geometry tokens. Prefer these over literals so unrelated screens line up with each other.
 ///

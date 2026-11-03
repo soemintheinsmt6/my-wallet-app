@@ -123,11 +123,13 @@ public struct WalletSnapshot: Codable, Sendable, Equatable {
     public let quickCategories: [Option]
     /// Spending so far today, in the leading currency.
     public let todaySpend: Decimal
+    /// The app's Count Large Amounts In choice, so compact figures read the same everywhere.
+    public let numberScale: NumberScale
 
     public init(generatedAt: Date = Date(), balances: [Balance] = [], month: Month? = nil,
                 recent: [Entry] = [], budgets: [BudgetProgressSummary] = [],
                 accounts: [Option] = [], quickCategories: [Option] = [],
-                todaySpend: Decimal = 0) {
+                todaySpend: Decimal = 0, numberScale: NumberScale = .automatic) {
         self.generatedAt = generatedAt
         self.balances = balances
         self.month = month
@@ -136,6 +138,7 @@ public struct WalletSnapshot: Codable, Sendable, Equatable {
         self.accounts = accounts
         self.quickCategories = quickCategories
         self.todaySpend = todaySpend
+        self.numberScale = numberScale
     }
 
     /// Decoded field by field so a snapshot written by an older build — one without the quick-add
@@ -150,6 +153,9 @@ public struct WalletSnapshot: Codable, Sendable, Equatable {
         accounts = try container.decodeIfPresent([Option].self, forKey: .accounts) ?? []
         quickCategories = try container.decodeIfPresent([Option].self, forKey: .quickCategories) ?? []
         todaySpend = try container.decodeIfPresent(Decimal.self, forKey: .todaySpend) ?? 0
+        // Read as text so a scale added by a newer build falls back instead of failing the decode.
+        let scale = try container.decodeIfPresent(String.self, forKey: .numberScale)
+        numberScale = scale.flatMap(NumberScale.init(rawValue:)) ?? .automatic
     }
 
     public var isEmpty: Bool { balances.isEmpty && recent.isEmpty && budgets.isEmpty }

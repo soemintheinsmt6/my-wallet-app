@@ -241,6 +241,34 @@ struct WalletSnapshotTests {
         #expect(snapshot.accounts.isEmpty)
         #expect(snapshot.quickCategories.isEmpty)
         #expect(snapshot.todaySpend == 0)
+        #expect(snapshot.numberScale == .automatic)
+    }
+
+    /// Widgets and the watch count compact figures the way the app's setting says.
+    @Test func numberScaleTravelsToTheWatchAndFallsBackWhenUnknown() throws {
+        let snapshot = WalletSnapshotBuilder.make(records: [], accounts: [account("Cash")], categories: [],
+                                                  budgets: [], numberScale: .lakhs, now: now)
+        #expect(snapshot.numberScale == .lakhs)
+        let encoded = try WalletWatchTransfer.encode(snapshot: snapshot)
+        #expect(try #require(WalletWatchTransfer.decodeSnapshot(from: encoded)).numberScale == .lakhs)
+
+        // A scale added by a newer build must not blank the widgets of an older one.
+        let future = """
+        {"generatedAt":"2024-01-01T12:00:00Z","balances":[],"recent":[],"budgets":[],"numberScale":"crores"}
+        """
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        #expect(try decoder.decode(WalletSnapshot.self, from: Data(future.utf8)).numberScale == .automatic)
+    }
+
+    @available(iOS 18, macOS 15, watchOS 11, visionOS 2, *)
+    @Test func compactCurrencyFollowsTheScale() {
+        let amount = Decimal(5_270_000)
+        // The locale decides where the currency sits, so look for the figure, not a whole string.
+        #expect(amount.compactCurrency("USD", scale: .lakhs).contains("52.7L"))
+        #expect(amount.compactCurrency("MMK", scale: .automatic).contains("52.7L"))
+        #expect(!amount.compactCurrency("MMK", scale: .millions).contains("L"))
+        #expect(!Decimal(85_000).compactCurrency("MMK", scale: .lakhs).contains("L"))
     }
 
     // MARK: - Deep links

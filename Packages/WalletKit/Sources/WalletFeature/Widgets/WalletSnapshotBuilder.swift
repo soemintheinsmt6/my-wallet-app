@@ -11,8 +11,8 @@ public enum WalletSnapshotBuilder {
     public static let budgetLimit = 4
 
     public static func make(records: [WalletRecord], accounts: [Account], categories: [WalletCategory],
-                            budgets: [BudgetProgress], now: Date = Date(),
-                            calendar: Calendar = .current) -> WalletSnapshot {
+                            budgets: [BudgetProgress], numberScale: NumberScale = .automatic,
+                            now: Date = Date(), calendar: Calendar = .current) -> WalletSnapshot {
         let included = accounts.filter { !$0.settings.excludeFromStats }
         let balances = Dictionary(grouping: included, by: \.currencyCode)
             .map { code, group in
@@ -51,7 +51,8 @@ public enum WalletSnapshotBuilder {
                               recent: Array(recent), budgets: Array(summaries),
                               accounts: options, quickCategories: quick,
                               todaySpend: todaySpend(records: records, accounts: accounts,
-                                                     balances: balances, now: now, calendar: calendar))
+                                                     balances: balances, now: now, calendar: calendar),
+                              numberScale: numberScale)
     }
 
     /// The expense categories used most often, so quick entry away from the phone offers the

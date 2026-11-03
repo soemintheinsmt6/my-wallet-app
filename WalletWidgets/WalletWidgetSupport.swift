@@ -80,9 +80,10 @@ extension Decimal {
         formatted(.currency(code: currencyCode).precision(.fractionLength(0...2)))
     }
 
-    /// Compact form for tight widget families, e.g. "$12.5K".
-    func widgetCompact(_ currencyCode: String) -> String {
-        formatted(.currency(code: currencyCode).notation(.compactName).precision(.fractionLength(0...1)))
+    /// Compact form for tight widget families, e.g. "$12.5K" or "MMK 52.7L", counted the way the
+    /// app's Count Large Amounts In setting says.
+    func widgetCompact(_ currencyCode: String, scale: NumberScale) -> String {
+        compactCurrency(currencyCode, scale: scale)
     }
 }
 

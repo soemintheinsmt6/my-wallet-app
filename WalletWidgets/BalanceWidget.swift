@@ -21,6 +21,7 @@ struct BalanceWidgetView: View {
 
     private var balances: [WalletSnapshot.Balance] { entry.snapshot?.balances ?? [] }
     private var primary: WalletSnapshot.Balance? { entry.snapshot?.primaryBalance }
+    private var scale: NumberScale { entry.snapshot?.numberScale ?? .automatic }
     /// Other currencies, most accounts first, shown only where there is room.
     private var others: [WalletSnapshot.Balance] {
         balances.filter { $0.currencyCode != primary?.currencyCode }
@@ -46,7 +47,7 @@ struct BalanceWidgetView: View {
                 .labelStyle(.titleAndIcon)
 
             Text(family == .systemSmall
-                 ? primary.total.widgetCompact(primary.currencyCode)
+                 ? primary.total.widgetCompact(primary.currencyCode, scale: scale)
                  : primary.total.widgetFormatted(primary.currencyCode))
                 .font(.system(.title, design: .rounded, weight: .semibold))
                 .monospacedDigit()
@@ -67,7 +68,7 @@ struct BalanceWidgetView: View {
                                 .font(.caption2.weight(.semibold))
                                 .foregroundStyle(.secondary)
                             Spacer(minLength: 2)
-                            Text(balance.total.widgetCompact(balance.currencyCode))
+                            Text(balance.total.widgetCompact(balance.currencyCode, scale: scale))
                                 .font(.caption2)
                                 .monospacedDigit()
                                 .lineLimit(1)

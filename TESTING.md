@@ -439,3 +439,11 @@ Manual check: with an MMK account spending over one lakh this month, switch the 
 The amount axis of the Dashboard balance and Balance Trend charts and of the Statistics charts now counts like the donut total ("50L" or "5M"). **316 tests across 51 suites passed**, and unsigned iOS Simulator and macOS builds passed. A new test covers the axis label under each choice and below one lakh. Not run in the app.
 
 Manual check: switch Count Large Amounts In between Lakhs and Millions and confirm each chart's axis changes between "L" and K/M labels, while card and legend amounts stay exact.
+
+### Widgets and Watch Follow the Counting Setting (2026-11-03)
+
+`WalletSnapshot` now carries the `NumberScale`, and small widget and complication figures use it. **318 tests across 51 suites passed.** New tests cover the scale surviving the watch payload, an unknown scale from a newer build decoding as Automatic, and the compact currency form under each choice and below one lakh. Unsigned builds passed for the app on iOS Simulator and macOS, the `WalletWidgets` extension, and `WalletDomain` for watchOS.
+
+**Not verified:** the `WalletWatch` and `WalletWatchWidgets` schemes do not build on `main`, before and after this change: `WatchWalletStore.swift` lacks `import Combine` and, once that is added, has Swift 6 data-race errors in its WatchConnectivity delegate. The complication edits were therefore not compiled. Nothing was run on a device, simulator or watch.
+
+Manual check: with an MMK balance over one lakh, add the small Balance widget and the watch Balance complication, switch Count Large Amounts In between Lakhs and Millions, and confirm both change between "52.7L" and "5.3M".

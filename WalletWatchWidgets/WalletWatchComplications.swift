@@ -45,6 +45,7 @@ struct WatchBalanceComplicationView: View {
     let entry: WalletEntry
 
     private var balance: WalletSnapshot.Balance? { entry.snapshot?.primaryBalance }
+    private var scale: NumberScale { entry.snapshot?.numberScale ?? .automatic }
 
     var body: some View {
         switch family {
@@ -55,7 +56,7 @@ struct WatchBalanceComplicationView: View {
                 Text("Balance").font(.caption2).foregroundStyle(.secondary)
                 Text(compact).font(.headline).lineLimit(1).minimumScaleFactor(0.5)
                 if let month = entry.snapshot?.month {
-                    Text("Spent today \(entry.snapshot?.todaySpend.complicationCompact(month.currencyCode) ?? "—")")
+                    Text("Spent today \(entry.snapshot?.todaySpend.complicationCompact(month.currencyCode, scale: scale) ?? "—")")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
@@ -72,12 +73,12 @@ struct WatchBalanceComplicationView: View {
 
     private var inlineText: String {
         guard let balance else { return "My Wallet" }
-        return "Balance \(balance.total.complicationCompact(balance.currencyCode))"
+        return "Balance \(balance.total.complicationCompact(balance.currencyCode, scale: scale))"
     }
 
     private var compact: String {
         guard let balance else { return "—" }
-        return balance.total.complicationCompact(balance.currencyCode)
+        return balance.total.complicationCompact(balance.currencyCode, scale: scale)
     }
 }
 
@@ -100,22 +101,23 @@ struct WatchSpendingComplicationView: View {
 
     private var currency: String { entry.snapshot?.month?.currencyCode ?? "USD" }
     private var spent: Decimal { entry.snapshot?.todaySpend ?? 0 }
+    private var scale: NumberScale { entry.snapshot?.numberScale ?? .automatic }
 
     var body: some View {
         switch family {
         case .accessoryInline:
-            Text("Spent \(spent.complicationCompact(currency))")
+            Text("Spent \(spent.complicationCompact(currency, scale: scale))")
         case .accessoryRectangular:
             VStack(alignment: .leading, spacing: 1) {
                 Text("Spent today").font(.caption2).foregroundStyle(.secondary)
-                Text(spent.complicationCompact(currency))
+                Text(spent.complicationCompact(currency, scale: scale))
                     .font(.headline).lineLimit(1).minimumScaleFactor(0.5)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         default:
             VStack(spacing: 0) {
                 Image(systemName: "arrow.up.right").font(.caption2)
-                Text(spent.complicationCompact(currency))
+                Text(spent.complicationCompact(currency, scale: scale))
                     .font(.caption2).lineLimit(1).minimumScaleFactor(0.5)
             }
         }
@@ -123,9 +125,10 @@ struct WatchSpendingComplicationView: View {
 }
 
 extension Decimal {
-    /// Watch faces are small; compact notation keeps the figure readable.
-    func complicationCompact(_ currencyCode: String) -> String {
-        formatted(.currency(code: currencyCode).notation(.compactName).precision(.fractionLength(0...1)))
+    /// Watch faces are small; compact notation keeps the figure readable. Counted the way the
+    /// app's Count Large Amounts In setting says.
+    func complicationCompact(_ currencyCode: String, scale: NumberScale) -> String {
+        compactCurrency(currencyCode, scale: scale)
     }
 }
 
