@@ -4,6 +4,17 @@ import WalletDomain
 
 @ModelActor
 actor WalletStore {
+    /// Counts single-record writes (create, update, delete), raised in the same actor turn as the
+    /// save. The actor runs one call at a time, so a read that reports version N includes every
+    /// write numbered N or lower — which lets a screen holding balances tell whether a change
+    /// notice is already in what it loaded. In memory only: it orders notices within one launch.
+    private(set) var ledgerVersion = 0
+
+    func advanceLedgerVersion() -> Int {
+        ledgerVersion += 1
+        return ledgerVersion
+    }
+
     func fetchEntries() throws -> [WalletEntry] {
         // Fresh contexts see imported changes without retaining stale registered objects.
         let context = ModelContext(modelContainer)

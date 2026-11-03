@@ -90,6 +90,9 @@ struct CoreLifecycleTests {
         // And one change reaches one loop, not three.
         let before = counting.loads
         counting.announceChange()
+        // Waits for the load rather than a fixed 50 ms, which a busy parallel run can outlast, then
+        // checks no second or third loop follows.
+        for _ in 0..<1000 where counting.loads == before { try await Task.sleep(for: .milliseconds(2)) }
         try await Task.sleep(for: .milliseconds(50))
         #expect(counting.loads == before + 1)
     }
@@ -337,11 +340,12 @@ private final class CountingRecords: RecordRepository {
         return try await wrapped.fetchRecords()
     }
 
-    func createRecord(id: UUID, draft: RecordDraft) async throws { try await wrapped.createRecord(id: id, draft: draft) }
-    func updateRecord(id: UUID, draft: RecordDraft) async throws { try await wrapped.updateRecord(id: id, draft: draft) }
+    func createRecord(id: UUID, draft: RecordDraft) async throws -> WalletRecord { try await wrapped.createRecord(id: id, draft: draft) }
+    func updateRecord(id: UUID, draft: RecordDraft) async throws -> WalletRecord { try await wrapped.updateRecord(id: id, draft: draft) }
     func deleteRecord(id: UUID) async throws { try await wrapped.deleteRecord(id: id) }
     func recordPhoto(id: UUID) async throws -> Data? { try await wrapped.recordPhoto(id: id) }
     func changes() -> AsyncStream<Void> { stream }
+    func recordChanges() -> AsyncStream<RecordChange> { RecordChangeStreams.unknown(from: stream) }
 }
 
 @MainActor
@@ -350,8 +354,8 @@ private final class FailingRecordMutations: RecordRepository {
     let record: WalletRecord
     init(record: WalletRecord) { self.record = record }
     func fetchRecords() async throws -> [WalletRecord] { [record] }
-    func createRecord(id: UUID, draft: RecordDraft) async throws { throw Failure() }
-    func updateRecord(id: UUID, draft: RecordDraft) async throws { throw Failure() }
+    func createRecord(id: UUID, draft: RecordDraft) async throws -> WalletRecord { throw Failure() }
+    func updateRecord(id: UUID, draft: RecordDraft) async throws -> WalletRecord { throw Failure() }
     func deleteRecord(id: UUID) async throws { throw Failure() }
     func recordPhoto(id: UUID) async throws -> Data? { throw Failure() }
     func changes() -> AsyncStream<Void> { AsyncStream { $0.finish() } }

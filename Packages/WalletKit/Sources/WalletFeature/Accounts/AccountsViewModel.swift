@@ -13,23 +13,45 @@ public final class AccountsViewModel: ObservableObject {
     private var observation: Task<Void, Never>?
     private var isReloading = false
     private var needsReload = false
+    /// The store's ledger version the balances on screen include, or `nil` until a load reports one.
+    private var ledgerVersion: Int?
 
     public init(useCases: AccountUseCases) { self.useCases = useCases }
 
     /// Watched once however many screens ask — the accounts list and the More screen both do — so a
     /// change costs one load rather than one per screen.
+    ///
+    /// Balances are summed from every record, so loading accounts reads the whole ledger. A single
+    /// saved or deleted record instead moves the balances it touches by its own difference.
     public func observe() async {
         if observation == nil {
             // Subscribed before the first load so a change during it is not missed.
-            let changes = useCases.changes()
+            let changes = useCases.recordChanges()
             observation = Task { [weak self] in
-                for await _ in changes {
+                for await change in changes {
                     guard let self, !Task.isCancelled else { break }
-                    await reload()
+                    if !apply(change) { await reload() }
                 }
             }
         }
         await reload()
+    }
+
+    /// Moves balances by what the change reports, unless the balances on screen already include it.
+    /// Returns `false` for a change that needs a full reload.
+    ///
+    /// A delta must be applied exactly once, and a reload can land between a save and its notice —
+    /// the reload already counting the change, the notice then counting it again. Ledger versions
+    /// settle it: a change at or below the version the balances were loaded at is already in them.
+    private func apply(_ change: RecordChange) -> Bool {
+        guard let changeVersion = change.version, let loaded = ledgerVersion,
+              let drafts = RecordChangeApplier.drafts(reportedBy: change) else { return false }
+        guard changeVersion > loaded else { return true }
+        let updated = RecordChangeApplier.accounts(accounts, movingFrom: drafts.before, to: drafts.after)
+        // Notices arrive in order and none is dropped, so the balances now include every write so far.
+        ledgerVersion = changeVersion
+        if accounts != updated { accounts = updated }
+        return true
     }
 
     /// Folds into the load already running rather than racing it, and runs once more afterwards if
@@ -50,10 +72,16 @@ public final class AccountsViewModel: ObservableObject {
         isLoading = true
         defer { if version == loadVersion { isLoading = false } }
         do {
-            let loaded = try await useCases.load()
+            let loaded = try await useCases.loadWithLedgerVersion()
             try Task.checkCancellation()
             guard version == loadVersion else { return }
-            accounts = loaded
+            // A change applied while this was reading is newer than these balances, so read again.
+            if let applied = ledgerVersion, let read = loaded.ledgerVersion, read < applied {
+                needsReload = true
+                return
+            }
+            ledgerVersion = loaded.ledgerVersion
+            if accounts != loaded.accounts { accounts = loaded.accounts }
         } catch is CancellationError {
         } catch {
             if version == loadVersion { errorMessage = error.localizedDescription }

@@ -531,3 +531,29 @@ Manual checks:
 2. Confirm the field is titled Card Number for a credit card and Loan Number for a loan, and disappears when the type is set to Cash; save as Cash and confirm the number is gone when switching back.
 3. Open the account, tap the number row, confirm it shows "Copied", paste elsewhere to check the full number, and confirm on iOS it is no longer pasteable after a minute and does not reach a Mac through Universal Clipboard.
 4. Enter `12/34` and confirm saving reports the allowed characters.
+
+## Saves Update in Place Instead of Reloading (2026-11-03)
+
+Saving, editing or deleting one record now updates the record list and account balances in memory instead of reading the whole wallet back. Before, one save caused three full reloads: `RecordsViewModel.save` awaited a reload, the repository's change notice started a second, and `NSPersistentStoreRemoteChange`, which a probe showed is posted for the app's own saves and not only iCloud imports, started a third. Each reload read every record twice, once for the list and once to sum balances, and `AccountsViewModel` did its own full sum as well. Measured in a temporary release-build benchmark at 10,000 records on the development Mac: a full reload took 0.51 s, and a save now takes **13 ms** end to end with no reload. The benchmark was deleted after the run.
+
+**342 tests across 53 suites passed** on three consecutive full runs, and unsigned builds passed for the app on iOS Simulator and macOS and for `WalletWatch` and `WalletWatchWidgets` on watchOS Simulator. The new `IncrementalRecordUpdateTests` cover:
+
+- date-ordered splicing, including an edit that moves a record's date
+- applying the same change twice being harmless
+- balance deltas for an expense edited into a transfer and back
+- a save, edit and delete through the view model with no record or account fetch, and balances equal to the store's own sum after each step
+- a record written elsewhere (as the watch or Shortcuts do) arriving by notice without a reload
+- an unknown change still reloading
+- account balances following record changes without a reload
+- a reload landing between a save and its notice not counting the save twice
+- the store's own saves not triggering a reload
+
+`screensSharingTheRecordsModelLoadItOnceBetweenThem` now waits for its load instead of a fixed 50 ms, which a busy parallel run could outlast; it still checks that one change causes exactly one load. A first version of the account update double-counted a change when a reload landed between a save and its notice; that is what led to ledger versions, and the race test now covers it.
+
+**Not verified:** on a device with iCloud, that CloudKit imports are written with an author (`NSCloudKitMirroringDelegate.import`) and so still reload. If an import were written without an author it would be skipped and show only after the next foreground reload. Not run in the app.
+
+Manual checks:
+
+1. With iCloud on two devices, add a record on one and confirm it appears on the other without leaving the screen.
+2. Add, edit and delete records and confirm the Records list, Dashboard balance and Accounts balances update straight away and match after a pull to refresh.
+3. In Instruments (Time Profiler), with a large wallet, confirm a save no longer shows `fetchRecords` or `fetchAccounts`.

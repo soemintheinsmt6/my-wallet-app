@@ -31,6 +31,9 @@ public struct AccountUseCases {
     public init(repository: any AccountRepository) { self.repository = repository }
 
     public func load() async throws -> [Account] { try await repository.fetchAccounts() }
+    public func loadWithLedgerVersion() async throws -> (accounts: [Account], ledgerVersion: Int?) {
+        try await repository.fetchAccountsWithLedgerVersion()
+    }
 
     public func create(name: String, type: AccountType, currencyCode: String = "USD", settings: AccountSettings = AccountSettings()) async throws {
         let trimmedName = try validate(name: name, settings: settings)
@@ -89,4 +92,5 @@ public struct AccountUseCases {
     }
 
     public func changes() -> AsyncStream<Void> { repository.changes() }
+    public func recordChanges() -> AsyncStream<RecordChange> { repository.recordChanges() }
 }

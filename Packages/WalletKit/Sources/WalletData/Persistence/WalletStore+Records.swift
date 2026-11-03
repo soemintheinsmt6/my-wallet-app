@@ -13,19 +13,30 @@ extension WalletStore {
         return try context.fetch(FetchDescriptor<TransactionRecord>(predicate: #Predicate { $0.id == id })).first?.photoData
     }
 
-    func createRecord(id: UUID, draft: RecordDraft) throws {
+    /// The saved record, how it was before when it already existed, and the ledger version the save
+    /// produced — what a change notice needs so screens can update balances without reading every record.
+    typealias SavedRecord = (saved: WalletRecord, previous: WalletRecord?, version: Int)
+    typealias DeletedRecord = (previous: WalletRecord?, version: Int)
+
+    @discardableResult
+    func createRecord(id: UUID, draft: RecordDraft) throws -> SavedRecord {
         try saveRecord(id: id, draft: draft, updating: false)
     }
 
-    func updateRecord(id: UUID, draft: RecordDraft) throws {
+    @discardableResult
+    func updateRecord(id: UUID, draft: RecordDraft) throws -> SavedRecord {
         try saveRecord(id: id, draft: draft, updating: true)
     }
 
-    func deleteRecord(id: UUID) throws {
+    /// Returns the record as it was, or `nil` when there was nothing to delete.
+    @discardableResult
+    func deleteRecord(id: UUID) throws -> DeletedRecord {
         try Task.checkCancellation()
         let context = ModelContext(modelContainer)
         context.autosaveEnabled = false
-        for record in try context.fetch(FetchDescriptor<TransactionRecord>(predicate: #Predicate { $0.id == id })) {
+        let matches = try context.fetch(FetchDescriptor<TransactionRecord>(predicate: #Predicate { $0.id == id }))
+        let previous = matches.first?.record
+        for record in matches {
             record.photoData = nil
             context.delete(record)
         }
@@ -33,15 +44,23 @@ extension WalletStore {
         try deleteReceipts(recordID: id, in: context)
         try deleteSplits(recordID: id, in: context)
         try context.save()
+        return (previous, advanceLedgerVersion())
     }
 
-    private func saveRecord(id: UUID, draft: RecordDraft, updating: Bool) throws {
+    /// Returns the record as stored — normalized, with its currencies resolved — read back by ID so
+    /// screens can splice it in without fetching the whole ledger, and the record as it was before.
+    private func saveRecord(id: UUID, draft: RecordDraft, updating: Bool) throws -> SavedRecord {
         try Task.checkCancellation()
         try draft.validate(allowUncategorized: updating && draft.categoryID == nil)
         let context = ModelContext(modelContainer)
         context.autosaveEnabled = false
+        let byID = FetchDescriptor<TransactionRecord>(predicate: #Predicate { $0.id == id })
+        // Mapped before the write, which edits the same object in place.
+        let previous = try context.fetch(byID).first?.record
         try writeRecord(id: id, draft: draft, updating: updating, in: context)
         try context.save()
+        guard let saved = try context.fetch(byID).first else { throw RecordValidationError.missingReference }
+        return (saved.record, previous, advanceLedgerVersion())
     }
 
     func writeRecord(id: UUID, draft: RecordDraft, updating: Bool = false, in context: ModelContext) throws {
@@ -85,13 +104,10 @@ extension WalletStore {
     /// Derive balances from ledger entries, avoiding synced read-modify-write counters.
     func recordBalanceChanges(in context: ModelContext) throws -> [UUID: Decimal] {
         var balances: [UUID: Decimal] = [:]
+        // The same rule an in-memory update applies, so a spliced balance always matches this one.
         for transaction in try context.fetch(FetchDescriptor<TransactionRecord>()) {
-            let draft = transaction.record.draft
-            if let accountID = draft.accountID {
-                balances[accountID, default: 0] += draft.kind == .income ? draft.amount : -draft.amount
-            }
-            if draft.kind == .transfer, let destination = draft.destinationAccountID {
-                balances[destination, default: 0] += draft.receivedAmount ?? draft.amount
+            for (account, amount) in transaction.record.draft.balanceEffects {
+                balances[account, default: 0] += amount
             }
         }
         return balances

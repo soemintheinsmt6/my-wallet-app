@@ -26,6 +26,8 @@ public final class RecordsViewModel: ObservableObject {
     private var observation: Task<Void, Never>?
     private var isReloading = false
     private var needsReload = false
+    /// Set once a full load has landed; until then a change cannot be applied in memory.
+    private var hasLoaded = false
 
     public init(useCases: RecordUseCases, accounts: AccountUseCases, categories: CategoryUseCases, tags: TagUseCases) {
         self.useCases = useCases
@@ -40,18 +42,39 @@ public final class RecordsViewModel: ObservableObject {
     /// per screen meant one save fanned out into three concurrent loads, each raising `isLoading` —
     /// which the dashboard showed as its spinner flashing several times over. The loop also outlives
     /// the screen that started it, so leaving a tab no longer stops the others being kept current.
+    ///
+    /// A single saved or deleted record is applied in memory — the record spliced into the list and
+    /// the balances it touches moved by its difference — so a save no longer reads every record
+    /// back twice (once for the list, once to sum balances). Anything wider still reloads.
     public func observe() async {
         if observation == nil {
             // Subscribed before the first load so a change during it is not missed.
-            let changes = useCases.changes()
+            let changes = useCases.recordChanges()
             observation = Task { [weak self] in
-                for await _ in changes {
+                for await change in changes {
                     guard let self, !Task.isCancelled else { break }
-                    await reload()
+                    if !apply(change) { await reload() }
                 }
             }
         }
         await reload()
+    }
+
+    /// Applies a single-record change to the records and balances in memory. Returns `false` for a
+    /// change that needs a full reload. Measured against what is already held, so applying the same
+    /// change twice — once by `save` and again when its notice arrives — changes nothing the second time.
+    @discardableResult
+    private func apply(_ change: RecordChange) -> Bool {
+        // Before the first load there is nothing in memory to update, so read everything.
+        guard hasLoaded,
+              let updated = RecordChangeApplier.records(records, applying: change),
+              let drafts = RecordChangeApplier.drafts(in: records, for: change) else { return false }
+        let balances = RecordChangeApplier.accounts(accounts, movingFrom: drafts.before, to: drafts.after)
+        // A load in flight read the ledger before this change; `load` sees the bump and reads again.
+        generation += 1
+        if accounts != balances { accounts = balances }
+        if records != updated { records = updated }
+        return true
     }
 
     /// Folds into the load already running rather than racing it, and runs once more afterwards if
@@ -77,7 +100,8 @@ public final class RecordsViewModel: ObservableObject {
             let tags = try await tagUseCases.load()
             let records = try await useCases.load()
             try Task.checkCancellation()
-            guard version == generation else { return }
+            // A change applied meanwhile is newer than what was read, so read once more instead.
+            guard version == generation else { needsReload = true; return }
             // Only what actually changed is published: the repeated loads a launch makes read the
             // same rows back, and republishing them redrew every dashboard card — charts and
             // progress bars animating from nothing — for no change at all.
@@ -85,17 +109,20 @@ public final class RecordsViewModel: ObservableObject {
             if self.categories != categories { self.categories = categories }
             if self.tags != tags { self.tags = tags }
             if self.records != records { self.records = records }
+            hasLoaded = true
         } catch is CancellationError {
         } catch { if version == generation { errorMessage = error.localizedDescription } }
     }
 
+    /// Applies the saved record at once, so it is on screen when this returns; the change notice
+    /// that follows finds it already there and does nothing.
     public func save(id: UUID, draft: RecordDraft, editing: Bool = false) async throws {
         guard !isSaving else { throw RecordValidationError.saveInProgress }
         isSaving = true
         defer { isSaving = false }
-        if editing { try await useCases.update(id: id, draft: draft) }
-        else { try await useCases.create(id: id, draft: draft) }
-        await reload()
+        let saved = editing ? try await useCases.update(id: id, draft: draft)
+                            : try await useCases.create(id: id, draft: draft)
+        if !apply(.saved(saved, previous: nil, version: nil)) { await reload() }
     }
 
     public func delete(id: UUID) async throws {
@@ -103,7 +130,7 @@ public final class RecordsViewModel: ObservableObject {
         isSaving = true
         defer { isSaving = false }
         try await useCases.delete(id: id)
-        await reload()
+        if !apply(.deleted(id, previous: nil, version: nil)) { await reload() }
     }
 
     public func photo(id: UUID) async throws -> Data? { try await useCases.photo(id: id) }

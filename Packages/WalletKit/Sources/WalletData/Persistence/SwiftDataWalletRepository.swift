@@ -9,15 +9,26 @@ public final class SwiftDataWalletRepository: WalletRepository, AccountRepositor
     private let store: WalletStore
     private var subscriptions = Set<AnyCancellable>()
     private var observers: [UUID: AsyncStream<Void>.Continuation] = [:]
+    private var recordObservers: [UUID: AsyncStream<RecordChange>.Continuation] = [:]
+
+    private let history = StoreHistoryFilter()
 
     private init(store: WalletStore) {
         self.store = store
-        // SwiftData's CloudKit backing store posts notifications after remote imports.
+        // Posted after iCloud imports, and also after every one of the app's own saves. Those
+        // already announce themselves, so only changes the app did not make are passed on.
         NotificationCenter.default.publisher(for: .NSPersistentStoreRemoteChange)
-            .sink { @Sendable [weak self] _ in
-                Task { @MainActor [weak self] in self?.notifyChanges() }
+            .sink { @Sendable [weak self] notification in
+                let coordinator = (notification.object as? NSPersistentStoreCoordinator).map(UncheckedCoordinator.init)
+                Task { @MainActor [weak self] in await self?.handleStoreChange(coordinator) }
             }
             .store(in: &subscriptions)
+    }
+
+    /// A notice without a coordinator cannot be checked, so it reloads.
+    private func handleStoreChange(_ coordinator: UncheckedCoordinator?) async {
+        guard let coordinator else { notifyChanges(); return }
+        if await history.hasForeignChanges(in: coordinator) { notifyChanges() }
     }
 
     public static func make(configuration: WalletStorageConfiguration) async throws -> SwiftDataWalletRepository {
@@ -83,18 +94,27 @@ public final class SwiftDataWalletRepository: WalletRepository, AccountRepositor
 
     public func fetchAccounts() async throws -> [Account] { try await store.fetchAccounts() }
 
+    public func fetchAccountsWithLedgerVersion() async throws -> (accounts: [Account], ledgerVersion: Int?) {
+        let result = try await store.fetchAccountsWithLedgerVersion()
+        return (result.accounts, result.ledgerVersion)
+    }
+
     public func fetchRecords() async throws -> [WalletRecord] { try await store.fetchRecords() }
 
     public func recordPhoto(id: UUID) async throws -> Data? { try await store.recordPhoto(id: id) }
 
-    public func createRecord(id: UUID, draft: RecordDraft) async throws {
-        try await store.createRecord(id: id, draft: draft)
-        notifyChanges()
+    @discardableResult
+    public func createRecord(id: UUID, draft: RecordDraft) async throws -> WalletRecord {
+        let result = try await store.createRecord(id: id, draft: draft)
+        notifyChanges(.saved(result.saved, previous: result.previous, version: result.version))
+        return result.saved
     }
 
-    public func updateRecord(id: UUID, draft: RecordDraft) async throws {
-        try await store.updateRecord(id: id, draft: draft)
-        notifyChanges()
+    @discardableResult
+    public func updateRecord(id: UUID, draft: RecordDraft) async throws -> WalletRecord {
+        let result = try await store.updateRecord(id: id, draft: draft)
+        notifyChanges(.saved(result.saved, previous: result.previous, version: result.version))
+        return result.saved
     }
 
     public func fetchSplits() async throws -> [RecordSplit] { try await store.fetchSplits() }
@@ -179,8 +199,8 @@ public final class SwiftDataWalletRepository: WalletRepository, AccountRepositor
     }
 
     public func deleteRecord(id: UUID) async throws {
-        try await store.deleteRecord(id: id)
-        notifyChanges()
+        let result = try await store.deleteRecord(id: id)
+        notifyChanges(.deleted(id, previous: result.previous, version: result.version))
     }
 
     public func fetchTags() async throws -> [WalletTag] { try await store.fetchTags() }
@@ -273,11 +293,27 @@ public final class SwiftDataWalletRepository: WalletRepository, AccountRepositor
         return stream
     }
 
-    private func notifyChanges() {
+    /// Unbuffered and in order, unlike `changes()`: a dropped or merged record change would leave a
+    /// screen's in-memory ledger wrong, while extra plain notices only cost a reload.
+    public func recordChanges() -> AsyncStream<RecordChange> {
+        let id = UUID()
+        let (stream, continuation) = AsyncStream<RecordChange>.makeStream(bufferingPolicy: .unbounded)
+        recordObservers[id] = continuation
+        continuation.onTermination = { [weak self] _ in
+            Task { @MainActor [weak self] in self?.recordObservers.removeValue(forKey: id) }
+        }
+        return stream
+    }
+
+    /// Every write announces itself to both streams. Only single-record writes say exactly what
+    /// changed; everything else, including iCloud imports, is `.unknown` and reloads.
+    private func notifyChanges(_ change: RecordChange = .unknown) {
         for observer in observers.values { observer.yield(()) }
+        for observer in recordObservers.values { observer.yield(change) }
     }
 
     deinit {
         for observer in observers.values { observer.finish() }
+        for observer in recordObservers.values { observer.finish() }
     }
 }

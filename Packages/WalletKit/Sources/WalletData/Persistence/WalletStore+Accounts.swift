@@ -27,6 +27,12 @@ extension WalletStore {
         try context.save()
     }
 
+    /// The accounts and the ledger version their balances include, read in one actor turn so no
+    /// record write can land between the two.
+    func fetchAccountsWithLedgerVersion() throws -> (accounts: [Account], ledgerVersion: Int) {
+        (try fetchAccounts(), ledgerVersion)
+    }
+
     func fetchAccounts() throws -> [Account] {
         let context = ModelContext(modelContainer)
         let descriptor = FetchDescriptor<AccountRecord>(sortBy: [SortDescriptor(\AccountRecord.createdAt)])
