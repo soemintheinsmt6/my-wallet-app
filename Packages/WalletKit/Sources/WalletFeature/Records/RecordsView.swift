@@ -26,7 +26,8 @@ public struct RecordsView: View {
             List {
                 if query.isActive { summarySection(for: matches.count) }
                 if grouped {
-                    ForEach(RecordDayGrouping.sections(for: matches)) { section in
+                    let byDate = RecordDayGrouping.daysByDate(query.sort, hasText: query.hasText)
+                    ForEach(RecordDayGrouping.sections(for: matches, newestDayFirst: byDate)) { section in
                         Section {
                             ForEach(section.results) { row($0.record) }
                         } header: {

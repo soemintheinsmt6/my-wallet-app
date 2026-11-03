@@ -14,23 +14,32 @@ struct RecordDaySection: Identifiable, Equatable {
 
 /// Groups search results into day sections for the ledger.
 ///
-/// Only date-ordered results are grouped: ranking by relevance over search text, or by amount,
-/// interleaves days, and day headers would then be meaningless. Transfers move money between the
-/// user's own accounts, so they are left out of the day net exactly as statistics leaves them out
-/// of income and expenses. Days spanning more than one currency report no net rather than adding
-/// unlike currencies together.
+/// Date and relevance order are grouped. Relevance over search text would interleave days, so its
+/// results are regrouped with the newest day first and the best match first within each day (see
+/// `daysByDate`). Amount order is left ungrouped, since sorting by size is the point there and day
+/// headers would scatter it. Transfers move money between the user's own accounts, so they are left
+/// out of the day net exactly as statistics leaves them out of income and expenses. Days spanning
+/// more than one currency report no net rather than adding unlike currencies together.
 enum RecordDayGrouping {
-    /// Day headers only make sense when the list is already in date order.
+    /// Day headers apply to date order and to relevance; amount order stays a flat ranking.
     static func groups(_ sort: RecordSortOrder, hasText: Bool) -> Bool {
         switch sort {
-        case .newest, .oldest: true
-        // Relevance falls back to date order until there is text to rank against.
-        case .relevance: !hasText
+        case .newest, .oldest, .relevance: true
         case .largest, .smallest: false
         }
     }
 
-    static func sections(for results: [RecordSearchResult], calendar: Calendar = .current) -> [RecordDaySection] {
+    /// True when results arrive ranked rather than dated, so days must be put back in date order.
+    /// Without search text relevance is already newest first.
+    static func daysByDate(_ sort: RecordSortOrder, hasText: Bool) -> Bool {
+        sort == .relevance && hasText
+    }
+
+    /// Groups results by calendar day. Days appear in the order their first result does, unless
+    /// `newestDayFirst` reorders them; records within a day always keep their incoming order, which
+    /// for a search is best match first.
+    static func sections(for results: [RecordSearchResult], newestDayFirst: Bool = false,
+                         calendar: Calendar = .current) -> [RecordDaySection] {
         var order: [Date] = []
         var byDay: [Date: [RecordSearchResult]] = [:]
         for result in results {
@@ -38,6 +47,7 @@ enum RecordDayGrouping {
             if byDay[day] == nil { order.append(day) }
             byDay[day, default: []].append(result)
         }
+        if newestDayFirst { order.sort(by: >) }
         return order.map { day in
             let entries = byDay[day] ?? []
             let (net, currency) = net(for: entries)

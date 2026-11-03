@@ -512,3 +512,9 @@ Manual check: open a category with subcategories and confirm each subcategory ro
 `RecordRow` now ends in a chevron after the amount and its paperclip, so the Records list, the Dashboard's recent records and an account's activity all show it from one change; each of those rows opens the record editor. **325 tests across 51 suites passed**, and unsigned iOS Simulator and macOS builds passed. Not seen in the app; check that long amounts still fit beside the chevron on a small phone.
 
 Manual check: in Records, on the Dashboard and in an account's detail, confirm each record row shows a chevron and still opens its editor, and that a large amount such as 1,234,567,890 MMK is not truncated.
+
+## Day Headers in Search Results (2026-11-03)
+
+Search results, sorted by relevance, now show day section headers like the unfiltered list. Ranked results are regrouped by calendar day, newest day first, keeping the best match first within each day; amount sorts stay ungrouped. The sort hint in the filter sheet explains this while search text is entered. The day header's net counts only the matching records on that day. **326 tests across 51 suites passed**, and unsigned iOS Simulator and macOS builds passed. The updated grouping test and a new one cover search results being grouped, days running newest first, and the best match leading each day. Not run in the app.
+
+Manual check: search for a payee or category that appears on several days and confirm headers read Today, Yesterday and older dates in order, that a day's strongest match is listed first, and that Largest or Smallest sorting still shows a flat list.

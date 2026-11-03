@@ -71,13 +71,36 @@ struct RecordDayGroupingTests {
         #expect(sections[0].currencyCode == nil)
     }
 
-    @Test func dayHeadersOnlyApplyToDateOrderedResults() {
+    @Test func dayHeadersApplyToDateAndRelevanceOrderButNotAmountOrder() {
         #expect(RecordDayGrouping.groups(.newest, hasText: false))
         #expect(RecordDayGrouping.groups(.oldest, hasText: true))
-        // Relevance falls back to date order until there is text to rank against.
         #expect(RecordDayGrouping.groups(.relevance, hasText: false))
-        #expect(!RecordDayGrouping.groups(.relevance, hasText: true))
+        // Search results get day headers too.
+        #expect(RecordDayGrouping.groups(.relevance, hasText: true))
         #expect(!RecordDayGrouping.groups(.largest, hasText: false))
         #expect(!RecordDayGrouping.groups(.smallest, hasText: false))
+
+        // Only ranked search results need their days put back in date order.
+        #expect(RecordDayGrouping.daysByDate(.relevance, hasText: true))
+        #expect(!RecordDayGrouping.daysByDate(.relevance, hasText: false))
+        #expect(!RecordDayGrouping.daysByDate(.oldest, hasText: true))
+    }
+
+    /// Ranked results arrive with days interleaved. Grouped, the days run newest first like the
+    /// normal ledger, and each day still leads with its best match.
+    @Test func searchResultsGroupNewestDayFirstWithTheBestMatchFirstWithinADay() {
+        func ranked(day: Int, score: Int) -> RecordSearchResult {
+            let base = result(day: day)
+            return RecordSearchResult(record: base.record, score: score)
+        }
+        let strongOld = ranked(day: 0, score: 90)
+        let newest = ranked(day: 2, score: 60)
+        let weakOld = ranked(day: 0, score: 30)
+        let middle = ranked(day: 1, score: 20)
+
+        let sections = RecordDayGrouping.sections(for: [strongOld, newest, weakOld, middle], newestDayFirst: true)
+
+        #expect(sections.map(\.date) == sections.map(\.date).sorted(by: >))
+        #expect(sections.map { $0.results.map(\.id) } == [[newest.id], [middle.id], [strongOld.id, weakOld.id]])
     }
 }
