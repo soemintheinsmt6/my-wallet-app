@@ -62,7 +62,7 @@ public struct AccountSettings: Equatable, Sendable {
 }
 
 public extension Array where Element == Account {
-    /// The currency a summary opens in: the user's default currency when an account holds it,
+    /// The currency a summary opens in: the user's main currency when an account holds it,
     /// otherwise the currency most accounts use (alphabetical on a tie), or `nil` with no accounts.
     func preferredCurrency(default defaultCurrency: String) -> String? {
         if contains(where: { $0.currencyCode == defaultCurrency }) { return defaultCurrency }

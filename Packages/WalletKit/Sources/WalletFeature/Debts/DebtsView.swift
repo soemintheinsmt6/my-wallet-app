@@ -7,7 +7,7 @@ public struct DebtsView: View {
     @State private var editing: Debt?
     @State private var deleting: DebtProgress?
     @State private var settling: DebtProgress?
-    @Environment(\.defaultCurrency) private var defaultCurrency
+    @Environment(\.mainCurrency) private var mainCurrency
 
     public init(viewModel: DebtsViewModel) { self.viewModel = viewModel }
 
@@ -38,11 +38,11 @@ public struct DebtsView: View {
             if viewModel.balances.isEmpty && !viewModel.isLoading {
                 WalletEmptyState(title: "No debts tracked", symbol: "person.2",
                                  message: "Track money you lent or borrowed, and settle it when it is paid.",
-                                 actionTitle: "Add Debt") { editing = Debt(currencyCode: defaultCurrency) }
+                                 actionTitle: "Add Debt") { editing = Debt(currencyCode: mainCurrency) }
             }
         }
         .navigationTitle("Debts")
-        .toolbar { Button("Add Debt", systemImage: "plus") { editing = Debt(currencyCode: defaultCurrency) } }
+        .toolbar { Button("Add Debt", systemImage: "plus") { editing = Debt(currencyCode: mainCurrency) } }
         .sheet(item: $editing) { DebtEditorView(viewModel: viewModel, debt: $0) }
         .sheet(item: $settling) { DebtSettlementView(viewModel: viewModel, progress: $0) }
         .alert("Delete Debt?", isPresented: Binding(get: { deleting != nil }, set: { if !$0 { deleting = nil } })) {

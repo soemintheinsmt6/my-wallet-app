@@ -101,6 +101,13 @@ public enum CurrencyConverter {
 public protocol ExchangeRateProviding: Sendable {
     /// Latest rates when `date` is nil, otherwise the rates for that day.
     func rates(base: String, on date: Date?) async throws -> ExchangeRateSet
+    /// The currencies the feed publishes, or `nil` when it does not say. A currency outside this
+    /// set can neither be converted into nor out of with downloaded rates.
+    var supportedCurrencies: Set<String>? { get }
+}
+
+public extension ExchangeRateProviding {
+    var supportedCurrencies: Set<String>? { nil }
 }
 
 /// Decides when cached rates should be refreshed.

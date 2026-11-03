@@ -15,7 +15,7 @@ struct AccountEditorView: View {
     @State private var errorMessage: String?
     @State private var choosingCurrency = false
     @State private var choosingSymbol = false
-    @Environment(\.defaultCurrency) private var defaultCurrency
+    @Environment(\.mainCurrency) private var mainCurrency
 
     init(viewModel: AccountsViewModel, account: Account? = nil) {
         self.viewModel = viewModel
@@ -23,7 +23,7 @@ struct AccountEditorView: View {
         let settings = account?.settings ?? AccountSettings()
         _name = State(initialValue: account?.name ?? "")
         _type = State(initialValue: account?.type ?? .cash)
-        // A new account takes the default currency on appear; the environment isn't readable here.
+        // A new account takes the main currency on appear; the environment isn't readable here.
         _currencyCode = State(initialValue: account?.currencyCode ?? "")
         _settings = State(initialValue: settings)
         // Nothing to show is left empty so the field's "0" reads as the placeholder it is, rather
@@ -48,7 +48,7 @@ struct AccountEditorView: View {
                             .multilineTextAlignment(.trailing)
                             .accessibilityLabel("Name")
                     }
-                    .onAppear { if currencyCode.isEmpty { currencyCode = defaultCurrency } }
+                    .onAppear { if currencyCode.isEmpty { currencyCode = mainCurrency } }
                     if account == nil {
                         // Reads as the row it is — a label, the choice, and somewhere to go —
                         // rather than as a line of button-tinted text.

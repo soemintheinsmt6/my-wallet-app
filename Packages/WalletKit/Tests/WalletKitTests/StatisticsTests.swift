@@ -118,7 +118,7 @@ struct StatisticsTests {
         #expect(PeriodComparison.change(from: 0, to: 50) == nil)
     }
 
-    @Test func summariesOpenInTheDefaultCurrencyWhenAnAccountHoldsIt() {
+    @Test func summariesOpenInTheMainCurrencyWhenAnAccountHoldsIt() {
         let accounts = [Account(name: "A", type: .cash, currencyCode: "MMK"),
                         Account(name: "B", type: .cash, currencyCode: "MMK"),
                         Account(name: "C", type: .cash, currencyCode: "USD")]

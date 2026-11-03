@@ -7,6 +7,9 @@ import WalletDomain
 private struct StubRateProvider: ExchangeRateProviding {
     var set: ExchangeRateSet?
     var error: (any Error)?
+    var supported: Set<String>?
+
+    var supportedCurrencies: Set<String>? { supported }
 
     func rates(base: String, on date: Date?) async throws -> ExchangeRateSet {
         if let error { throw error }
@@ -79,10 +82,14 @@ struct CurrencyViewModelTests {
         base: "USD", date: Date(),
         rates: ["EUR": Decimal(string: "0.90")!, "GBP": Decimal(string: "0.80")!])
 
-    private func model(provider: StubRateProvider, home: String = "USD",
+    private func freshDefaults() -> UserDefaults {
+        UserDefaults(suiteName: "currency.tests.\(UUID().uuidString)")!
+    }
+
+    private func model(provider: StubRateProvider, main: String = "USD",
                        converts: Bool = true, cached: ExchangeRateSet? = nil) -> CurrencyViewModel {
-        let defaults = UserDefaults(suiteName: "currency.tests.\(UUID().uuidString)")!
-        defaults.set(home, forKey: WalletPreferenceKeys.homeCurrency)
+        let defaults = freshDefaults()
+        defaults.set(main, forKey: WalletPreferenceKeys.mainCurrency)
         defaults.set(converts, forKey: WalletPreferenceKeys.convertTotals)
         return CurrencyViewModel(provider: provider, preferences: defaults, load: { cached })
     }
@@ -98,13 +105,54 @@ struct CurrencyViewModelTests {
         #expect(ready.isConversionAvailable)
     }
 
-    @Test func defaultCurrencyStartsAsKyatAndPersistsAChange() {
-        let defaults = UserDefaults(suiteName: "currency.tests.\(UUID().uuidString)")!
+    @Test func mainCurrencyStartsAsKyatAndPersistsAChange() {
+        let defaults = freshDefaults()
         let first = CurrencyViewModel(provider: StubRateProvider(set: rates), preferences: defaults)
-        #expect(first.defaultCurrency == "MMK")
-        first.defaultCurrency = "THB"
+        #expect(first.mainCurrency == "MMK")
+        first.mainCurrency = "THB"
         let reopened = CurrencyViewModel(provider: StubRateProvider(set: rates), preferences: defaults)
-        #expect(reopened.defaultCurrency == "THB")
+        #expect(reopened.mainCurrency == "THB")
+    }
+
+    /// Someone converting totals keeps the currency those totals were shown in; anyone else keeps
+    /// the one new items started in. The replaced keys are removed after carrying over.
+    @Test func separateHomeAndDefaultCurrenciesMergeIntoTheMainCurrency() {
+        let converting = freshDefaults()
+        converting.set("USD", forKey: WalletPreferenceKeys.legacyHomeCurrency)
+        converting.set("MMK", forKey: WalletPreferenceKeys.legacyDefaultCurrency)
+        converting.set(true, forKey: WalletPreferenceKeys.convertTotals)
+        let first = CurrencyViewModel(provider: StubRateProvider(set: rates), preferences: converting)
+        #expect(first.mainCurrency == "USD")
+        #expect(converting.string(forKey: WalletPreferenceKeys.mainCurrency) == "USD")
+        #expect(converting.string(forKey: WalletPreferenceKeys.legacyHomeCurrency) == nil)
+        #expect(converting.string(forKey: WalletPreferenceKeys.legacyDefaultCurrency) == nil)
+
+        let notConverting = freshDefaults()
+        notConverting.set("USD", forKey: WalletPreferenceKeys.legacyHomeCurrency)
+        notConverting.set("MMK", forKey: WalletPreferenceKeys.legacyDefaultCurrency)
+        notConverting.set(false, forKey: WalletPreferenceKeys.convertTotals)
+        #expect(CurrencyViewModel(provider: StubRateProvider(set: rates), preferences: notConverting)
+            .mainCurrency == "MMK")
+
+        // A home currency never chosen was the region's currency, which converted totals were in.
+        let unchosenHome = freshDefaults()
+        unchosenHome.set("MMK", forKey: WalletPreferenceKeys.legacyDefaultCurrency)
+        unchosenHome.set(true, forKey: WalletPreferenceKeys.convertTotals)
+        let region = Locale.current.currency?.identifier ?? "MMK"
+        #expect(CurrencyViewModel(provider: StubRateProvider(set: rates), preferences: unchosenHome)
+            .mainCurrency == region)
+    }
+
+    /// The feed has no MMK: no download is attempted and converted totals stay off, while a
+    /// record's own rate still converts.
+    @Test func aMainCurrencyOutsideTheFeedSkipsDownloadsButKeepsManualRates() async {
+        let model = model(provider: StubRateProvider(set: rates, supported: ["USD", "EUR"]), main: "MMK")
+        #expect(!model.hasRatesForMainCurrency)
+        await model.refresh(force: true)
+        #expect(model.rates == nil)
+        #expect(model.errorMessage == nil)
+        #expect(!model.isConversionAvailable)
+        #expect(model.convert(10, from: "USD", manualRate: 3_000) == 30_000)
     }
 
     @Test func refreshStoresTheDownloadedSet() async {
@@ -123,7 +171,7 @@ struct CurrencyViewModelTests {
         #expect(model.errorMessage != nil)
     }
 
-    @Test func amountsConvertIntoTheHomeCurrency() {
+    @Test func amountsConvertIntoTheMainCurrency() {
         let model = model(provider: StubRateProvider(set: rates), cached: rates)
         #expect(model.convert(100, from: "USD") == 100)
         #expect(model.convert(90, from: "EUR") == 100)
@@ -146,7 +194,7 @@ struct CurrencyViewModelTests {
         #expect(model.total([(100, "USD"), (10, "CHF")]) == nil)
     }
 
-    @Test func transferDifferenceReportsGainAndLossInTheHomeCurrency() {
+    @Test func transferDifferenceReportsGainAndLossInTheMainCurrency() {
         let model = model(provider: StubRateProvider(set: rates), cached: rates)
         // 100 USD out, 90 EUR in = exactly 100 USD: no difference.
         #expect(model.transferDifference(sent: 100, sentCurrency: "USD",

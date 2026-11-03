@@ -10,6 +10,14 @@ public struct FrankfurterExchangeRateProvider: ExchangeRateProviding {
     private let session: URLSession
     private let host: URL
 
+    /// The European Central Bank's reference currencies, which are all Frankfurter serves (its
+    /// `/currencies` list, checked 2026-11-03). Notably absent are MMK, PKR, BDT, NPR and LKR.
+    public let supportedCurrencies: Set<String>? = [
+        "AUD", "BRL", "CAD", "CHF", "CNY", "CZK", "DKK", "EUR", "GBP", "HKD", "HUF", "IDR",
+        "ILS", "INR", "ISK", "JPY", "KRW", "MXN", "MYR", "NOK", "NZD", "PHP", "PLN", "RON", "SEK",
+        "SGD", "THB", "TRY", "USD", "ZAR",
+    ]
+
     public init(session: URLSession = .shared,
                 host: URL = URL(string: "https://api.frankfurter.app")!) {
         self.session = session

@@ -10,9 +10,12 @@ public enum WalletPreferenceKeys {
     static let appLockGracePeriod = "security.appLock.gracePeriod"
     /// First-launch setup is per-device, so this is deliberately not synced.
     static let onboardingCompleted = "onboarding.completed"
-    static let homeCurrency = "currency.home"
-    /// Prefills the currency of new accounts, bills, budgets, debts and goals.
-    static let defaultCurrency = "currency.default"
+    /// Where new accounts, bills, budgets, debts and goals start, which currency summaries open in,
+    /// and what converted totals are shown in.
+    static let mainCurrency = "currency.main"
+    /// Replaced by `mainCurrency`; read once to carry an existing choice over, then removed.
+    static let legacyHomeCurrency = "currency.home"
+    static let legacyDefaultCurrency = "currency.default"
     static let convertTotals = "currency.convertTotals"
     /// How short totals count large amounts: a `NumberScale` raw value.
     static let numberScale = "currency.numberScale"

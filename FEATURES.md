@@ -299,15 +299,19 @@ The account step writes through `AccountsViewModel`, so it gets the same validat
 
 Enhanced multi-currency handling beyond the current per-account currency.
 
-- [x] Primary/home currency setting
+- [x] Main currency setting (one setting for new items, summaries and conversion)
 - [x] Automatic exchange rate fetching (ECB via the keyless Frankfurter feed)
-- [x] Converted totals in the dashboard using the home currency
+- [x] Converted totals in the dashboard using the main currency
 - [x] Historical exchange rates available per day for past-record conversion
 - [x] Manual rate override per record
 - [x] Currency gain/loss tracking for transfers
 - [x] Choice of counting large amounts in lakhs or millions
 
 Update (2026-11-03): chart totals used to count lakhs for MMK, INR, PKR, BDT, NPR and LKR and millions (K, M, B) for everything else, so one wallet could show "52.7 lakhs" beside "5.3M". Settings → Currency → Count Large Amounts In now picks Automatic (the old behavior, and the default), Lakhs or Millions for every currency. It applies to the totals inside the Dashboard Expenses and Statistics donuts and to the amount axis of every Dashboard and Statistics chart ("50L" or "5M"); exact amounts in cards, legends and lists are unchanged. The compact figures in small widgets and watch complications follow it too ("MMK 52.7L" or "MMK 5.3M"): the choice rides in `WalletSnapshot`, since the extensions cannot read the app's preferences, and a change rewrites the snapshot so widgets and the watch update. Full-size widget amounts and the watch app keep exact figures.
+
+Update (2026-11-03, main currency): the separate Home Currency (what converted totals are shown in) and Default Currency (where new items start) are now one Main Currency. The two were nearly always the same and the home currency did nothing unless converted totals were on, so two rows mostly confused. Existing choices carry over: someone with converted totals on keeps the currency those totals were shown in (their home currency, or the region's currency if they never picked one), anyone else keeps their default currency, and the old preference keys are then removed. What is lost is creating items in one currency while totals convert into another; changing a new account's currency covers that rare case.
+
+The ECB feed publishes about 30 currencies and not MMK, PKR, BDT, NPR or LKR. With such a main currency, no rate download is attempted, converted totals stay off, and Settings says why instead of failing each refresh; a record's own pinned rate still converts. This was already true for those currencies' accounts before the merge, since the feed has no rate for them in either direction. `ExchangeRateProviding` gained an optional `supportedCurrencies`, which the Frankfurter provider fills from the feed's `/currencies` list (checked 2026-11-03; BGN has since left it).
 
 Implementation notes (2026-09-10): Conversion is strictly additive. Accounts keep their own currency, per-currency totals stay exactly as they were, and converted figures are marked with `≈` as estimates — a single daily reference rate is not what a bank actually charged. Nothing converts until the user picks a home currency and turns on Show Converted Totals, and a combined total appears only when every currency in play can be converted; a missing rate yields no figure rather than a wrong one.
 

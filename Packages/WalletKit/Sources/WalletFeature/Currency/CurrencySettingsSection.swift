@@ -1,23 +1,18 @@
 import SwiftUI
 import WalletDomain
 
-/// Home-currency settings: pick the currency, opt into converted totals, and refresh rates.
+/// Currency settings: pick the main currency, choose how large amounts count, opt into converted
+/// totals, and refresh rates.
 struct CurrencySettingsSection: View {
     @ObservedObject var viewModel: CurrencyViewModel
-    @State private var isChoosingCurrency = false
     @AppStorage(WalletPreferenceKeys.numberScale) private var numberScale = NumberScale.automatic.rawValue
 
     var body: some View {
         Section {
-            Button { isChoosingCurrency = true } label: {
-                LabeledContent("Home Currency", value: viewModel.homeCurrency)
-            }
-            .foregroundStyle(.primary)
-
             NavigationLink {
-                CurrencyPickerView(selection: $viewModel.defaultCurrency, pushed: true)
+                CurrencyPickerView(selection: $viewModel.mainCurrency, pushed: true)
             } label: {
-                LabeledContent("Default Currency", value: viewModel.defaultCurrency)
+                LabeledContent("Main Currency", value: viewModel.mainCurrency)
             }
 
             Picker("Count Large Amounts In", selection: $numberScale) {
@@ -28,7 +23,12 @@ struct CurrencySettingsSection: View {
 
             Toggle("Show Converted Totals", isOn: $viewModel.convertsTotals)
 
-            if viewModel.convertsTotals {
+            if viewModel.convertsTotals && !viewModel.hasRatesForMainCurrency {
+                Label("Automatic rates aren't published for \(viewModel.mainCurrency), so totals stay separate per currency. A record can still convert with a rate you enter in it.",
+                      systemImage: "info.circle")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            } else if viewModel.convertsTotals {
                 if viewModel.isRefreshing {
                     HStack {
                         ProgressView()
@@ -54,10 +54,7 @@ struct CurrencySettingsSection: View {
         } header: {
             Text("Currency")
         } footer: {
-            Text("New accounts, bills, budgets, debts and goals start in the default currency. Chart totals count large amounts in lakhs (52.7 lakhs) or millions (5.3M); Automatic uses lakhs for MMK, INR, PKR, BDT, NPR and LKR. Accounts keep their own currency. Converted totals are estimates from daily reference rates and never replace the per-currency figures. Rates download from the European Central Bank's public feed.")
-        }
-        .sheet(isPresented: $isChoosingCurrency) {
-            CurrencyPickerView(selection: $viewModel.homeCurrency)
+            Text("New accounts, bills, budgets, debts and goals start in the main currency, summaries open in it, and converted totals are shown in it. Accounts keep their own currency. Chart totals count large amounts in lakhs (52.7 lakhs) or millions (5.3M); Automatic uses lakhs for MMK, INR, PKR, BDT, NPR and LKR. Converted totals are estimates from daily reference rates and never replace the per-currency figures. Rates download from the European Central Bank's public feed.")
         }
     }
 }

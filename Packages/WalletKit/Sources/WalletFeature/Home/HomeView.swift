@@ -12,7 +12,7 @@ public struct HomeView: View {
     /// For the account cards' Add tile and each account's own screen.
     @ObservedObject private var accounts: AccountsViewModel
     @ObservedObject private var planning: PlanningViewModel
-    /// Optional: with no home currency configured the dashboard keeps per-currency totals.
+    /// Optional: without a currency model the dashboard keeps per-currency totals.
     @ObservedObject private var currency: CurrencyViewModel
     @ObservedObject private var insights: InsightsViewModel
     @ObservedObject private var dashboard: DashboardViewModel
@@ -69,10 +69,10 @@ public struct HomeView: View {
 
     private var currencies: [String] { Array(Set(includedAccounts.map(\.currencyCode))).sorted() }
 
-    /// The currency picked in the menu, else the default currency, else the one most accounts use.
+    /// The currency picked in the menu, else the main currency, else the one most accounts use.
     private var selectedCurrency: String {
         if currencies.contains(displayedCurrency) { return displayedCurrency }
-        return includedAccounts.preferredCurrency(default: currency.defaultCurrency) ?? currency.defaultCurrency
+        return includedAccounts.preferredCurrency(default: currency.mainCurrency) ?? currency.mainCurrency
     }
 
     private var totalBalance: Decimal {
@@ -259,7 +259,7 @@ public struct HomeView: View {
                     monthChange
                 }
                 if let combined = combinedTotal {
-                    ConvertedAmountText(amount: combined, currencyCode: currency.homeCurrency)
+                    ConvertedAmountText(amount: combined, currencyCode: currency.mainCurrency)
                 }
             }
             .padding(.vertical, WalletMetrics.medium)
@@ -296,7 +296,7 @@ public struct HomeView: View {
         .background(tint.opacity(0.12), in: Capsule())
     }
 
-    /// Every currency added together in the home currency, shown only when the user asked for
+    /// Every currency added together in the main currency, shown only when the user asked for
     /// converted totals, more than one currency is in play, and every one of them can be converted.
     private var combinedTotal: Decimal? {
         guard currency.isConversionAvailable, currencies.count > 1 else { return nil }

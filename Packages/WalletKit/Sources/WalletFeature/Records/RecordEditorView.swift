@@ -252,7 +252,7 @@ struct RecordEditorView: View {
                 .font(.footnote)
                 .foregroundStyle(.secondary)
             }
-            if let converted = convertedAmount, let home = currencyModel?.homeCurrency {
+            if let converted = convertedAmount, let home = currencyModel?.mainCurrency {
                 ConvertedAmountText(amount: converted, currencyCode: home, font: .footnote)
                     .frame(maxWidth: .infinity, alignment: .trailing)
             }
@@ -267,7 +267,7 @@ struct RecordEditorView: View {
                 }
                 Text("Enter the actual amount received. No exchange rate is assumed.").font(.caption).foregroundStyle(
                     .secondary)
-                if let difference = transferDifference, let home = currencyModel?.homeCurrency {
+                if let difference = transferDifference, let home = currencyModel?.mainCurrency {
                     LabeledContent(difference >= 0 ? "Currency gain" : "Currency loss") {
                         WalletAmountText.net(difference, currencyCode: home, font: .body.weight(.medium))
                     }
@@ -296,18 +296,18 @@ struct RecordEditorView: View {
         return balance + (draft.kind == .income ? value : -value)
     }
 
-    /// The amount being entered, in the home currency, using the pinned rate when one is typed.
+    /// The amount being entered, in the main currency, using the pinned rate when one is typed.
     /// Updates as the amount, account or rate changes; hidden when there is nothing to convert.
     private var convertedAmount: Decimal? {
         guard let currencyModel, currencyModel.convertsTotals, !currency.isEmpty,
-              currency != currencyModel.homeCurrency,
+              currency != currencyModel.mainCurrency,
               let value = try? AccountAmountInput.parse(amount), value > 0 else { return nil }
         let rate = manualRate.trimmingCharacters(in: .whitespaces).isEmpty
             ? nil : try? AccountAmountInput.parse(manualRate)
         return currencyModel.convert(value, from: currency, manualRate: rate)
     }
 
-    /// For a cross-currency transfer, what the conversion gains or loses in the home currency.
+    /// For a cross-currency transfer, what the conversion gains or loses in the main currency.
     private var transferDifference: Decimal? {
         guard crossCurrency, let currencyModel, currencyModel.convertsTotals,
               let sent = try? AccountAmountInput.parse(amount),
@@ -426,25 +426,25 @@ struct RecordEditorView: View {
         }
     }
 
-    /// Lets the user pin the rate used to convert this record into the home currency.
+    /// Lets the user pin the rate used to convert this record into the main currency.
     ///
-    /// Only shown when converted totals are switched on and this record is not already in the home
+    /// Only shown when converted totals are switched on and this record is not already in the main
     /// currency; otherwise there is nothing to convert and the row would only add noise.
     @ViewBuilder private var exchangeRateRow: some View {
         if let currencyModel, currencyModel.convertsTotals, !currency.isEmpty,
-           currency != currencyModel.homeCurrency {
+           currency != currencyModel.mainCurrency {
             recordRow("arrow.left.arrow.right") {
-                Text("Rate to \(currencyModel.homeCurrency)")
+                Text("Rate to \(currencyModel.mainCurrency)")
                 WalletAmountField(amount: manualRate, placeholder: marketRatePlaceholder) {
                     TextField("", text: $manualRate.groupedAmount())
-                        .accessibilityLabel("Exchange rate to \(currencyModel.homeCurrency)")
+                        .accessibilityLabel("Exchange rate to \(currencyModel.mainCurrency)")
                         #if os(iOS)
                             .keyboardType(.decimalPad)
                         #endif
                 }
                 .monospacedDigit()
             }
-            Text("Leave empty to use the downloaded rate. One \(currency) is worth this many \(currencyModel.homeCurrency).")
+            Text("Leave empty to use the downloaded rate. One \(currency) is worth this many \(currencyModel.mainCurrency).")
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .padding(.horizontal, WalletMetrics.xLarge)
@@ -455,7 +455,7 @@ struct RecordEditorView: View {
     /// Shows today's market rate as the placeholder, so a manual entry has something to start from.
     private var marketRatePlaceholder: String {
         guard let currencyModel, let rates = currencyModel.rates,
-              let rate = try? CurrencyConverter.rate(from: currency, to: currencyModel.homeCurrency, using: rates)
+              let rate = try? CurrencyConverter.rate(from: currency, to: currencyModel.mainCurrency, using: rates)
         else { return "Market rate" }
         return RecordAmountDisplay.grouped(CurrencyConverter.rounded(rate, currencyCode: "XXX"))
     }

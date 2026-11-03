@@ -6,7 +6,7 @@ public struct StatisticsView: View {
     @ObservedObject private var viewModel: RecordsViewModel
     private let planning: PlanningViewModel?
     @Environment(\.scenePhase) private var scenePhase
-    @Environment(\.defaultCurrency) private var defaultCurrency
+    @Environment(\.mainCurrency) private var mainCurrency
     @AppStorage(WalletPreferenceKeys.numberScale) private var numberScale = NumberScale.automatic.rawValue
     @State private var period = Period.month
     @State private var anchor = Date()
@@ -39,10 +39,10 @@ public struct StatisticsView: View {
 
     private var accounts: [Account] { viewModel.accounts.filter { !$0.settings.excludeFromStats } }
     private var currencies: [String] { Array(Set(accounts.map(\.currencyCode))).sorted() }
-    /// The currency picked here, else the default currency, else the one most accounts use.
+    /// The currency picked here, else the main currency, else the one most accounts use.
     private var selectedCurrency: String {
         if currencies.contains(currency) { return currency }
-        return accounts.preferredCurrency(default: defaultCurrency) ?? defaultCurrency
+        return accounts.preferredCurrency(default: mainCurrency) ?? mainCurrency
     }
 
     private var interval: DateInterval {

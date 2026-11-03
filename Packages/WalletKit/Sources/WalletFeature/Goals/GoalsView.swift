@@ -9,7 +9,7 @@ public struct GoalsView: View {
     @State private var deleting: GoalProgress?
     /// The goal whose celebration is showing, so it plays once rather than on every redraw.
     @State private var celebrating: UUID?
-    @Environment(\.defaultCurrency) private var defaultCurrency
+    @Environment(\.mainCurrency) private var mainCurrency
 
     public init(viewModel: DebtsViewModel) { self.viewModel = viewModel }
 
@@ -35,7 +35,7 @@ public struct GoalsView: View {
             if viewModel.goals.isEmpty && !viewModel.isLoading {
                 WalletEmptyState(title: "No savings goals", symbol: "target",
                                  message: "Set a target and track what you put aside toward it.",
-                                 actionTitle: "Add Goal") { editing = SavingsGoal(currencyCode: defaultCurrency) }
+                                 actionTitle: "Add Goal") { editing = SavingsGoal(currencyCode: mainCurrency) }
             }
         }
         .overlay {
@@ -46,7 +46,7 @@ public struct GoalsView: View {
             }
         }
         .navigationTitle("Goals")
-        .toolbar { Button("Add Goal", systemImage: "plus") { editing = SavingsGoal(currencyCode: defaultCurrency) } }
+        .toolbar { Button("Add Goal", systemImage: "plus") { editing = SavingsGoal(currencyCode: mainCurrency) } }
         .sheet(item: $editing) { GoalEditorView(viewModel: viewModel, goal: $0) }
         .sheet(item: $contributing) { GoalContributionView(viewModel: viewModel, progress: $0) }
         .alert("Delete Goal?", isPresented: Binding(get: { deleting != nil }, set: { if !$0 { deleting = nil } })) {

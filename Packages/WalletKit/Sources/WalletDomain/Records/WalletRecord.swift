@@ -24,7 +24,7 @@ public struct RecordDraft: Sendable, Equatable, Codable {
     public var paymentType: PaymentType = .unspecified
     public var photoData: Data?
     public var recurrence: RecurrenceRule?
-    /// Units of the home currency per one unit of this record's currency, when the user pins the
+    /// Units of the main currency per one unit of this record's currency, when the user pins the
     /// rate for this record instead of using the downloaded one. `nil` means use market rates.
     public var manualRate: Decimal?
     /// Optional so drafts encoded before adjustments existed still decode; `nil` means `false`.

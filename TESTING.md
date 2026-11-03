@@ -453,3 +453,13 @@ Manual check: with an MMK balance over one lakh, add the small Balance widget an
 `WalletWatch` and `WalletWatchWidgets` build again. `WatchWalletStore.swift` now imports Combine, and its WatchConnectivity delegate reads reachability, pending-transfer counts and the decoded snapshot on the delegate queue, passing only those `Sendable` values to the main actor instead of capturing `WCSession` and its payload dictionaries. Unsigned watchOS Simulator builds of both schemes passed with no warnings in the watch sources, which also compiles the complication edits from the entry above for the first time. The `My Wallet` scheme does not build the watch targets, so build them explicitly. Not run on a watch or simulator.
 
 Manual checks: on a paired watch, confirm the app shows the phone's balance, the reachability state updates when the phone goes out of range, and a quick expense queues and then clears from the pending count once delivered.
+
+## One Main Currency (2026-11-03)
+
+Home Currency and Default Currency were merged into Main Currency. **320 tests across 51 suites passed**, and unsigned builds passed for the app on iOS Simulator and macOS and for `WalletWatch` and `WalletWatchWidgets` on watchOS Simulator. New tests cover carrying over existing settings (converting users keep their home currency, or the region's currency if never chosen; others keep their default; old keys removed) and a main currency outside the rate feed skipping downloads, leaving converted totals off and still converting with a record's own rate. The feed's currency list and its 404 for an MMK base were checked against the live API. Not run in the app.
+
+Manual checks:
+
+1. On a build from before this change, set Home Currency to USD, Default Currency to MMK and turn on converted totals; update and confirm Settings shows one Main Currency of USD.
+2. Set the main currency to MMK with converted totals on and confirm Settings explains that automatic rates aren't published for MMK, with no download error.
+3. Set it to USD with USD and EUR accounts and confirm the Dashboard shows a combined `≈` total, and that a new account, budget or goal starts in USD.

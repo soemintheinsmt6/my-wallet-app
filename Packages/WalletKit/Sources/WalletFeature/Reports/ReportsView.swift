@@ -15,16 +15,16 @@ struct ReportsView: View {
     @State private var exportDescription = ""
     @State private var isExporting = false
     @State private var error: String?
-    @Environment(\.defaultCurrency) private var defaultCurrency
+    @Environment(\.mainCurrency) private var mainCurrency
 
     private var currencies: [String] { Array(Set(records.accounts.map(\.currencyCode))).sorted() }
 
-    /// The picked currency, else the default currency, else the one most accounts use.
+    /// The picked currency, else the main currency, else the one most accounts use.
     private var currency: String {
         if currencies.contains(pickedCurrency) { return pickedCurrency }
         let included = records.accounts.filter { !$0.settings.excludeFromStats }
-        return included.preferredCurrency(default: defaultCurrency)
-            ?? records.accounts.preferredCurrency(default: defaultCurrency) ?? defaultCurrency
+        return included.preferredCurrency(default: mainCurrency)
+            ?? records.accounts.preferredCurrency(default: mainCurrency) ?? mainCurrency
     }
 
     private enum Period: String, CaseIterable, Identifiable {
