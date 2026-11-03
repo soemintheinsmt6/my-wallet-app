@@ -8,7 +8,6 @@ struct CategoryDetailView: View {
     @State private var editor: CategoryEditorRoute?
     @State private var deleting: WalletCategory?
     @State private var choosingSymbol = false
-    @Environment(\.categorySymbolStore) private var symbols
 
     private var category: WalletCategory? { viewModel.category(id: categoryID) }
 
@@ -34,8 +33,8 @@ struct CategoryDetailView: View {
         .sheet(item: $deleting) { CategoryDeletionView(viewModel: viewModel, category: $0) }
         .sheet(item: $editor) { CategoryEditorView(viewModel: viewModel, route: $0) }
         .sheet(isPresented: $choosingSymbol) {
-            if let category, let symbols {
-                CategorySymbolPicker(category: category, overrides: symbols)
+            if let category {
+                CategorySymbolPicker(category: category, viewModel: viewModel)
             }
         }
         .refreshable { await viewModel.reload() }
@@ -113,10 +112,8 @@ struct CategoryDetailView: View {
             Button { editor = CategoryEditorRoute(category: category) } label: {
                 Label("Edit Category", systemImage: "square.and.pencil")
             }
-            if symbols != nil {
-                Button { choosingSymbol = true } label: {
-                    Label("Change Icon", systemImage: "square.grid.2x2")
-                }
+            Button { choosingSymbol = true } label: {
+                Label("Change Icon", systemImage: "square.grid.2x2")
             }
             WalletDestructiveRow(title: "Delete Category") { deleting = category }
         }

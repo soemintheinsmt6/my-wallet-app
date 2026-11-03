@@ -318,38 +318,17 @@ struct ThemeTests {
 }
 
 @MainActor
-struct CategorySymbolStoreTests {
-    private let category = WalletCategory(name: "Food & Drinks")
-
-    private func store() -> CategorySymbolStore {
-        CategorySymbolStore(defaults: UserDefaults(suiteName: "symbols.tests.\(UUID().uuidString)")!)
-    }
-
-    /// Without an override the seeded symbol shows, so clearing returns the shipped icon rather
-    /// than a blank tile.
+struct CategorySymbolTests {
+    /// Without a choice the seeded symbol shows, so resetting returns the shipped icon rather than
+    /// a blank tile.
     @Test func theSeededSymbolIsTheFallback() {
-        let symbols = store()
-        #expect(symbols.symbol(for: category) == category.symbol)
-        #expect(!symbols.hasOverride(category))
+        let plain = WalletCategory(name: "Food & Drinks")
+        #expect(plain.symbol == plain.defaultSymbol)
+        #expect(plain.symbol == "fork.knife")
 
-        symbols.set("star", for: category)
-        #expect(symbols.symbol(for: category) == "star")
-        #expect(symbols.hasOverride(category))
-
-        symbols.clear(category)
-        #expect(symbols.symbol(for: category) == category.symbol)
-    }
-
-    @Test func overridesSurviveARelaunchAndClearAllResetsThem() {
-        let defaults = UserDefaults(suiteName: "symbols.tests.\(UUID().uuidString)")!
-        let first = CategorySymbolStore(defaults: defaults)
-        first.set("flame", for: category)
-
-        let second = CategorySymbolStore(defaults: defaults)
-        #expect(second.symbol(for: category) == "flame")
-
-        second.clearAll()
-        #expect(CategorySymbolStore(defaults: defaults).symbol(for: category) == category.symbol)
+        let chosen = WalletCategory(id: plain.id, name: plain.name, symbolName: "star")
+        #expect(chosen.symbol == "star")
+        #expect(chosen.defaultSymbol == "fork.knife")
     }
 
     @Test func theOfferedSymbolsAreACuratedUniqueList() {

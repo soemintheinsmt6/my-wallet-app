@@ -16,7 +16,11 @@ struct CategoryEditorView: View {
     @State private var errorMessage: String?
     @State private var confirmingDelete = false
     @State private var choosingSymbol = false
-    @Environment(\.categorySymbolStore) private var symbols
+
+    /// The saved category being edited, read live so a new icon shows as soon as it is chosen.
+    private var editedCategory: WalletCategory? {
+        route.category.map { viewModel.category(id: $0.id) ?? $0 }
+    }
 
     init(viewModel: CategoriesViewModel, route: CategoryEditorRoute) {
         self.viewModel = viewModel
@@ -50,8 +54,8 @@ struct CategoryEditorView: View {
                             .multilineTextAlignment(.trailing)
                             .accessibilityLabel("Name")
                     }
-                    // Icons are keyed by the category's ID, so only a saved category can have one.
-                    if let category = route.category, symbols != nil {
+                    // The icon is saved on the category straight away, so only a saved one can have it.
+                    if let category = editedCategory {
                         Button { choosingSymbol = true } label: {
                             LabeledContent("Icon") {
                                 CategoryIcon(category: category)
@@ -128,8 +132,8 @@ struct CategoryEditorView: View {
             }
             .interactiveDismissDisabled(viewModel.isSaving)
             .sheet(isPresented: $choosingSymbol) {
-                if let category = route.category, let symbols {
-                    CategorySymbolPicker(category: category, overrides: symbols)
+                if let category = route.category {
+                    CategorySymbolPicker(category: category, viewModel: viewModel)
                 }
             }
         }

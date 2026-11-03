@@ -214,6 +214,23 @@ struct WalletArchiveTests {
         #expect(older.accounts.first?.id == card.id)
     }
 
+    @Test func categoryIconsAreBackedUpAndOlderBackupsWithoutThemStillDecode() throws {
+        let food = WalletCategory(name: "Food", symbolName: "fork.knife.circle")
+        let archive = WalletArchive(accounts: [], categories: [food], tags: [], records: [])
+        #expect(try WalletArchive.decode(WalletArchive.encode(archive)).categories.first?.symbolName == "fork.knife.circle")
+
+        // A backup written before category icons were stored has no "symbolName" key.
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        var object = try #require(try JSONSerialization.jsonObject(with: encoder.encode(archive)) as? [String: Any])
+        var categories = try #require(object["categories"] as? [[String: Any]])
+        categories[0].removeValue(forKey: "symbolName")
+        object["categories"] = categories
+        let older = try WalletArchive.decode(JSONSerialization.data(withJSONObject: object))
+        #expect(older.categories.first?.symbolName == nil)
+        #expect(older.categories.first?.id == food.id)
+    }
+
     @Test func aNewerArchiveIsRefusedRatherThanMisread() throws {
         var archive = WalletArchive(accounts: [], categories: [], tags: [], records: [])
         archive.version = WalletArchive.currentVersion + 1

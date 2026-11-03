@@ -59,6 +59,24 @@ extension WalletStore {
         try context.save()
     }
 
+    /// Writes every replica of the category with a fresh timestamp, as a rename does, so the
+    /// choice wins over older copies on other devices and syncs as an ordinary edit.
+    func setCategorySymbol(id: UUID, symbolName: String?) throws {
+        try Task.checkCancellation()
+        let context = ModelContext(modelContainer)
+        context.autosaveEnabled = false
+        let records = try context.fetch(FetchDescriptor<CategoryRecord>())
+        guard canonicalCategories(records).contains(where: { $0.id == id }) else {
+            throw CategoryValidationError.notFound
+        }
+        let now = Date()
+        for record in records where record.id == id {
+            record.symbolName = symbolName
+            record.updatedAt = now
+        }
+        try context.save()
+    }
+
     func deleteCategory(id: UUID, strategy: CategoryDeletionStrategy) throws {
         try Task.checkCancellation()
         let context = ModelContext(modelContainer)

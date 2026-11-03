@@ -31,4 +31,7 @@ public enum WalletPreferenceKeys {
     static let accent = "theme.accent"
     static let density = "theme.density"
     static let textSize = "theme.textSize"
-    static let categorySymbols = "theme.categorySymbols"}
+    /// Replaced by an icon stored on each category, which syncs; read once to carry existing
+    /// choices over, then removed.
+    static let legacyCategorySymbols = "theme.categorySymbols"
+}

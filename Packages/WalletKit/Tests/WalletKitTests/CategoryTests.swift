@@ -211,10 +211,85 @@ struct CategoryTests {
         #expect(categories.first { $0.id == id }?.name == "Renamed")
         #expect(categories.first { $0.id == id }?.nature == .must)
     }
+
+    // MARK: - Icons
+
+    /// Saved on the category itself, so it syncs, survives a fresh fetch, and resets to the starter icon.
+    @Test func aChosenIconIsStoredOnTheCategoryAndResetsToTheStarterIcon() async throws {
+        let repository = try await SwiftDataWalletRepository.make(configuration: .inMemory)
+        let viewModel = CategoriesViewModel(useCases: CategoryUseCases(repository: repository),
+                                            preferences: UserDefaults(suiteName: "icons.\(UUID().uuidString)")!)
+        await viewModel.reload()
+        let food = try #require(viewModel.categories.first { $0.name == "Food & Drinks" })
+
+        await viewModel.setSymbol("star", for: food.id)
+        #expect(viewModel.category(id: food.id)?.symbol == "star")
+        let stored = try await repository.fetchCategories().first { $0.id == food.id }
+        #expect(stored?.symbolName == "star")
+        #expect(stored?.name == "Food & Drinks")
+        #expect(stored?.nature == food.nature)
+
+        await viewModel.setSymbol(nil, for: food.id)
+        let reset = try await repository.fetchCategories().first { $0.id == food.id }
+        #expect(reset?.symbolName == nil)
+        #expect(reset?.symbol == "fork.knife")
+        #expect(viewModel.errorMessage == nil)
+    }
+
+    /// A choice is an edit with a fresh timestamp, so an older copy synced from another device, such
+    /// as an untouched seed, cannot hide it.
+    @Test func aChosenIconWinsOverAnOlderReplica() async throws {
+        let container = try WalletPersistence.makeContainer(configuration: .inMemory)
+        let store = WalletStore(modelContainer: container)
+        let food = try #require(try await store.fetchCategories().first { $0.name == "Food & Drinks" })
+        try await store.setCategorySymbol(id: food.id, symbolName: "flame")
+        let context = ModelContext(container)
+        context.insert(CategoryRecord(category: food, updatedAt: Date(timeIntervalSince1970: 0)))
+        try context.save()
+        #expect(try await store.fetchCategories().first { $0.id == food.id }?.symbolName == "flame")
+    }
+
+    @Test func settingAnIconOnAMissingCategoryFails() async throws {
+        let store = WalletStore(modelContainer: try WalletPersistence.makeContainer(configuration: .inMemory))
+        _ = try await store.fetchCategories()
+        await #expect(throws: CategoryValidationError.self) {
+            try await store.setCategorySymbol(id: UUID(), symbolName: "star")
+        }
+    }
+
+    /// Icons chosen before they were stored on categories move onto them once. One already synced
+    /// from another device wins, a deleted category is skipped, and the local copy is then removed.
+    @Test func locallySavedIconsMoveOntoTheirCategoriesOnce() async throws {
+        let repository = try await SwiftDataWalletRepository.make(configuration: .inMemory)
+        let categories = try await repository.fetchCategories()
+        let food = try #require(categories.first { $0.name == "Food & Drinks" })
+        let shopping = try #require(categories.first { $0.name == "Shopping" })
+        try await repository.setCategorySymbol(id: shopping.id, symbolName: "cart")
+
+        let preferences = UserDefaults(suiteName: "icons.\(UUID().uuidString)")!
+        preferences.set([food.id.uuidString: "star", shopping.id.uuidString: "gift",
+                         UUID().uuidString: "flame"], forKey: WalletPreferenceKeys.legacyCategorySymbols)
+        let viewModel = CategoriesViewModel(useCases: CategoryUseCases(repository: repository), preferences: preferences)
+        await viewModel.reload()
+
+        let after = try await repository.fetchCategories()
+        #expect(after.first { $0.id == food.id }?.symbolName == "star")
+        #expect(after.first { $0.id == shopping.id }?.symbolName == "cart")
+        #expect(preferences.dictionary(forKey: WalletPreferenceKeys.legacyCategorySymbols) == nil)
+    }
+
+    /// A failed save is reported and the stored icon comes back rather than a choice that never saved.
+    @Test func aFailedIconSaveIsReportedAndRestoresTheStoredIcon() async {
+        let viewModel = CategoriesViewModel(useCases: CategoryUseCases(repository: FailingCategoryRepository()))
+        await viewModel.setSymbol("star", for: UUID())
+        #expect(viewModel.errorMessage != nil)
+        #expect(viewModel.categories.isEmpty)
+    }
 }
 
 @MainActor
 private final class FailingCategoryRepository: CategoryRepository {
+    func setCategorySymbol(id: UUID, symbolName: String?) async throws { throw Failure() }
     func deleteCategory(id: UUID, strategy: CategoryDeletionStrategy) async throws { throw Failure() }
     struct Failure: Error {}
     func fetchCategories() async throws -> [WalletCategory] { throw Failure() }

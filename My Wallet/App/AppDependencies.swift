@@ -26,7 +26,6 @@ struct AppDependencies {
     let debtsViewModel: DebtsViewModel
     let dashboardViewModel: DashboardViewModel
     let themeViewModel: ThemeViewModel
-    let categorySymbolStore: CategorySymbolStore
     let splitsViewModel: SplitsViewModel
     let drinkingDaysViewModel: DrinkingDaysViewModel
 
@@ -106,7 +105,6 @@ struct AppDependencies {
             dashboardViewModel: DashboardViewModel(),
             themeViewModel: ThemeViewModel(iconReader: { WalletAppIcons.current() },
                                            iconSetter: { try await WalletAppIcons.apply($0) }),
-            categorySymbolStore: CategorySymbolStore(),
             splitsViewModel: splits,
             drinkingDaysViewModel: DrinkingDaysViewModel(useCases: DrinkingDayUseCases(repository: repository))
         )

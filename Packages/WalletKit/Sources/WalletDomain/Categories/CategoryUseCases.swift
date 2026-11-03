@@ -40,6 +40,13 @@ public struct CategoryUseCases {
         try await repository.updateCategory(id: id, name: name, nature: nature)
     }
 
+    /// An empty or blank name means the starter icon, stored as `nil`.
+    public func setSymbol(id: UUID, symbolName: String?) async throws {
+        let trimmed = symbolName?.trimmingCharacters(in: .whitespacesAndNewlines)
+        try Task.checkCancellation()
+        try await repository.setCategorySymbol(id: id, symbolName: trimmed?.isEmpty == false ? trimmed : nil)
+    }
+
     public func delete(id: UUID, strategy: CategoryDeletionStrategy) async throws {
         try Task.checkCancellation()
         try await repository.deleteCategory(id: id, strategy: strategy)

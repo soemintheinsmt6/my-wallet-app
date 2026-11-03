@@ -37,12 +37,15 @@ public struct WalletArchive: Codable, Sendable, Equatable {
         public var parentID: UUID?
         public var name: String
         public var nature: CategoryNature
+        /// Optional, so backups written before icons were stored on categories still decode.
+        public var symbolName: String?
 
         public init(category: WalletCategory) {
             id = category.id
             parentID = category.parentID
             name = category.name
             nature = category.nature
+            symbolName = category.symbolName
         }
     }
 

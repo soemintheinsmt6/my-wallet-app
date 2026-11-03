@@ -224,6 +224,11 @@ public final class SwiftDataWalletRepository: WalletRepository, AccountRepositor
         notifyChanges()
     }
 
+    public func setCategorySymbol(id: UUID, symbolName: String?) async throws {
+        try await store.setCategorySymbol(id: id, symbolName: symbolName)
+        notifyChanges()
+    }
+
     public func updateAccount(id: UUID, name: String, type: AccountType, settings: AccountSettings) async throws {
         try await store.updateAccount(id: id, name: name, type: type, settings: settings)
         notifyChanges()

@@ -475,3 +475,17 @@ Manual check: in Settings, confirm Main Currency shows a right chevron and pushe
 Removed the trailing chevron from every row that opens a sheet, full-screen cover or dialog rather than pushing a screen: account, budget, label, subcategory and drinking-day list rows and the balance-alert rows (each opens its editor as a sheet), the account and category editors' Icon rows, the account editor's Currency row, the record editor's Split with people and Photo rows, the receipts row, and onboarding's Currency field. Rows that push (record editor Account, Category and Label, the Statistics filter's Category, parent categories in the category picker, Settings' Main Currency) keep it. **320 tests across 51 suites passed**, and unsigned iOS Simulator and macOS builds passed. Not seen in the app.
 
 Manual check: open Accounts, Budgets and Labels and confirm rows have no chevron yet still open their editor; in the record editor confirm Category still shows a chevron and pushes, while Split with people and Photo show none.
+
+## Category Icons Sync Through iCloud (2026-11-03)
+
+Category and subcategory icons moved from local preferences onto the category record (`CategoryRecord.symbolName`, optional) and the local `CategorySymbolStore` was removed. **325 tests across 51 suites passed** on two full runs, and unsigned builds passed for the app on iOS Simulator and macOS and for `WalletWatch` and `WalletWatchWidgets` on watchOS Simulator. New tests cover a chosen icon being stored on the category and surviving a fresh fetch while its name and nature stay unchanged, resetting to the starter icon, a choice winning over an older replica, a missing category being rejected, locally saved icons moving onto their categories once (a synced icon wins, unknown IDs are skipped, the local copy is removed), a failed save being reported, and backups carrying the icon while older backups still decode. The existing migration test that opens a store written before later fields still passes.
+
+One unrelated run failed `screensSharingTheRecordsModelLoadItOnceBetweenThem`, which waits a fixed 50 ms for a reload; it passed alone three times and in both later full runs, so it is timing-sensitive under parallel load rather than affected by this change.
+
+**Not verified:** iCloud sync between devices, and the production CloudKit schema, which still needs the new field deployed. Not run in the app.
+
+Manual checks:
+
+1. On a build from before this change, give a category a custom icon; update and confirm the icon is still there.
+2. On two signed devices with the same iCloud account, change a subcategory's icon on one and confirm it appears on the other after sync, then reset it and confirm both return to the starter icon.
+3. Confirm the new icon shows in the category list, record rows and the Recent Records widget.

@@ -2,8 +2,14 @@ import Foundation
 import WalletDomain
 
 extension WalletCategory {
-    /// Seed icons follow stable identity even after renaming. Custom children use their parent's icon.
+    /// A chosen icon wins. Otherwise seed icons follow stable identity even after renaming, and
+    /// custom children use their parent's icon.
     var symbol: String {
+        symbolName ?? defaultSymbol
+    }
+
+    /// The icon the category returns to when its choice is reset.
+    var defaultSymbol: String {
         CategorySymbols.byID[id]
             ?? CategorySymbols.byName[name]
             ?? parentID.flatMap { CategorySymbols.byID[$0] }

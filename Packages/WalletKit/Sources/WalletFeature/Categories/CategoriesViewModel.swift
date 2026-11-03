@@ -13,8 +13,13 @@ public final class CategoriesViewModel: ObservableObject {
     private var observation: Task<Void, Never>?
     private var isReloading = false
     private var needsReload = false
+    private let preferences: UserDefaults
+    private var isMigratingLocalSymbols = false
 
-    public init(useCases: CategoryUseCases) { self.useCases = useCases }
+    public init(useCases: CategoryUseCases, preferences: UserDefaults = .standard) {
+        self.useCases = useCases
+        self.preferences = preferences
+    }
 
     public var rootCategories: [WalletCategory] { categories.filter { $0.parentID == nil } }
     public func subcategories(of id: UUID) -> [WalletCategory] { categories.filter { $0.parentID == id } }
@@ -58,10 +63,49 @@ public final class CategoriesViewModel: ObservableObject {
             try Task.checkCancellation()
             guard version == loadVersion else { return }
             categories = loaded
+            await migrateLocalSymbols(into: loaded)
         } catch is CancellationError {
         } catch {
             if version == loadVersion { errorMessage = error.localizedDescription }
         }
+    }
+
+    /// Sets a category's icon, or resets it to the starter icon with `nil`. The list shows the new
+    /// icon at once; the save then syncs it, and a failure puts the stored icon back.
+    public func setSymbol(_ symbolName: String?, for id: UUID) async {
+        if let index = categories.firstIndex(where: { $0.id == id }) {
+            let current = categories[index]
+            categories[index] = WalletCategory(id: current.id, parentID: current.parentID, name: current.name,
+                                               nature: current.nature, sortOrder: current.sortOrder,
+                                               symbolName: symbolName)
+        }
+        do {
+            try await useCases.setSymbol(id: id, symbolName: symbolName)
+        } catch is CancellationError {
+            await reload()
+        } catch {
+            errorMessage = error.localizedDescription
+            await reload()
+        }
+    }
+
+    /// Builds before 2026-11 kept icon choices in this device's preferences, keyed by category ID.
+    /// Each is copied onto its category once, unless the category already carries an icon (one
+    /// synced from another device wins), and the local copy is removed when every write succeeded.
+    private func migrateLocalSymbols(into loaded: [WalletCategory]) async {
+        let key = WalletPreferenceKeys.legacyCategorySymbols
+        guard !isMigratingLocalSymbols,
+              let local = preferences.dictionary(forKey: key) as? [String: String], !local.isEmpty else { return }
+        isMigratingLocalSymbols = true
+        defer { isMigratingLocalSymbols = false }
+        let byID = Dictionary(loaded.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        var allSaved = true
+        for (idString, symbol) in local {
+            // A deleted category, or one that already has an icon, has nothing to take over.
+            guard let id = UUID(uuidString: idString), let category = byID[id], category.symbolName == nil else { continue }
+            do { try await useCases.setSymbol(id: id, symbolName: symbol) } catch { allSaved = false }
+        }
+        if allSaved { preferences.removeObject(forKey: key) }
     }
 
     public func delete(id: UUID, strategy: CategoryDeletionStrategy) async throws {

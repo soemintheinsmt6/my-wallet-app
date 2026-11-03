@@ -20,7 +20,7 @@ Update this table whenever a feature is completed. As of 2026-11-01 every featur
 | Exclude from stats | Complete | Persisted toggle and filtered account collection; excluded accounts still show alerts |
 | Categories and subcategories | Complete | Create/edit names and independent None, Must, Need or Want natures; two-level hierarchy |
 | Starter categories | Complete | 10 categories and 50 editable subcategories; repeat seeding preserves edits, across devices too |
-| Category icons and suggested natures | Complete | Relevant icons for all 60 starter items; editable nature defaults with existing user choices preserved |
+| Category icons and suggested natures | Complete | Relevant icons for all 60 starter items, and an optional chosen icon per category or subcategory (synced; CloudKit production schema deploy pending); editable nature defaults with existing user choices preserved |
 | Category and nature colors | Complete | Fixed category palette for UI/future charts; separate colored nature badges; colors cannot be edited |
 | Labels / tags | Complete | Create/edit name and color; assign one label per record; confirmed deletion detaches labels |
 | Record creation | Complete | Expense, income and transfer; category/subcategory, most-used shortcuts, date/time, labels and optional details/photo |

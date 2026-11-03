@@ -3,18 +3,22 @@ import WalletDomain
 
 /// Lets the user pick a different SF Symbol for a category.
 ///
-/// The seeded symbol stays the fallback, so clearing a choice returns the category to the icon it
-/// shipped with rather than to a blank tile.
+/// The choice is saved on the category, so it syncs through iCloud like a rename. The seeded symbol
+/// stays the fallback, so clearing a choice returns the category to the icon it shipped with rather
+/// than to a blank tile.
 struct CategorySymbolPicker: View {
+    /// The category as the sheet opened; the live one from the view model is shown once loaded.
     let category: WalletCategory
-    @ObservedObject var overrides: CategorySymbolStore
+    @ObservedObject var viewModel: CategoriesViewModel
+
+    private var current: WalletCategory { viewModel.category(id: category.id) ?? category }
 
     var body: some View {
-        WalletSymbolPicker(title: "Category Icon", name: category.name, color: category.colorToken.color,
-                           current: overrides.symbol(for: category),
-                           isCustom: overrides.hasOverride(category),
-                           select: { overrides.set($0, for: category) },
-                           reset: { overrides.clear(category) })
+        WalletSymbolPicker(title: "Category Icon", name: current.name, color: current.colorToken.color,
+                           current: current.symbol,
+                           isCustom: current.symbolName != nil,
+                           select: { symbol in Task { await viewModel.setSymbol(symbol, for: current.id) } },
+                           reset: { Task { await viewModel.setSymbol(nil, for: current.id) } })
     }
 }
 
@@ -114,50 +118,6 @@ struct WalletSymbolPicker: View {
         #if os(macOS)
         .frame(minWidth: 480, minHeight: 560)
         #endif
-    }
-}
-
-/// Per-category icon choices.
-///
-/// Stored locally rather than on the category itself: the seeded symbols are presentation metadata
-/// keyed by stable IDs, and adding a synced field would mean a schema change for a purely cosmetic
-/// preference.
-@MainActor
-public final class CategorySymbolStore: ObservableObject {
-    @Published private var overrides: [String: String]
-
-    private let defaults: UserDefaults
-
-    public init(defaults: UserDefaults = .standard) {
-        self.defaults = defaults
-        overrides = defaults.dictionary(forKey: WalletPreferenceKeys.categorySymbols) as? [String: String] ?? [:]
-    }
-
-    public func symbol(for category: WalletCategory) -> String {
-        overrides[category.id.uuidString] ?? category.symbol
-    }
-
-    public func hasOverride(_ category: WalletCategory) -> Bool {
-        overrides[category.id.uuidString] != nil
-    }
-
-    public func set(_ symbol: String, for category: WalletCategory) {
-        overrides[category.id.uuidString] = symbol
-        save()
-    }
-
-    public func clear(_ category: WalletCategory) {
-        overrides.removeValue(forKey: category.id.uuidString)
-        save()
-    }
-
-    public func clearAll() {
-        overrides = [:]
-        save()
-    }
-
-    private func save() {
-        defaults.set(overrides, forKey: WalletPreferenceKeys.categorySymbols)
     }
 }
 
