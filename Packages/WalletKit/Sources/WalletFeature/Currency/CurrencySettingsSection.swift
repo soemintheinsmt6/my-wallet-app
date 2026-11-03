@@ -5,6 +5,7 @@ import WalletDomain
 struct CurrencySettingsSection: View {
     @ObservedObject var viewModel: CurrencyViewModel
     @State private var isChoosingCurrency = false
+    @AppStorage(WalletPreferenceKeys.numberScale) private var numberScale = NumberScale.automatic.rawValue
 
     var body: some View {
         Section {
@@ -17,6 +18,12 @@ struct CurrencySettingsSection: View {
                 CurrencyPickerView(selection: $viewModel.defaultCurrency, pushed: true)
             } label: {
                 LabeledContent("Default Currency", value: viewModel.defaultCurrency)
+            }
+
+            Picker("Count Large Amounts In", selection: $numberScale) {
+                ForEach(NumberScale.allCases) { scale in
+                    Text(scale.title).tag(scale.rawValue)
+                }
             }
 
             Toggle("Show Converted Totals", isOn: $viewModel.convertsTotals)
@@ -47,7 +54,7 @@ struct CurrencySettingsSection: View {
         } header: {
             Text("Currency")
         } footer: {
-            Text("New accounts, bills, budgets, debts and goals start in the default currency. Accounts keep their own currency. Converted totals are estimates from daily reference rates and never replace the per-currency figures. Rates download from the European Central Bank's public feed.")
+            Text("New accounts, bills, budgets, debts and goals start in the default currency. Chart totals count large amounts in lakhs (52.7 lakhs) or millions (5.3M); Automatic uses lakhs for MMK, INR, PKR, BDT, NPR and LKR. Accounts keep their own currency. Converted totals are estimates from daily reference rates and never replace the per-currency figures. Rates download from the European Central Bank's public feed.")
         }
         .sheet(isPresented: $isChoosingCurrency) {
             CurrencyPickerView(selection: $viewModel.homeCurrency)

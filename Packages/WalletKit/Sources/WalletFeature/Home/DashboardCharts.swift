@@ -163,6 +163,7 @@ struct ExpenseBreakdownView: View {
     let total: Decimal
     let currencyCode: String
     @State private var grouping = Grouping.categories
+    @AppStorage(WalletPreferenceKeys.numberScale) private var numberScale = NumberScale.automatic.rawValue
 
     private var entries: [BreakdownEntry] {
         DashboardBreakdown.folded(grouping == .categories ? byCategory : byLabel)
@@ -192,7 +193,8 @@ struct ExpenseBreakdownView: View {
                 .chartLegend(.hidden)
                 .frame(height: WalletMetrics.Chart.donutHeight)
                 .overlay {
-                    let short = total.walletShort(currencyCode)
+                    let short = total.walletShort(currencyCode,
+                                                  scale: NumberScale(rawValue: numberScale) ?? .automatic)
                     VStack(spacing: WalletMetrics.hair) {
                         Text("Total").font(.caption2).foregroundStyle(.secondary)
                         Text(short.value)

@@ -427,3 +427,9 @@ Manual check: edit an account's balance, save, and confirm a "Balance adjustment
 Replaced every icon with the new wallet-and-cards artwork: default, dark and tinted iOS icons, the seven macOS sizes and the 120/180 px Midnight, Forest and Sunset alternates. The iOS and alternate images are opaque with no alpha channel. The tinted icon sits on black, and the macOS icons are clipped to a rounded square with a transparent margin. Unsigned iOS Simulator and macOS builds passed with no icon warnings. Each rendered image was inspected, but none was seen on a Home Screen, Dock or in Settings.
 
 Manual checks: confirm the icon in light, dark and tinted Home Screen modes; switch to each alternate in Settings and confirm the swatch color matches the icon; check the Dock icon on macOS.
+
+## Large Amount Counting Setting (2026-11-03)
+
+Added Settings → Currency → Count Large Amounts In (Automatic, Lakhs, Millions) for the totals inside the Dashboard and Statistics donuts. **315 tests across 51 suites passed**, and unsigned iOS Simulator and macOS builds passed. A new test covers the Lakhs and Millions choices applying to every currency and the lakh form falling back below one lakh. Not run in the app.
+
+Manual check: with an MMK account spending over one lakh this month, switch the setting between Lakhs and Millions and confirm the Dashboard Expenses and Statistics donut totals change between "lakhs · MMK" and a K/M figure; with a USD account, confirm Lakhs shows lakhs there too.

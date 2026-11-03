@@ -7,6 +7,7 @@ public struct StatisticsView: View {
     private let planning: PlanningViewModel?
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.defaultCurrency) private var defaultCurrency
+    @AppStorage(WalletPreferenceKeys.numberScale) private var numberScale = NumberScale.automatic.rawValue
     @State private var period = Period.month
     @State private var anchor = Date()
     @State private var customStart = Calendar.current.startOfDay(for: Date())
@@ -282,7 +283,8 @@ public struct StatisticsView: View {
                 .chartLegend(.hidden)
                 .frame(height: WalletMetrics.Chart.donutHeight)
                 .overlay {
-                    let short = total.walletShort(selectedCurrency)
+                    let short = total.walletShort(selectedCurrency,
+                                                  scale: NumberScale(rawValue: numberScale) ?? .automatic)
                     VStack(spacing: WalletMetrics.hair) {
                         Text("Total").font(.caption2).foregroundStyle(.secondary)
                         Text(short.value)

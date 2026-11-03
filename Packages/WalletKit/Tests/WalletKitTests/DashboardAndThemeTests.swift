@@ -10,6 +10,14 @@ struct ShortAmountTests {
         #expect(Decimal(85_000).walletShort("MMK").unit == "MMK")
         #expect(Decimal(5_270_000).walletShort("USD").unit == "USD")
     }
+
+    @Test func chosenScaleAppliesToEveryCurrency() {
+        #expect(Decimal(5_270_000).walletShort("USD", scale: .lakhs) == ("52.7", "lakhs · USD"))
+        #expect(Decimal(5_270_000).walletShort("MMK", scale: .millions).unit == "MMK")
+        #expect(Decimal(5_270_000).walletShort("MMK", scale: .millions).value != "52.7")
+        // Below one lakh, the lakh scale falls back to the compact figure.
+        #expect(Decimal(85_000).walletShort("USD", scale: .lakhs).unit == "USD")
+    }
 }
 
 struct DashboardConfigurationTests {

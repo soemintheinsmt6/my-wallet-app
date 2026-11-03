@@ -14,6 +14,8 @@ public enum WalletPreferenceKeys {
     /// Prefills the currency of new accounts, bills, budgets, debts and goals.
     static let defaultCurrency = "currency.default"
     static let convertTotals = "currency.convertTotals"
+    /// How short totals count large amounts: a `NumberScale` raw value.
+    static let numberScale = "currency.numberScale"
     /// Proactive insight notices; all default to off.
     static let insightWeekly = "insights.weeklySummary"
     static let insightUnusual = "insights.unusualSpending"
