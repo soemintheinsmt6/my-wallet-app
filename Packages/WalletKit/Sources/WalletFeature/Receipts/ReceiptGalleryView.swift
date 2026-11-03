@@ -208,7 +208,6 @@ public struct ReceiptGalleryContent: View {
                             if !viewModel.receipts.isEmpty {
                                 Text("\(viewModel.receipts.count)").foregroundStyle(.secondary)
                             }
-                            WalletDisclosure()
                         }
                         .frame(maxWidth: .infinity, minHeight: WalletMetrics.touchTarget)
                         .contentShape(Rectangle())

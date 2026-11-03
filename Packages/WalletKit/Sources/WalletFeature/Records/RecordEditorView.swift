@@ -394,7 +394,6 @@ struct RecordEditorView: View {
                         if let existing = splits.split(for: recordID) {
                             Text("\(existing.participants.count) people").foregroundStyle(.secondary)
                         }
-                        chevron
                     }
                     .frame(maxWidth: .infinity, minHeight: 44)
                     .contentShape(Rectangle())
@@ -500,7 +499,6 @@ struct RecordEditorView: View {
                     Text("Photo").foregroundStyle(.primary)
                     Spacer()
                     Text(draft.photoData == nil ? "None" : "1").foregroundStyle(.secondary)
-                    chevron
                 }
                 .frame(maxWidth: .infinity, minHeight: 44)
                 .contentShape(Rectangle())

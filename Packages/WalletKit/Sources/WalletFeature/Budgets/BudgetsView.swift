@@ -43,7 +43,6 @@ struct BudgetsView: View {
                                 .monospacedDigit()
                                 .foregroundStyle(.primary)
                                 .lineLimit(1)
-                            WalletDisclosure()
                         }
                         .frame(minHeight: WalletMetrics.touchTarget)
                         .padding(.vertical, WalletMetrics.tight)

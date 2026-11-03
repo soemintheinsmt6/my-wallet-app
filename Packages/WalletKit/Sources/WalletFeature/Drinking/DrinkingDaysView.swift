@@ -464,7 +464,6 @@ private struct DrinkingDayRow: View {
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
-            WalletDisclosure()
         }
         .frame(minHeight: WalletMetrics.touchTarget)
         .padding(.vertical, WalletMetrics.hair)

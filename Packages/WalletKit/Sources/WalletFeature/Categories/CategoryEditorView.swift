@@ -54,10 +54,7 @@ struct CategoryEditorView: View {
                     if let category = route.category, symbols != nil {
                         Button { choosingSymbol = true } label: {
                             LabeledContent("Icon") {
-                                HStack(spacing: WalletMetrics.small) {
-                                    CategoryIcon(category: category)
-                                    WalletDisclosure()
-                                }
+                                CategoryIcon(category: category)
                             }
                             .contentShape(Rectangle())
                         }

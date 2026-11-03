@@ -57,10 +57,6 @@ struct AccountEditorView: View {
                                 Text("Currency").foregroundStyle(.primary)
                                 Spacer()
                                 Text(currencyCode).foregroundStyle(.secondary)
-                                Image(systemName: "chevron.right")
-                                    .font(.caption.weight(.semibold))
-                                    .foregroundStyle(.tertiary)
-                                    .accessibilityHidden(true)
                             }
                             .contentShape(.rect)
                         }
@@ -91,11 +87,8 @@ struct AccountEditorView: View {
                     }
                     Button { choosingSymbol = true } label: {
                         LabeledContent("Icon") {
-                            HStack(spacing: WalletMetrics.small) {
-                                // Follows the type being edited until an icon is chosen.
-                                WalletIconTile(symbol: settings.symbol ?? type.symbol, color: settings.color.tint)
-                                WalletDisclosure()
-                            }
+                            // Follows the type being edited until an icon is chosen.
+                            WalletIconTile(symbol: settings.symbol ?? type.symbol, color: settings.color.tint)
                         }
                         .contentShape(Rectangle())
                     }

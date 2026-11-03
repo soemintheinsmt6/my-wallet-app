@@ -20,7 +20,6 @@ public struct TagsView: View {
                         .foregroundStyle(.primary)
                         .lineLimit(1)
                     Spacer(minLength: WalletMetrics.small)
-                    WalletDisclosure()
                 }
                 .frame(minHeight: WalletMetrics.touchTarget)
                 .padding(.vertical, WalletMetrics.hair)
