@@ -23,6 +23,12 @@ public final class DataExchangeViewModel: ObservableObject {
     @Published public private(set) var fallbackCategoryIDs: [RecordKind: UUID] = [:]
     /// Rows matched to an existing record that the person chose to import anyway.
     @Published public private(set) var unmatchedRowIndices: Set<Int> = []
+    /// Whether matched records take the bank's amount, so a tip or fee reaches the balance.
+    @Published public private(set) var updatesMatchedAmounts = true
+    /// Records whose amount the last import changed to the bank's.
+    @Published public private(set) var updatedCount = 0
+    /// Matched split records left at their amount, since their shares must add up to it.
+    @Published public private(set) var keptSplitCount = 0
 
     /// The parsed file, kept so a chosen account or flipped signs re-plan without rereading it.
     private var pendingTable: [[String]]?
@@ -31,11 +37,15 @@ public final class DataExchangeViewModel: ObservableObject {
     private let records: RecordsViewModel
     private let recordUseCases: RecordUseCases
     private let tagUseCases: TagUseCases
+    /// Read before changing a matched record's amount: a split's shares must add up to it.
+    private let splitUseCases: SplitUseCases?
 
-    public init(records: RecordsViewModel, recordUseCases: RecordUseCases, tagUseCases: TagUseCases) {
+    public init(records: RecordsViewModel, recordUseCases: RecordUseCases, tagUseCases: TagUseCases,
+                splitUseCases: SplitUseCases? = nil) {
         self.records = records
         self.recordUseCases = recordUseCases
         self.tagUseCases = tagUseCases
+        self.splitUseCases = splitUseCases
     }
 
     // MARK: - Export
@@ -86,6 +96,8 @@ public final class DataExchangeViewModel: ObservableObject {
     public func prepareImport(text: String) {
         cancelImport()
         importedCount = 0
+        updatedCount = 0
+        keptSplitCount = 0
         do {
             let table = try CSV.parse(text)
             guard let header = table.first else { throw CSVError.empty }
@@ -135,6 +147,15 @@ public final class DataExchangeViewModel: ObservableObject {
     public func importAnyway(_ entry: ImportPlan.Entry) {
         guard entry.matchedRecordDate != nil, unmatchedRowIndices.insert(entry.rowIndex).inserted else { return }
         replan()
+    }
+
+    public func setUpdatesMatchedAmounts(_ updates: Bool) {
+        updatesMatchedAmounts = updates
+    }
+
+    /// The record changes Import would make, given the toggle.
+    public var pendingAmountUpdates: [ImportPlan.AmountUpdate] {
+        updatesMatchedAmounts ? plan?.amountUpdates ?? [] : []
     }
 
     public func setFallbackCategory(_ id: UUID?, for kind: RecordKind) {
@@ -198,6 +219,7 @@ public final class DataExchangeViewModel: ObservableObject {
         canReverseSigns = false
         fallbackCategoryIDs = [:]
         unmatchedRowIndices = []
+        updatesMatchedAmounts = true
     }
 
     /// Writes the importable rows, creating any missing labels first.
@@ -249,13 +271,68 @@ public final class DataExchangeViewModel: ObservableObject {
             }
         }
 
+        let updates = await applyAmountUpdates(pendingAmountUpdates)
+
         cancelImport()
         importedCount = imported
+        updatedCount = updates.updated
+        keptSplitCount = updates.keptSplits
         await records.reload()
+        var messages: [String] = []
         if !failures.isEmpty {
             let shown = failures.prefix(3).joined(separator: "\n")
             let extra = failures.count > 3 ? "\nand \(failures.count - 3) more." : ""
-            errorMessage = "Imported \(imported). \(failures.count) row(s) could not be saved:\n\(shown)\(extra)"
+            messages.append("Imported \(imported). \(failures.count) row(s) could not be saved:\n\(shown)\(extra)")
         }
+        if !updates.failures.isEmpty {
+            messages.append("\(updates.failures.count) record(s) kept their amount:\n"
+                            + updates.failures.prefix(3).joined(separator: "\n"))
+        }
+        errorMessage = messages.isEmpty ? nil : messages.joined(separator: "\n\n")
+    }
+
+    /// Brings matched records to the bank's amounts. A transfer can have both sides changed, so
+    /// changes are grouped per record and each record is saved once.
+    private func applyAmountUpdates(_ updates: [ImportPlan.AmountUpdate]) async
+        -> (updated: Int, keptSplits: Int, failures: [String]) {
+        guard !updates.isEmpty else { return (0, 0, []) }
+        let splitRecordIDs: Set<UUID>
+        do {
+            splitRecordIDs = Set(try await splitUseCases?.load().map(\.recordID) ?? [])
+        } catch {
+            return (0, 0, ["Splits could not be read, so no amounts were changed: \(error.localizedDescription)"])
+        }
+        let recordsByID = Dictionary(records.records.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+
+        var updated = 0
+        var keptSplits = 0
+        var failures: [String] = []
+        let grouped = Dictionary(grouping: updates, by: \.recordID)
+        for (offset, (recordID, changes)) in grouped.enumerated() {
+            progress = "Updating \(offset + 1) of \(grouped.count)…"
+            // A split's shares must add up to the record's amount, so changing it alone would break the split.
+            guard !splitRecordIDs.contains(recordID) else { keptSplits += 1; continue }
+            guard let record = recordsByID[recordID] else {
+                failures.append("A matched record no longer exists.")
+                continue
+            }
+            var draft = record.draft
+            changes.forEach { $0.apply(to: &draft) }
+            do {
+                // Loaded records carry no photo bytes and saving writes the photo, so without this
+                // an amount update would erase the receipt.
+                if record.hasPhoto {
+                    guard let photo = try await recordUseCases.photo(id: recordID) else {
+                        throw RecordValidationError.invalidPhoto
+                    }
+                    draft.photoData = photo
+                }
+                try await recordUseCases.update(id: recordID, draft: draft)
+                updated += 1
+            } catch {
+                failures.append("\(record.draft.date.formatted(date: .abbreviated, time: .shortened)): \(error.localizedDescription)")
+            }
+        }
+        return (updated, keptSplits, failures)
     }
 }

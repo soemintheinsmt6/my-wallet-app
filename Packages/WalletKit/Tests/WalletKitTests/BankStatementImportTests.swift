@@ -329,6 +329,99 @@ struct BankStatementImportViewModelTests {
     }
 }
 
+/// Bringing matched records to the bank's amount when the import is applied.
+@MainActor
+struct TipImportViewModelTests {
+    private let statement = """
+        Date,Description,Amount
+        2026-11-05,Dinner,-60.00
+        """
+    private let photo = Data([0xFF, 0xD8, 0xFF, 0xE0, 1, 2, 3])
+
+    /// A wallet with a 50 dinner entered by hand the day before the bank's 60 charge, with a receipt photo.
+    private func make(split: Bool = false)
+        async throws -> (DataExchangeViewModel, RecordsViewModel, SwiftDataWalletRepository, UUID) {
+        let repository = try await SwiftDataWalletRepository.make(configuration: .inMemory)
+        try await AccountUseCases(repository: repository).create(name: "Checking", type: .checking)
+        let accountID = try #require(try await repository.fetchAccounts().first).id
+        let category = try #require(try await repository.fetchCategories().first { $0.parentID != nil })
+        var draft = RecordDraft()
+        draft.kind = .expense
+        draft.accountID = accountID
+        draft.amount = 50
+        draft.categoryID = category.id
+        draft.payee = "Noodle House"
+        draft.photoData = photo
+        draft.date = try #require(Calendar.current.date(from: DateComponents(year: 2026, month: 11, day: 4, hour: 20)))
+        let dinnerID = UUID()
+        try await RecordUseCases(repository: repository).create(id: dinnerID, draft: draft)
+        if split {
+            let shares = [SplitParticipant(name: "Me", share: 25, paid: 50), SplitParticipant(name: "Aye", share: 25)]
+            try await SplitUseCases(repository: repository)
+                .save(RecordSplit(recordID: dinnerID, method: .equally, participants: shares), recordAmount: 50)
+        }
+
+        let records = RecordsViewModel(useCases: RecordUseCases(repository: repository),
+                                       accounts: AccountUseCases(repository: repository),
+                                       categories: CategoryUseCases(repository: repository),
+                                       tags: TagUseCases(repository: repository))
+        await records.reload()
+        let viewModel = DataExchangeViewModel(records: records, recordUseCases: RecordUseCases(repository: repository),
+                                              tagUseCases: TagUseCases(repository: repository),
+                                              splitUseCases: SplitUseCases(repository: repository))
+        viewModel.prepareImport(text: statement)
+        viewModel.chooseImportAccount("Checking")
+        return (viewModel, records, repository, dinnerID)
+    }
+
+    private func dinner(_ records: RecordsViewModel, _ id: UUID) -> WalletRecord? {
+        records.records.first { $0.id == id }
+    }
+
+    @Test func aTippedBillTakesTheBankAmountAndKeepsItsPhotoAndDetails() async throws {
+        let (viewModel, records, repository, dinnerID) = try await make()
+        let plan = try #require(viewModel.plan)
+        #expect(plan.importable.isEmpty)
+        #expect(plan.matchedToRecords.first?.match?.kind == .tip)
+        #expect(viewModel.pendingAmountUpdates.count == 1)
+
+        await viewModel.applyImport()
+        #expect(viewModel.errorMessage == nil)
+        #expect(viewModel.importedCount == 0)
+        #expect(viewModel.updatedCount == 1)
+        let updated = try #require(dinner(records, dinnerID))
+        #expect(updated.draft.amount == 60)
+        #expect(updated.draft.payee == "Noodle House")
+        #expect(records.records.count == 1)
+        // Loaded records carry no photo bytes; the update must not have erased the receipt.
+        #expect(try await RecordUseCases(repository: repository).photo(id: dinnerID) == photo)
+        #expect(records.accounts.first?.settings.currentBalance == -60)
+    }
+
+    @Test func turningUpdatesOffLeavesTheRecordAsEntered() async throws {
+        let (viewModel, records, _, dinnerID) = try await make()
+        viewModel.setUpdatesMatchedAmounts(false)
+        #expect(viewModel.pendingAmountUpdates.isEmpty)
+
+        await viewModel.applyImport()
+        #expect(viewModel.updatedCount == 0)
+        #expect(dinner(records, dinnerID)?.draft.amount == 50)
+        #expect(viewModel.updatesMatchedAmounts)
+    }
+
+    @Test func aSplitBillKeepsItsAmountAndIsReported() async throws {
+        let (viewModel, records, repository, dinnerID) = try await make(split: true)
+        await viewModel.applyImport()
+
+        #expect(viewModel.updatedCount == 0)
+        #expect(viewModel.keptSplitCount == 1)
+        #expect(viewModel.errorMessage == nil)
+        #expect(dinner(records, dinnerID)?.draft.amount == 50)
+        let split = try #require(try await repository.fetchSplits().first)
+        #expect(split.total == 50)
+    }
+}
+
 /// Bank rows matched by day against records entered by hand, which carry a time of day and are
 /// often dated before the bank posts them.
 struct ManualEntryMatchingTests {
@@ -378,7 +471,8 @@ struct ManualEntryMatchingTests {
 
     @Test func accountDirectionAndAmountMustAllAgree() {
         let existing = [entered(5)]
-        #expect(plan([bankRow(5, amount: 5)], existing).duplicates.isEmpty)
+        // 50% above the 4 entered: beyond even a tip.
+        #expect(plan([bankRow(5, amount: 6)], existing).duplicates.isEmpty)
         #expect(plan([bankRow(5, .income)], existing).duplicates.isEmpty)
         #expect(plan([bankRow(5, account: "Savings")], existing).duplicates.isEmpty)
     }
@@ -413,7 +507,8 @@ struct ManualEntryMatchingTests {
         #expect(result.entries[0].matchedRecordAmount == 100)
         #expect(result.entries[0].differingMatchedAmount == 100)
 
-        #expect(plan([bankRow(5, amount: amount("105.50"))], [entered(4, amount: 100)]).duplicates.isEmpty)
+        // 5.5% less than entered: outside the tolerance, and a tip only ever adds.
+        #expect(plan([bankRow(5, amount: amount("94.50"))], [entered(4, amount: 100)]).duplicates.isEmpty)
         // An exact match reports no difference.
         #expect(plan([bankRow(5)], [entered(5)]).entries[0].differingMatchedAmount == nil)
     }
@@ -441,6 +536,71 @@ struct ManualEntryMatchingTests {
         let transfer = entered(5, .transfer, amount: 100, to: savings, received: 98)
         let result = plan([bankRow(5, .income, amount: amount("97.20"), account: "Savings")], [transfer])
         #expect(result.entries[0].matchedRecordAmount == 98)
+    }
+
+    @Test func aTipOfUpToAQuarterMatchesAndUpdatesTheBill() {
+        let result = plan([bankRow(5, amount: 60)], [entered(4, amount: 50)])
+        #expect(result.entries[0].match?.kind == .tip)
+        #expect(result.entries[0].amountUpdate?.field == .amount)
+        #expect(result.entries[0].amountUpdate?.from == 50)
+        #expect(result.entries[0].amountUpdate?.to == 60)
+        #expect(result.amountUpdates.count == 1)
+
+        #expect(plan([bankRow(5, amount: amount("62.60"))], [entered(4, amount: 50)]).duplicates.isEmpty)
+        // A tip only adds: a bank charge 20% below the bill is something else.
+        #expect(plan([bankRow(5, amount: 40)], [entered(4, amount: 50)]).duplicates.isEmpty)
+    }
+
+    @Test func tipsApplyOnlyToBillsNotIncomeTransfersOrAdjustments() {
+        #expect(plan([bankRow(5, .income, amount: 60)], [entered(5, .income, amount: 50)]).duplicates.isEmpty)
+        #expect(plan([bankRow(5, amount: 60)], [entered(5, .transfer, amount: 50, to: savings)]).duplicates.isEmpty)
+        var adjustment = entered(5, amount: 50)
+        var draft = adjustment.draft
+        draft.isAdjustment = true
+        adjustment = WalletRecord(id: adjustment.id, draft: draft, currencyCode: "USD")
+        #expect(plan([bankRow(5, amount: 60)], [adjustment]).duplicates.isEmpty)
+    }
+
+    /// The bill's own bank row takes it first, so a different, larger purchase is not read as a tip on it.
+    @Test func aBillsExactRowIsMatchedBeforeAnyTip() {
+        let result = plan([bankRow(5, amount: 60), bankRow(5, amount: 50)], [entered(5, amount: 50)])
+        #expect(result.entries.map(\.issue) == [nil, .duplicate])
+        #expect(result.amountUpdates.isEmpty)
+    }
+
+    @Test func aNearAmountIsPreferredOverATip() {
+        let result = plan([bankRow(5, amount: 60)], [entered(5, amount: 50), entered(5, amount: 58)])
+        #expect(result.entries[0].match?.kind == .near)
+        #expect(result.entries[0].matchedRecordAmount == 58)
+    }
+
+    @Test func nearMatchesUpdateTheAmountButASameCurrencyTransferKeepsIt() throws {
+        let charge = entered(4, amount: 100)
+        let update = try #require(plan([bankRow(5, amount: amount("103.50"))], [charge]).amountUpdates.first)
+        #expect(update == ImportPlan.AmountUpdate(recordID: charge.id, field: .amount, from: 100, to: amount("103.50")))
+        // Exact matches change nothing.
+        #expect(plan([bankRow(5)], [entered(5)]).amountUpdates.isEmpty)
+
+        // Checking and Savings share a currency, so one statement cannot change one side alone.
+        let transfer = entered(5, .transfer, amount: 100, to: savings)
+        let sameCurrency = plan([bankRow(5, .income, amount: 98, account: "Savings")], [transfer])
+        #expect(sameCurrency.duplicates.count == 1)
+        #expect(sameCurrency.amountUpdates.isEmpty)
+    }
+
+    @Test func aCrossCurrencyTransferUpdatesTheSideTheStatementShows() {
+        let euros = Account(name: "Euros", type: .savings, currencyCode: "EUR")
+        let transfer = entered(5, .transfer, amount: 100, to: euros, received: 92)
+        let result = ImportPlanner.plan(
+            rows: [bankRow(5, .income, amount: 91, account: "Euros"), bankRow(5, amount: 101)],
+            accounts: [checking, euros], categories: [], tags: [], existing: [transfer])
+        #expect(result.amountUpdates.map(\.field) == [.receivedAmount, .amount])
+        #expect(result.amountUpdates.map(\.to) == [91, 101])
+
+        var draft = transfer.draft
+        result.amountUpdates.forEach { $0.apply(to: &draft) }
+        #expect(draft.amount == 101)
+        #expect(draft.receivedAmount == 91)
     }
 
     @Test func importingAnywayFreesTheRecordForAnotherRow() {

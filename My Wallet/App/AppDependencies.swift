@@ -92,7 +92,8 @@ struct AppDependencies {
             dataExchangeViewModel: DataExchangeViewModel(
                 records: records,
                 recordUseCases: RecordUseCases(repository: repository),
-                tagUseCases: TagUseCases(repository: repository)
+                tagUseCases: TagUseCases(repository: repository),
+                splitUseCases: SplitUseCases(repository: repository)
             ),
             onboardingViewModel: OnboardingViewModel(accounts: accounts, planning: planning),
             currencyViewModel: currency,

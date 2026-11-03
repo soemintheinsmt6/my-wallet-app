@@ -49,7 +49,7 @@ Tests live in `Packages/WalletKit/Tests/WalletKitTests/` and use Swift Testing (
 | `TagTests` | Ten colors, name validation/uniqueness, stable edit identity, selective/idempotent deletion, notifications, view-model failure state and migration/reopening |
 | `RecordTests` | Ledger balances, idempotent creation, transfers and received amounts, reference/amount validation, details/photos, label detachment, most-used ranking and additive migration/reopening |
 | `BalanceAdjustmentTests` | Adjustment increases/decreases changing balances without a category, account balance edits recorded as adjustments without shifting earlier history (and none for a name-only edit), edit/delete reversal, transfers rejected as adjustments, totals excluding adjustments while balance history and statements include them, older drafts decoding and CSV round-tripping |
-| `BankStatementImportTests` | Bank header aliases (the app's own names winning), signed amounts, Debit/Credit columns (including negative debits), bank Type values, sign reversal, day-first date detection, bank date forms, accounting negatives, a chosen account filling missing or empty Account cells, typed rows keeping their strict checks, exports unchanged; date-only rows matched one-for-one against existing records; per-kind category fallbacks; and the view model's account choice, sign flip, fallback categories and re-import detection. `ManualEntryMatchingTests` covers matching records entered by hand by day within the posting lag, transfers on both accounts, same-day-first assignment, near amounts within 5% after exact ones, and Import Anyway |
+| `BankStatementImportTests` | Bank header aliases (the app's own names winning), signed amounts, Debit/Credit columns (including negative debits), bank Type values, sign reversal, day-first date detection, bank date forms, accounting negatives, a chosen account filling missing or empty Account cells, typed rows keeping their strict checks, exports unchanged; date-only rows matched one-for-one against existing records; per-kind category fallbacks; and the view model's account choice, sign flip, fallback categories and re-import detection. `ManualEntryMatchingTests` covers matching records entered by hand by day within the posting lag, transfers on both accounts, same-day-first assignment, near amounts within 5% after exact ones, tips up to 25% last, amount updates (including cross-currency transfer sides) and Import Anyway. `TipImportViewModelTests` covers applying updates with the photo kept, the toggle and split records |
 | `RecordSearchTests` | Field matching (payee, note, amount, category and parent, label), multi-term AND, case/diacritic insensitivity, relevance ranking and tie-breaks, intersecting filter groups, transfer account legs, date/amount bounds, sort determinism and recent-search history |
 | `SettingsTests` | Confirmed-reset operation, deletion notifications, starter reseeding, preference retention/clearing, failure state and appearance mapping |
 
@@ -650,3 +650,36 @@ Manual checks:
 
 1. Enter a purchase at a round figure, then import a statement where it settled slightly higher, for example with a foreign-transaction fee. Confirm the row is matched and the review shows the amount you entered.
 2. Confirm that a purchase with a tip of 15% or more is not matched, and that Import Anyway still works on a near match you judge wrong.
+
+## Tips and Updating Records to the Bank's Amount (2026-11-03)
+
+An expense bill now also matches a bank charge up to 25% higher (a tip), tried last and only against records no other row matched. By default the import changes each matched record's amount to the bank's. **380 tests across 58 suites passed**, and unsigned builds passed for the app on iOS Simulator and macOS and for `WalletWatch` and `WalletWatchWidgets` on watchOS Simulator. SwiftLint still reports 68 warnings, none new.
+
+New tests in `ManualEntryMatchingTests` cover:
+
+- a 60 charge matching a 50 bill as a tip with an update from 50 to 60, while 62.60 (25.2%) and a lower charge do not match
+- tips not applying to income, transfers or balance adjustments
+- a bill's own exact row being matched before any tip
+- a near amount being preferred over a tip
+- near matches producing an update while exact ones do not
+- a same-currency transfer matching without an update
+- a cross-currency transfer updating its received amount and its sent amount from each account's statement
+
+`TipImportViewModelTests` uses an in-memory store. It covers:
+
+- a tipped dinner taking the bank amount, keeping its payee and receipt photo, and moving the balance to -60, with nothing imported
+- turning updates off leaving the record at 50
+- a split dinner keeping its amount, with the split still totalling 50, and being reported
+
+Two existing tests changed amounts on purpose. A 105.50 charge against a 100 bill, and a 5 charge against a 4 bill, are now tips. Their "does not match" checks use 94.50 and 6 instead.
+
+**Defect found and avoided:** loaded records carry no photo bytes, only a `hasPhoto` flag, and saving writes the photo. Updating an amount straight from the loaded record would have erased its receipt. The update reloads the photo first, as the record editor does, and a test checks the photo survives.
+
+**Not verified:** the app was not run, so the update toggle, the "Will change to" text, the Update button for statements with only amount changes, and the result labels were checked only by build.
+
+Manual checks:
+
+1. Enter a restaurant bill without the tip, then import a statement where it posted with the tip. Confirm the review shows the tip and the new amount, and that after import the record and the account balance match the bank.
+2. Repeat with the update toggle off and confirm the record is unchanged.
+3. Split a bill with someone, then import its tipped charge. Confirm the record keeps its amount and the result explains why.
+4. Confirm a record with a receipt photo still has it after its amount is updated.

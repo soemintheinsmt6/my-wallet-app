@@ -1,5 +1,13 @@
 import Foundation
 
+/// Which of a record's amounts an import changes to match the bank.
+public enum RecordAmountField: Sendable, Equatable {
+    /// What left the record's account; for income and expenses, the whole amount.
+    case amount
+    /// What a transfer delivered to its destination in another currency.
+    case receivedAmount
+}
+
 /// What a CSV import would do, worked out before anything is written.
 ///
 /// Every parsed row lands in exactly one bucket, so the counts shown in the preview always add up
@@ -18,15 +26,20 @@ public struct ImportPlan: Sendable, Equatable {
         /// An income or expense row whose file named no category this wallet has, so `categoryID`
         /// is the import's fallback for its kind, or `nil` when none was chosen.
         public let isUncategorized: Bool
-        /// For a date-only row matched to an existing record, that record's date and time, which
-        /// may be a few days before the row's own date.
-        public let matchedRecordDate: Date?
-        /// What that record moved through the row's account, which may differ slightly from the row.
-        public let matchedRecordAmount: Decimal?
+        /// For a date-only row, the existing record it matched.
+        public let match: LedgerMatcher.Match?
+        /// How the matched record's amount would change to what the bank moved, or `nil` when they
+        /// agree or the record cannot be changed on one side alone (a same-currency transfer).
+        public let amountUpdate: AmountUpdate?
         /// The row's position among the parsed rows, stable across re-planning.
         public let rowIndex: Int
 
         public var isImportable: Bool { issue == nil }
+
+        /// The matched record's date and time, which may be a few days before the row's own date.
+        public var matchedRecordDate: Date? { match?.date }
+        /// What the matched record moved through the row's account.
+        public var matchedRecordAmount: Decimal? { match?.amount }
 
         /// The matched record's amount when it is not the row's, so the review can point it out.
         public var differingMatchedAmount: Decimal? {
@@ -36,10 +49,10 @@ public struct ImportPlan: Sendable, Equatable {
 
         public init(id: UUID = UUID(), row: RecordCSVRow, accountID: UUID?, destinationAccountID: UUID?,
                     categoryID: UUID?, tagIDs: Set<UUID>, newLabelNames: [String], issue: Issue?,
-                    isUncategorized: Bool = false, matchedRecordDate: Date? = nil, matchedRecordAmount: Decimal? = nil,
-                    rowIndex: Int = 0) {
-            self.matchedRecordDate = matchedRecordDate
-            self.matchedRecordAmount = matchedRecordAmount
+                    isUncategorized: Bool = false, match: LedgerMatcher.Match? = nil,
+                    amountUpdate: AmountUpdate? = nil, rowIndex: Int = 0) {
+            self.match = match
+            self.amountUpdate = amountUpdate
             self.rowIndex = rowIndex
             self.id = id
             self.row = row
@@ -50,6 +63,30 @@ public struct ImportPlan: Sendable, Equatable {
             self.newLabelNames = newLabelNames
             self.issue = issue
             self.isUncategorized = isUncategorized
+        }
+    }
+
+    /// Bringing a matched record's amount in line with the bank: a tip, a fee or a settled
+    /// exchange rate the person could not know when they entered it.
+    public struct AmountUpdate: Sendable, Equatable {
+        public let recordID: UUID
+        public let field: RecordAmountField
+        public let from: Decimal
+        public let to: Decimal
+
+        public init(recordID: UUID, field: RecordAmountField, from: Decimal, to: Decimal) {
+            self.recordID = recordID
+            self.field = field
+            self.from = from
+            self.to = to
+        }
+
+        /// Applies this change to the record's draft.
+        public func apply(to draft: inout RecordDraft) {
+            switch field {
+            case .amount: draft.amount = to
+            case .receivedAmount: draft.receivedAmount = to
+            }
         }
     }
 
@@ -105,6 +142,9 @@ public struct ImportPlan: Sendable, Equatable {
     /// matched and the person can spot a wrong match.
     public var matchedToRecords: [Entry] { entries.filter { $0.matchedRecordDate != nil } }
 
+    /// Matched records whose amount would change to the bank's.
+    public var amountUpdates: [AmountUpdate] { entries.compactMap(\.amountUpdate) }
+
     public var isEmpty: Bool { entries.isEmpty }
 }
 
@@ -157,6 +197,9 @@ public enum ImportPlanner {
         let matches = LedgerMatcher(existing: existing).match(dateOnlyCandidates.compactMap { index in
             resolved[index].accountID.map { (index: index, row: rows[index], accountID: $0) }
         })
+        let recordsByID = matches.isEmpty ? [:]
+            : Dictionary(existing.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        let currencies = Dictionary(accounts.map { ($0.id, $0.currencyCode) }, uniquingKeysWith: { first, _ in first })
 
         var entries: [ImportPlan.Entry] = []
         for (index, row) in rows.enumerated() {
@@ -183,10 +226,29 @@ public enum ImportPlanner {
                                             destinationAccountID: destinationID,
                                             categoryID: categoryID,
                                             tagIDs: tagIDs, newLabelNames: newLabels, issue: issue,
-                                            isUncategorized: isUncategorized, matchedRecordDate: match?.date,
-                                            matchedRecordAmount: match?.amount, rowIndex: index))
+                                            isUncategorized: isUncategorized, match: match,
+                                            amountUpdate: match.flatMap {
+                                                amountUpdate(for: $0, row: row, record: recordsByID[$0.recordID],
+                                                             currencies: currencies)
+                                            },
+                                            rowIndex: index))
         }
         return ImportPlan(entries: entries)
+    }
+
+    /// The change that brings a matched record to the bank's amount. A same-currency transfer moves
+    /// one amount out and in, so one bank's statement cannot change it without contradicting the other.
+    private static func amountUpdate(for match: LedgerMatcher.Match, row: RecordCSVRow, record: WalletRecord?,
+                                     currencies: [UUID: String]) -> ImportPlan.AmountUpdate? {
+        guard match.amount != row.amount, let draft = record?.draft else { return nil }
+        guard draft.kind == .transfer else {
+            return ImportPlan.AmountUpdate(recordID: match.recordID, field: .amount, from: match.amount, to: row.amount)
+        }
+        guard let source = draft.accountID.flatMap({ currencies[$0] }),
+              let destination = draft.destinationAccountID.flatMap({ currencies[$0] }),
+              source != destination else { return nil }
+        return ImportPlan.AmountUpdate(recordID: match.recordID, field: match.side == .source ? .amount : .receivedAmount,
+                                       from: match.amount, to: row.amount)
     }
 
     private static func accountIssue(for row: RecordCSVRow, accountID: UUID?, destinationID: UUID?) -> ImportPlan.Issue? {
@@ -226,28 +288,61 @@ public enum ImportPlanner {
 /// was typed. A transfer counts as money out of its source account and money in to its destination
 /// at its received amount, so a transfer entered by hand matches both banks' statements.
 ///
+/// A tip is added after the bill is entered, so an expense the bank charged more for, by up to
+/// `tipTolerance` of the entered amount, matches too. That band is wide enough to catch unrelated
+/// purchases, so it is tried last and only against records no other row matched: an entered bill
+/// whose own bank row is in the statement is taken by that row first.
+///
 /// Matching is one-for-one: two identical coffees on one day are two purchases, so each record
 /// absorbs one row. Matches are settled in rounds, each for every row before the next: exact
-/// amount on the same day, then exact amount within the lag, then a near amount within the lag.
-/// So a row is never beaten to its exact match by a looser one. Within a round the closest
-/// earlier record wins, then the closest amount.
+/// amount on the same day, then exact amount within the lag, then a near amount, then a tip. So a
+/// row is never beaten to its exact match by a looser one. Within a round the closest earlier
+/// record wins, then the closest amount.
 public struct LedgerMatcher {
     public static let postingLagDays = 3
     /// The largest difference still treated as the same transaction, as a fraction of the bank's amount.
     public static let amountTolerance = Decimal(string: "0.05")!
+    /// The largest tip recognised, as a fraction of the amount entered.
+    public static let tipTolerance = Decimal(string: "0.25")!
+
+    public enum MatchKind: Sendable, Equatable {
+        case exact, near, tip
+    }
+
+    /// Which part of a record a row matched: a transfer moves money out of its source and in to
+    /// its destination, each of which can appear on a different statement.
+    public enum Side: Sendable, Equatable {
+        case source, destination
+    }
 
     /// The record a row matched.
     public struct Match: Sendable, Equatable {
+        public let recordID: UUID
+        public let side: Side
+        public let kind: MatchKind
         public let date: Date
-        /// What the record moved through this account, which may differ slightly from the row.
+        /// What the record moved through this account, which may differ from the row.
         public let amount: Decimal
+
+        public init(recordID: UUID, side: Side, kind: MatchKind, date: Date, amount: Decimal) {
+            self.recordID = recordID
+            self.side = side
+            self.kind = kind
+            self.date = date
+            self.amount = amount
+        }
     }
 
     private struct Leg {
-        /// A record and which side of it, so a transfer's two accounts are matched separately.
-        let id: String
+        let recordID: UUID
+        let side: Side
+        /// An expense that is not a balance adjustment, so a tip can have been added to it.
+        let isBill: Bool
         let date: Date
         let amount: Decimal
+
+        /// A record and which side of it, so a transfer's two accounts are matched separately.
+        var id: String { "\(recordID.uuidString)|\(side)" }
     }
 
     /// Legs by account, direction and calendar day, so a row reads only the days in its window.
@@ -259,22 +354,23 @@ public struct LedgerMatcher {
             let draft = record.draft
             guard let accountID = draft.accountID else { continue }
             switch draft.kind {
-            case .expense: add(record, side: "source", account: accountID, direction: "out", amount: draft.amount)
-            case .income: add(record, side: "source", account: accountID, direction: "in", amount: draft.amount)
+            case .expense: add(record, side: .source, account: accountID, direction: "out", amount: draft.amount)
+            case .income: add(record, side: .source, account: accountID, direction: "in", amount: draft.amount)
             case .transfer:
                 // A transfer row in the app's own date-only CSV, or a debit on the source's statement.
-                add(record, side: "source", account: accountID, direction: "transfer", amount: draft.amount)
-                add(record, side: "source", account: accountID, direction: "out", amount: draft.amount)
+                add(record, side: .source, account: accountID, direction: "transfer", amount: draft.amount)
+                add(record, side: .source, account: accountID, direction: "out", amount: draft.amount)
                 if let destination = draft.destinationAccountID {
-                    add(record, side: "destination", account: destination, direction: "in",
+                    add(record, side: .destination, account: destination, direction: "in",
                         amount: draft.receivedAmount ?? draft.amount)
                 }
             }
         }
     }
 
-    private mutating func add(_ record: WalletRecord, side: String, account: UUID, direction: String, amount: Decimal) {
-        let leg = Leg(id: "\(record.id.uuidString)|\(side)", date: record.draft.date, amount: amount)
+    private mutating func add(_ record: WalletRecord, side: Side, account: UUID, direction: String, amount: Decimal) {
+        let leg = Leg(recordID: record.id, side: side, isBill: record.draft.kind == .expense && !record.draft.isAdjustment,
+                      date: record.draft.date, amount: amount)
         legs[key(account: account, direction: direction, day: record.draft.date), default: []].append(leg)
     }
 
@@ -283,15 +379,32 @@ public struct LedgerMatcher {
         return "\(account.uuidString)|\(direction)|\(parts.year ?? 0)-\(parts.month ?? 0)-\(parts.day ?? 0)"
     }
 
-    /// A matching round: how far back to look, and whether the amount must be exact.
+    /// A matching round: how far back to look, and which amounts count.
     private struct Round {
         let days: ClosedRange<Int>
-        let exactAmount: Bool
+        let kind: MatchKind
+
+        /// Whether a record of `entered` can be the bank's `charged`, and how far apart they are.
+        func difference(entered leg: Leg, charged row: RecordCSVRow) -> Decimal? {
+            let difference = abs(leg.amount - row.amount)
+            switch kind {
+            case .exact:
+                return difference == 0 ? 0 : nil
+            case .near:
+                return difference <= row.amount * LedgerMatcher.amountTolerance ? difference : nil
+            case .tip:
+                // Only on top of a bill the bank charged more for, never a transfer or an adjustment.
+                guard row.kind == .expense, leg.isBill, row.amount > leg.amount,
+                      difference <= leg.amount * LedgerMatcher.tipTolerance else { return nil }
+                return difference
+            }
+        }
     }
 
-    private static let rounds = [Round(days: 0...0, exactAmount: true),
-                                 Round(days: 1...postingLagDays, exactAmount: true),
-                                 Round(days: 0...postingLagDays, exactAmount: false)]
+    private static let rounds = [Round(days: 0...0, kind: .exact),
+                                 Round(days: 1...postingLagDays, kind: .exact),
+                                 Round(days: 0...postingLagDays, kind: .near),
+                                 Round(days: 0...postingLagDays, kind: .tip)]
 
     private static func direction(of kind: RecordKind) -> String {
         switch kind {
@@ -309,14 +422,12 @@ public struct LedgerMatcher {
             for candidate in candidates where matched[candidate.index] == nil {
                 let row = candidate.row
                 let direction = Self.direction(of: row.kind)
-                let allowed = round.exactAmount ? 0 : row.amount * Self.amountTolerance
                 var best: (leg: Leg, days: Int, difference: Decimal)?
                 for days in round.days {
                     guard let day = calendar.date(byAdding: .day, value: -days, to: row.date) else { continue }
                     for leg in legs[key(account: candidate.accountID, direction: direction, day: day)] ?? []
                     where !consumed.contains(leg.id) {
-                        let difference = abs(leg.amount - row.amount)
-                        guard difference <= allowed else { continue }
+                        guard let difference = round.difference(entered: leg, charged: row) else { continue }
                         // Closest day, then closest amount, then the earliest record for a stable choice.
                         if let current = best,
                            (current.days, current.difference, current.leg.date) <= (days, difference, leg.date) {
@@ -327,7 +438,8 @@ public struct LedgerMatcher {
                 }
                 if let best {
                     consumed.insert(best.leg.id)
-                    matched[candidate.index] = Match(date: best.leg.date, amount: best.leg.amount)
+                    matched[candidate.index] = Match(recordID: best.leg.recordID, side: best.leg.side, kind: round.kind,
+                                                     date: best.leg.date, amount: best.leg.amount)
                 }
             }
         }

@@ -22,11 +22,24 @@ public struct DataExchangeView: View {
                         .foregroundStyle(.red)
                 }
             }
-            if viewModel.importedCount > 0 {
+            if viewModel.importedCount > 0 || viewModel.updatedCount > 0 || viewModel.keptSplitCount > 0 {
                 Section {
-                    Label("Imported \(viewModel.importedCount) record\(viewModel.importedCount == 1 ? "" : "s").",
-                          systemImage: "checkmark.circle")
-                        .foregroundStyle(.green)
+                    if viewModel.importedCount > 0 {
+                        Label("Imported \(viewModel.importedCount) record\(viewModel.importedCount == 1 ? "" : "s").",
+                              systemImage: "checkmark.circle")
+                            .foregroundStyle(.green)
+                    }
+                    if viewModel.updatedCount > 0 {
+                        Label("Updated \(viewModel.updatedCount) record\(viewModel.updatedCount == 1 ? "" : "s") "
+                              + "to the bank's amount.", systemImage: "arrow.triangle.2.circlepath")
+                            .foregroundStyle(.green)
+                    }
+                    if viewModel.keptSplitCount > 0 {
+                        Label("\(viewModel.keptSplitCount) split record\(viewModel.keptSplitCount == 1 ? "" : "s") "
+                              + "kept the amount entered, since the shares must add up to it. Edit the split to change it.",
+                              systemImage: "person.2")
+                            .foregroundStyle(.secondary)
+                    }
                 }
             }
         }
@@ -183,6 +196,11 @@ private struct ImportPreviewView: View {
                 let matched = plan.matchedToRecords
                 if !matched.isEmpty {
                     Section {
+                        if !plan.amountUpdates.isEmpty {
+                            Toggle("Update my records to the bank's amounts", isOn: Binding(
+                                get: { viewModel.updatesMatchedAmounts },
+                                set: { viewModel.setUpdatesMatchedAmounts($0) }))
+                        }
                         ForEach(matched.prefix(20)) { entry in
                             matchedRow(entry)
                         }
@@ -194,10 +212,7 @@ private struct ImportPreviewView: View {
                     } header: {
                         Text("Matched to your records")
                     } footer: {
-                        Text("These rows match a record already in the account with the same amount, or one within "
-                             + "\(LedgerMatcher.amountTolerance * 100)%, dated the same day or up to "
-                             + "\(LedgerMatcher.postingLagDays) days earlier, and are skipped. "
-                             + "Use Import Anyway for a purchase you never entered.")
+                        Text(matchedFooter)
                     }
                 }
 
@@ -259,10 +274,12 @@ private struct ImportPreviewView: View {
                     Button("Cancel") { viewModel.cancelImport(); dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Import \(plan.importable.count)") {
+                    // A statement already fully entered can still have tips and fees to bring in.
+                    let updates = viewModel.pendingAmountUpdates.count
+                    Button(plan.importable.isEmpty && updates > 0 ? "Update \(updates)" : "Import \(plan.importable.count)") {
                         Task { await viewModel.applyImport(); dismiss() }
                     }
-                    .disabled(plan.importable.isEmpty || viewModel.isWorking)
+                    .disabled((plan.importable.isEmpty && updates == 0) || viewModel.isWorking)
                 }
             }
             .interactiveDismissDisabled(viewModel.isWorking)
@@ -295,6 +312,15 @@ private struct ImportPreviewView: View {
         .padding(.vertical, WalletMetrics.hair)
     }
 
+    private var matchedFooter: String {
+        let lag: Int = LedgerMatcher.postingLagDays
+        let near: Decimal = LedgerMatcher.amountTolerance * 100
+        let tip: Decimal = LedgerMatcher.tipTolerance * 100
+        return "These rows match a record already in the account dated the same day or up to \(lag) days "
+            + "earlier, with the same amount, one within \(near)%, or a bill the bank charged up to \(tip)% "
+            + "more for (a tip), and are skipped. Use Import Anyway for a purchase you never entered."
+    }
+
     private func matchDescription(_ entry: ImportPlan.Entry) -> String {
         let statement = entry.row.date.formatted(date: .abbreviated, time: .omitted)
         guard let recorded = entry.matchedRecordDate else { return statement }
@@ -302,7 +328,17 @@ private struct ImportPreviewView: View {
         let description = same ? "\(statement), matches your record that day"
             : "\(statement), matches your record on \(recorded.formatted(date: .abbreviated, time: .omitted))"
         guard let entered = entry.differingMatchedAmount else { return description }
-        return "\(description) of \(entered.formatted(.currency(code: viewModel.currencyCode(for: entry))))"
+        let code = viewModel.currencyCode(for: entry)
+        var text = "\(description) of \(entered.formatted(.currency(code: code)))"
+        if entry.match?.kind == .tip {
+            text += ", tip \((entry.row.amount - entered).formatted(.currency(code: code)))"
+        }
+        if entry.amountUpdate == nil {
+            text += ". A transfer within one currency keeps its amount"
+        } else if viewModel.updatesMatchedAmounts {
+            text += ". Will change to \(entry.row.amount.formatted(.currency(code: code)))"
+        }
+        return text
     }
 
     private func summary(_ title: String, count: Int, symbol: String, tint: Color) -> some View {
