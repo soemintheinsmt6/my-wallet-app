@@ -14,7 +14,9 @@ Use system controls and text styles for new screens. Keep account-specific color
 | --- | --- |
 | `WalletMetrics` | 4-point spacing scale (`hair` 2 … `xxLarge` 28), `touchTarget` 44, `Tile` sizes, `Chart` heights |
 | `WalletIconTile` | The one leading-icon treatment: white medium-weight symbol on a gradient color tile, 36 pt standard / 44 pt `large`; category, account, record-kind and menu icons all draw through it |
-| `WalletDisclosure` | Trailing chevron matching the system's `NavigationLink` weight |
+| `WalletDisclosure` | Trailing right chevron matching the system's `NavigationLink` weight, for rows that push a screen |
+| `WalletMenuIndicator` | Trailing up-and-down chevrons at the same weight, for rows that open a menu in place |
+| `WalletMenuPicker` | A form row that opens a menu of options: title, the current value in secondary text, and `WalletMenuIndicator`; only the value and chevrons are the menu, so the title never fades when tapped |
 | `WalletAmountText` | Money with the sign and tint rules; `.net(_:currencyCode:)` signs from the value itself |
 | `WalletStatTile` | Labelled figure for summary rows, on a cleared list row so the grouped background reads as the gap |
 | `WalletBadge` | Status capsule; the label always carries the meaning |
@@ -24,7 +26,7 @@ Use system controls and text styles for new screens. Keep account-specific color
 | `Color.walletCard` / `Color.walletGroupedBackground` | The grouped list's card fill and background, for tiles placed on cleared rows and full screens; correct in dark mode, unlike `.background` |
 | `Decimal.walletFormatted(_:)` | The app-wide money format: account currency, up to eight fractional digits |
 
-Prefer these over literals so unrelated screens line up. `CategoryIcon` adds the category's chosen symbol and color, then draws through `WalletIconTile`.
+Prefer these over literals so unrelated screens line up. The trailing glyph says what a tap does: a right chevron pushes a new screen, and up-and-down chevrons open a menu where the row is, as on every `WalletMenuPicker` row and the Dashboard and Statistics currency menus. Use `WalletMenuPicker` rather than a bare menu-style `Picker`, whose value takes the accent color instead of the secondary text other rows use. `CategoryIcon` adds the category's chosen symbol and color, then draws through `WalletIconTile`.
 
 ### List styles
 

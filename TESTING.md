@@ -463,3 +463,9 @@ Manual checks:
 1. On a build from before this change, set Home Currency to USD, Default Currency to MMK and turn on converted totals; update and confirm Settings shows one Main Currency of USD.
 2. Set the main currency to MMK with converted totals on and confirm Settings explains that automatic rates aren't published for MMK, with no download error.
 3. Set it to USD with USD and EUR accounts and confirm the Dashboard shows a combined `≈` total, and that a new account, budget or goal starts in USD.
+
+## Menu and Push Chevrons (2026-11-03)
+
+Rows that open a menu now end in up-and-down chevrons and rows that push a screen keep a right chevron. `WalletMenuPicker` switched to the new `WalletMenuIndicator`, which changes List Density, Text Size, Auto-Lock, Send On and Time of Day at once. Count Large Amounts In moved from a plain `Picker` to `WalletMenuPicker`, so its value reads in secondary text like the rows around it. The Dashboard currency menu and the onboarding account Type menu also changed. `WalletMenuPicker` rows now make only the trailing value and chevrons the menu: the leading title stays outside it, so it no longer fades while the menu is pressed or open, and tapping the title no longer opens the menu. **320 tests across 51 suites passed**, and unsigned iOS Simulator and macOS builds passed. Not seen in the app.
+
+Manual check: in Settings, confirm Main Currency shows a right chevron and pushes the currency list, while Count Large Amounts In, List Density, Text Size and Auto-Lock show up-and-down chevrons and open a menu in place. Tap each value and confirm its title stays fully visible while the menu is open.

@@ -310,10 +310,12 @@ public struct HomeView: View {
                 ForEach(currencies, id: \.self) { Text($0).tag($0) }
             }
         } label: {
+            // Opens a menu in place, so up-and-down chevrons, as on the Statistics currency menu.
             HStack(spacing: WalletMetrics.tight) {
-                Text(selectedCurrency).font(.footnote.weight(.semibold))
-                Image(systemName: "chevron.right").font(.caption2.weight(.semibold))
+                Text(selectedCurrency)
+                Image(systemName: "chevron.up.chevron.down").imageScale(.small)
             }
+            .font(.footnote.weight(.semibold))
         }
         .accessibilityLabel("Currency \(selectedCurrency)")
     }

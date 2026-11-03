@@ -178,7 +178,7 @@ public struct OnboardingView: View {
                     } label: {
                         HStack {
                             Text(viewModel.accountType.title).foregroundStyle(.primary)
-                            WalletDisclosure()
+                            WalletMenuIndicator()
                         }
                     }
                     .buttonStyle(.plain)

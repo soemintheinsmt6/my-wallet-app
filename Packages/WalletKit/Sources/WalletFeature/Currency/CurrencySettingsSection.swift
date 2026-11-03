@@ -15,7 +15,8 @@ struct CurrencySettingsSection: View {
                 LabeledContent("Main Currency", value: viewModel.mainCurrency)
             }
 
-            Picker("Count Large Amounts In", selection: $numberScale) {
+            WalletMenuPicker("Count Large Amounts In", selection: $numberScale,
+                             value: (NumberScale(rawValue: numberScale) ?? .automatic).title) {
                 ForEach(NumberScale.allCases) { scale in
                     Text(scale.title).tag(scale.rawValue)
                 }

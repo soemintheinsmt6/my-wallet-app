@@ -23,10 +23,22 @@ struct WalletIconTile: View {
     }
 }
 
-/// A trailing chevron matching the weight the system uses in `NavigationLink` rows.
+/// A trailing chevron matching the weight the system uses in `NavigationLink` rows. Use it only on
+/// rows that push a new screen; rows that open a menu use `WalletMenuIndicator`.
 struct WalletDisclosure: View {
     var body: some View {
         Image(systemName: "chevron.right")
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(.tertiary)
+            .accessibilityHidden(true)
+    }
+}
+
+/// The up-and-down chevrons a menu-style `Picker` shows, for rows that open a pop-up menu in place
+/// rather than pushing a screen. Same weight and color as `WalletDisclosure`.
+struct WalletMenuIndicator: View {
+    var body: some View {
+        Image(systemName: "chevron.up.chevron.down")
             .font(.caption.weight(.semibold))
             .foregroundStyle(.tertiary)
             .accessibilityHidden(true)
@@ -39,6 +51,7 @@ struct WalletDisclosure: View {
         WalletIconTile(symbol: "bus", color: .orange)
         WalletIconTile(symbol: "briefcase", color: .blue, large: true)
         WalletDisclosure()
+        WalletMenuIndicator()
     }
     .padding()
 }
