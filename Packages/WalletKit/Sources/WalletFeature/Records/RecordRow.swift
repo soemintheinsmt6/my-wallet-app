@@ -3,8 +3,9 @@ import WalletDomain
 
 /// The record row shared by the records list and the Home dashboard.
 ///
-/// Leading category tile, name, context line, trailing signed amount — the same rhythm as every
-/// other list in the app.
+/// Leading category tile, name, context line, trailing signed amount and a chevron — the same
+/// rhythm as every other list in the app. Every use opens the record's editor, so the chevron is
+/// part of the row rather than added at each call site.
 struct RecordRow: View {
     @ObservedObject var viewModel: RecordsViewModel
     let record: WalletRecord
@@ -60,6 +61,7 @@ struct RecordRow: View {
                         .accessibilityLabel("Has photo")
                 }
             }
+            WalletDisclosure()
         }
         .frame(minHeight: WalletMetrics.touchTarget)
         .padding(.vertical, WalletMetrics.tight)

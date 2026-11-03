@@ -506,3 +506,9 @@ Manual checks:
 Without a chevron, rows such as a category's subcategories did not read as tappable, so the right chevron is back on every row that opens something, whether it pushes or presents a sheet. This reverses the code of the earlier "No Chevron on Rows That Open a Sheet" entry on all 13 rows (account, budget, label, subcategory, drinking-day and balance-alert rows; Icon in the account and category editors; Currency in the account editor; Split with people and Photo; receipts; onboarding Currency), and the same rule was applied to rows that never had one: the Debts and Goals list rows and the App Lock Passcode row. The account editor's Currency row now uses the shared `WalletDisclosure` instead of a hand-drawn chevron. Rows still open what they did; nothing moved from a sheet to a pushed screen. **325 tests across 51 suites passed**, and unsigned iOS Simulator and macOS builds passed. Not seen in the app.
 
 Manual check: open a category with subcategories and confirm each subcategory row shows a chevron and opens its editor; confirm the same on Accounts, Budgets, Labels, Debts, Goals and Drinking Days, and on Settings → Passcode.
+
+### Chevrons on Record Rows (2026-11-03)
+
+`RecordRow` now ends in a chevron after the amount and its paperclip, so the Records list, the Dashboard's recent records and an account's activity all show it from one change; each of those rows opens the record editor. **325 tests across 51 suites passed**, and unsigned iOS Simulator and macOS builds passed. Not seen in the app; check that long amounts still fit beside the chevron on a small phone.
+
+Manual check: in Records, on the Dashboard and in an account's detail, confirm each record row shows a chevron and still opens its editor, and that a large amount such as 1,234,567,890 MMK is not truncated.
