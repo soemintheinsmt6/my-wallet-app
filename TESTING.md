@@ -49,7 +49,7 @@ Tests live in `Packages/WalletKit/Tests/WalletKitTests/` and use Swift Testing (
 | `TagTests` | Ten colors, name validation/uniqueness, stable edit identity, selective/idempotent deletion, notifications, view-model failure state and migration/reopening |
 | `RecordTests` | Ledger balances, idempotent creation, transfers and received amounts, reference/amount validation, details/photos, label detachment, most-used ranking and additive migration/reopening |
 | `BalanceAdjustmentTests` | Adjustment increases/decreases changing balances without a category, account balance edits recorded as adjustments without shifting earlier history (and none for a name-only edit), edit/delete reversal, transfers rejected as adjustments, totals excluding adjustments while balance history and statements include them, older drafts decoding and CSV round-tripping |
-| `BankStatementImportTests` | Bank header aliases (the app's own names winning), signed amounts, Debit/Credit columns (including negative debits), bank Type values, sign reversal, day-first date detection, bank date forms, accounting negatives, a chosen account filling missing or empty Account cells, typed rows keeping their strict checks, exports unchanged; date-only rows matched one-for-one against existing records; per-kind category fallbacks; and the view model's account choice, sign flip, fallback categories and re-import detection |
+| `BankStatementImportTests` | Bank header aliases (the app's own names winning), signed amounts, Debit/Credit columns (including negative debits), bank Type values, sign reversal, day-first date detection, bank date forms, accounting negatives, a chosen account filling missing or empty Account cells, typed rows keeping their strict checks, exports unchanged; date-only rows matched one-for-one against existing records; per-kind category fallbacks; and the view model's account choice, sign flip, fallback categories and re-import detection. `ManualEntryMatchingTests` covers matching records entered by hand by day within the posting lag, transfers on both accounts, same-day-first assignment and Import Anyway |
 | `RecordSearchTests` | Field matching (payee, note, amount, category and parent, label), multi-term AND, case/diacritic insensitivity, relevance ranking and tie-breaks, intersecting filter groups, transfer account legs, date/amount bounds, sort determinism and recent-search history |
 | `SettingsTests` | Confirmed-reset operation, deletion notifications, starter reseeding, preference retention/clearing, failure state and appearance mapping |
 
@@ -604,3 +604,27 @@ Manual checks:
 2. For a card statement that lists purchases as positive, turn on "Amounts are spending" and confirm the preview flips.
 3. Choose an expense fallback category, import, then import the same file again and confirm every row is reported as already in your wallet.
 4. Confirm that cancelling the account dialog or the review sheet leaves nothing behind, and that the next import starts clean.
+
+## Matching Manual Entries on Bank Import (2026-11-03)
+
+Bank statement rows are now matched to records entered by hand. A match needs the same account, direction and amount, and a record dated the same day or up to three days before the row. Transfers count on both accounts. **366 tests across 57 suites passed**, and unsigned builds passed for the app on iOS Simulator and macOS and for `WalletWatch` and `WalletWatchWidgets` on watchOS Simulator. SwiftLint still reports 68 warnings, none new.
+
+`ManualEntryMatchingTests` covers:
+
+- a record at any time of the same day matching
+- records up to three days earlier matching, but not four days earlier or a day later
+- account, direction and amount each having to agree
+- same-day matches being made before lagged ones, which matching row by row would get wrong
+- the closest earlier record winning
+- a transfer matching both accounts' statements at its sent and received amounts
+- Import Anyway freeing the matched record for another row
+
+A view-model test matches a purchase entered by hand two days before the bank date, then overrides it and checks that cancelling clears the override. The existing `DateOnlyDuplicateTests` pass unchanged.
+
+**Not verified:** the app was not run, so the "Matched to your records" section and its Import Anyway button were checked only by build and tests.
+
+Manual checks:
+
+1. Enter a few purchases by hand, then import a bank statement covering those days. Confirm they appear under "Matched to your records" with the right dates and are not imported again.
+2. Enter a transfer between two accounts, then import each account's statement. Confirm the transfer is matched in both.
+3. Tap Import Anyway on a matched row and confirm it moves to Ready to import.

@@ -180,6 +180,26 @@ private struct ImportPreviewView: View {
                     }
                 }
 
+                let matched = plan.matchedToRecords
+                if !matched.isEmpty {
+                    Section {
+                        ForEach(matched.prefix(20)) { entry in
+                            matchedRow(entry)
+                        }
+                        if matched.count > 20 {
+                            Text("and \(matched.count - 20) more.")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    } header: {
+                        Text("Matched to your records")
+                    } footer: {
+                        Text("These rows match a record already in the account with the same amount, dated the same day "
+                             + "or up to \(LedgerMatcher.postingLagDays) days earlier, and are skipped. "
+                             + "Use Import Anyway for a purchase you never entered.")
+                    }
+                }
+
                 if !plan.problems.isEmpty {
                     Section("Rows that cannot be imported") {
                         ForEach(plan.problems.prefix(20)) { entry in
@@ -251,6 +271,35 @@ private struct ImportPreviewView: View {
         #if os(macOS)
         .frame(minWidth: 520, minHeight: 560)
         #endif
+    }
+
+    private func matchedRow(_ entry: ImportPlan.Entry) -> some View {
+        HStack(spacing: WalletMetrics.medium) {
+            VStack(alignment: .leading, spacing: WalletMetrics.hair) {
+                Text(entry.row.payee.isEmpty ? viewModel.previewTitle(for: entry) : entry.row.payee)
+                    .font(.callout.weight(.medium))
+                    .lineLimit(1)
+                Text(matchDescription(entry))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+                WalletAmountText(amount: entry.row.amount, currencyCode: viewModel.currencyCode(for: entry),
+                                 kind: entry.row.kind, font: .caption.weight(.semibold))
+            }
+            Spacer(minLength: WalletMetrics.small)
+            Button("Import Anyway") { viewModel.importAnyway(entry) }
+                .buttonStyle(.borderless)
+                .font(.caption.weight(.semibold))
+        }
+        .padding(.vertical, WalletMetrics.hair)
+    }
+
+    private func matchDescription(_ entry: ImportPlan.Entry) -> String {
+        let statement = entry.row.date.formatted(date: .abbreviated, time: .omitted)
+        guard let recorded = entry.matchedRecordDate else { return statement }
+        let same = Calendar.current.isDate(recorded, inSameDayAs: entry.row.date)
+        return same ? "\(statement), matches your record that day"
+            : "\(statement), matches your record on \(recorded.formatted(date: .abbreviated, time: .omitted))"
     }
 
     private func summary(_ title: String, count: Int, symbol: String, tint: Color) -> some View {

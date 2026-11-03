@@ -211,9 +211,12 @@ struct BankStatementImportViewModelTests {
         2026-11-02,Refund,-3.00
         """
 
-    private func make() async throws -> (DataExchangeViewModel, RecordsViewModel) {
+    /// `seed` writes records into the Checking account (passed by ID) before the wallet loads.
+    private func make(seed: (SwiftDataWalletRepository, UUID) async throws -> Void = { _, _ in })
+        async throws -> (DataExchangeViewModel, RecordsViewModel) {
         let repository = try await SwiftDataWalletRepository.make(configuration: .inMemory)
         try await AccountUseCases(repository: repository).create(name: "Checking", type: .checking, currencyCode: "MMK")
+        try await seed(repository, try #require(try await repository.fetchAccounts().first).id)
         let records = RecordsViewModel(useCases: RecordUseCases(repository: repository),
                                        accounts: AccountUseCases(repository: repository),
                                        categories: CategoryUseCases(repository: repository),
@@ -289,5 +292,120 @@ struct BankStatementImportViewModelTests {
         #expect(!viewModel.needsAccountChoice)
         viewModel.chooseImportAccount("Checking")
         #expect(viewModel.plan == nil)
+    }
+
+    /// A purchase typed in by hand two days before the bank posted it is recognised, and a wrong
+    /// match can be overridden until the import is cancelled.
+    @Test func aManualEntryIsMatchedAndCanBeImportedAnyway() async throws {
+        let enteredAt = try #require(Calendar.current.date(from: DateComponents(year: 2026, month: 10, day: 30,
+                                                                                 hour: 14, minute: 32)))
+        let (viewModel, _) = try await make { repository, accountID in
+            let category = try #require(try await repository.fetchCategories().first { $0.parentID != nil })
+            var draft = RecordDraft()
+            draft.kind = .expense
+            draft.accountID = accountID
+            draft.amount = 18
+            draft.categoryID = category.id
+            draft.date = enteredAt
+            try await RecordUseCases(repository: repository).create(id: UUID(), draft: draft)
+        }
+
+        viewModel.prepareImport(text: statement)
+        viewModel.chooseImportAccount("Checking")
+        viewModel.setReversesSigns(true)
+        let matched = try #require(viewModel.plan?.matchedToRecords.first)
+        #expect(viewModel.plan?.matchedToRecords.count == 1)
+        #expect(matched.row.payee == "Bookshop")
+        #expect(matched.matchedRecordDate == enteredAt)
+        #expect(viewModel.plan?.importable.map(\.row.payee) == ["Refund"])
+
+        viewModel.importAnyway(matched)
+        #expect(viewModel.unmatchedRowIndices == [matched.rowIndex])
+        #expect(viewModel.plan?.matchedToRecords.isEmpty == true)
+        #expect(viewModel.plan?.duplicates.isEmpty == true)
+
+        viewModel.cancelImport()
+        #expect(viewModel.unmatchedRowIndices.isEmpty)
+    }
+}
+
+/// Bank rows matched by day against records entered by hand, which carry a time of day and are
+/// often dated before the bank posts them.
+struct ManualEntryMatchingTests {
+    private let checking = Account(name: "Checking", type: .checking)
+    private let savings = Account(name: "Savings", type: .savings)
+
+    private func day(_ day: Int, hour: Int = 0) -> Date {
+        Calendar.current.date(from: DateComponents(year: 2026, month: 11, day: day, hour: hour))!
+    }
+
+    private func bankRow(_ day: Int, _ kind: RecordKind = .expense, amount: Decimal = 4,
+                         account: String = "Checking") -> RecordCSVRow {
+        RecordCSVRow(date: self.day(day), kind: kind, amount: amount, accountName: account, isDateOnly: true)
+    }
+
+    private func entered(_ day: Int, hour: Int = 15, _ kind: RecordKind = .expense, amount: Decimal = 4,
+                         account: Account? = nil, to destination: Account? = nil, received: Decimal? = nil) -> WalletRecord {
+        var draft = RecordDraft()
+        draft.kind = kind
+        draft.accountID = (account ?? checking).id
+        draft.destinationAccountID = destination?.id
+        draft.receivedAmount = received
+        draft.amount = amount
+        draft.date = self.day(day, hour: hour)
+        return WalletRecord(id: UUID(), draft: draft, currencyCode: "USD")
+    }
+
+    private func plan(_ rows: [RecordCSVRow], _ existing: [WalletRecord], unmatched: Set<Int> = []) -> ImportPlan {
+        let other = WalletCategory(name: "Other")
+        return ImportPlanner.plan(rows: rows, accounts: [checking, savings], categories: [other], tags: [],
+                                  existing: existing, fallbackCategoryIDs: [.expense: other.id, .income: other.id],
+                                  unmatchedRowIndices: unmatched)
+    }
+
+    @Test func aRecordEnteredAtAnyTimeThatDayMatches() {
+        let result = plan([bankRow(5)], [entered(5, hour: 23)])
+        #expect(result.duplicates.count == 1)
+        #expect(result.entries[0].matchedRecordDate == day(5, hour: 23))
+    }
+
+    @Test func recordsUpToThePostingLagEarlierMatchButNotLaterOrOlderOnes() {
+        #expect(plan([bankRow(5)], [entered(2)]).duplicates.count == 1)
+        #expect(plan([bankRow(5)], [entered(1)]).duplicates.isEmpty)
+        // The bank never posts before the purchase.
+        #expect(plan([bankRow(5)], [entered(6)]).duplicates.isEmpty)
+    }
+
+    @Test func accountDirectionAndAmountMustAllAgree() {
+        let existing = [entered(5)]
+        #expect(plan([bankRow(5, amount: 5)], existing).duplicates.isEmpty)
+        #expect(plan([bankRow(5, .income)], existing).duplicates.isEmpty)
+        #expect(plan([bankRow(5, account: "Savings")], existing).duplicates.isEmpty)
+    }
+
+    /// Matching row by row would hand the 2 Nov record to the 3 Nov row (one day of lag) and
+    /// leave the 2 Nov row unmatched; exact days are settled first.
+    @Test func sameDayMatchesAreMadeBeforeLaggedOnes() {
+        let result = plan([bankRow(3), bankRow(2)], [entered(2)])
+        #expect(result.entries.map(\.issue) == [nil, .duplicate])
+    }
+
+    @Test func theClosestEarlierRecordIsMatched() {
+        let result = plan([bankRow(4)], [entered(1), entered(3)])
+        #expect(result.entries[0].matchedRecordDate == day(3, hour: 15))
+    }
+
+    @Test func aTransferEnteredByHandMatchesBothAccountsStatements() {
+        let transfer = entered(5, .transfer, amount: 100, to: savings, received: 98)
+        let result = plan([bankRow(6, amount: 100), bankRow(6, .income, amount: 98, account: "Savings")], [transfer])
+        #expect(result.duplicates.count == 2)
+        // The source leg is not money in, and the destination receives the received amount.
+        #expect(plan([bankRow(6, .income, amount: 100, account: "Savings")], [transfer]).duplicates.isEmpty)
+    }
+
+    @Test func importingAnywayFreesTheRecordForAnotherRow() {
+        let rows = [bankRow(5), bankRow(5)]
+        #expect(plan(rows, [entered(5)]).entries.map(\.issue) == [.duplicate, nil])
+        #expect(plan(rows, [entered(5)], unmatched: [0]).entries.map(\.issue) == [nil, .duplicate])
     }
 }

@@ -21,6 +21,8 @@ public final class DataExchangeViewModel: ObservableObject {
     @Published public private(set) var canReverseSigns = false
     /// Categories for income and expense rows the file leaves uncategorised, as bank statements do.
     @Published public private(set) var fallbackCategoryIDs: [RecordKind: UUID] = [:]
+    /// Rows matched to an existing record that the person chose to import anyway.
+    @Published public private(set) var unmatchedRowIndices: Set<Int> = []
 
     /// The parsed file, kept so a chosen account or flipped signs re-plan without rereading it.
     private var pendingTable: [[String]]?
@@ -128,6 +130,13 @@ public final class DataExchangeViewModel: ObservableObject {
         replan()
     }
 
+    /// Overrides a match the person judges wrong, such as a second identical purchase they never
+    /// entered. Cancelling the import clears these choices.
+    public func importAnyway(_ entry: ImportPlan.Entry) {
+        guard entry.matchedRecordDate != nil, unmatchedRowIndices.insert(entry.rowIndex).inserted else { return }
+        replan()
+    }
+
     public func setFallbackCategory(_ id: UUID?, for kind: RecordKind) {
         guard fallbackCategoryIDs[kind] != id else { return }
         fallbackCategoryIDs[kind] = id
@@ -148,7 +157,8 @@ public final class DataExchangeViewModel: ObservableObject {
             let rows = try RecordCSV.rows(from: table, mapping: pendingMapping, options: importOptions)
             plan = ImportPlanner.plan(rows: rows, accounts: records.accounts,
                                       categories: records.categories, tags: records.tags,
-                                      existing: records.records, fallbackCategoryIDs: fallbackCategoryIDs)
+                                      existing: records.records, fallbackCategoryIDs: fallbackCategoryIDs,
+                                      unmatchedRowIndices: unmatchedRowIndices)
             errorMessage = nil
         } catch {
             cancelImport()
@@ -187,6 +197,7 @@ public final class DataExchangeViewModel: ObservableObject {
         importOptions = RecordCSVImportOptions()
         canReverseSigns = false
         fallbackCategoryIDs = [:]
+        unmatchedRowIndices = []
     }
 
     /// Writes the importable rows, creating any missing labels first.

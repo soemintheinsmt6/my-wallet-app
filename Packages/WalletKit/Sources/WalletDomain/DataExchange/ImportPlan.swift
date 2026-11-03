@@ -18,12 +18,19 @@ public struct ImportPlan: Sendable, Equatable {
         /// An income or expense row whose file named no category this wallet has, so `categoryID`
         /// is the import's fallback for its kind, or `nil` when none was chosen.
         public let isUncategorized: Bool
+        /// For a date-only row matched to an existing record, that record's date and time, which
+        /// may be a few days before the row's own date.
+        public let matchedRecordDate: Date?
+        /// The row's position among the parsed rows, stable across re-planning.
+        public let rowIndex: Int
 
         public var isImportable: Bool { issue == nil }
 
         public init(id: UUID = UUID(), row: RecordCSVRow, accountID: UUID?, destinationAccountID: UUID?,
                     categoryID: UUID?, tagIDs: Set<UUID>, newLabelNames: [String], issue: Issue?,
-                    isUncategorized: Bool = false) {
+                    isUncategorized: Bool = false, matchedRecordDate: Date? = nil, rowIndex: Int = 0) {
+            self.matchedRecordDate = matchedRecordDate
+            self.rowIndex = rowIndex
             self.id = id
             self.row = row
             self.accountID = accountID
@@ -84,6 +91,10 @@ public struct ImportPlan: Sendable, Equatable {
         Set(entries.filter { $0.isUncategorized && $0.issue != .duplicate }.map(\.row.kind))
     }
 
+    /// Bank rows recognised as records already in the wallet, so the review can show what each
+    /// matched and the person can spot a wrong match.
+    public var matchedToRecords: [Entry] { entries.filter { $0.matchedRecordDate != nil } }
+
     public var isEmpty: Bool { entries.isEmpty }
 }
 
@@ -98,34 +109,56 @@ public enum ImportPlanner {
     }
 
     ///
-    /// Rows without a time of day (bank statements) are matched one-for-one instead: two identical
-    /// coffees on one day are two purchases, so each existing record absorbs one matching row, and
-    /// repeats inside the file are kept. Re-importing the same statement still matches every row.
+    /// Rows without a time of day (bank statements) are matched by day instead, against records
+    /// imported earlier and entered by hand alike; see `LedgerMatcher`.
     ///
     /// Income and expense rows whose category the wallet does not have take the fallback chosen
     /// for their kind in `fallbackCategoryIDs`, and without one cannot be imported.
+    ///
+    /// Rows at `unmatchedRowIndices` are ones the person chose to import despite a match, so they
+    /// are left out of matching and the record they matched is free for another row.
     public static func plan(rows: [RecordCSVRow], accounts: [Account], categories: [WalletCategory],
                             tags: [WalletTag], existing: [WalletRecord],
-                            fallbackCategoryIDs: [RecordKind: UUID] = [:]) -> ImportPlan {
+                            fallbackCategoryIDs: [RecordKind: UUID] = [:],
+                            unmatchedRowIndices: Set<Int> = []) -> ImportPlan {
         let accountsByName = index(accounts.map { ($0.name, $0.id) })
         let tagsByName = index(tags.map { ($0.name, $0.id) })
         let categoryIDs = categoryIndex(categories)
-        var duplicates = DuplicateMatcher(existing: existing)
+        var timedDuplicates = TimedDuplicateMatcher(existing: existing)
 
-        var entries: [ImportPlan.Entry] = []
-        for row in rows {
+        // Resolve every row first: date-only rows are matched as a batch, so a row with an exact
+        // same-day match is never beaten to it by an earlier row that only matches within the lag.
+        var resolved: [(accountID: UUID?, destinationID: UUID?, issue: ImportPlan.Issue?)] = []
+        var dateOnlyCandidates: [Int] = []
+        for (index, row) in rows.enumerated() {
             let accountID = accountsByName[normalized(row.accountName)]
             let destinationID = row.destinationAccountName.isEmpty
                 ? nil : accountsByName[normalized(row.destinationAccountName)]
+            var issue = accountIssue(for: row, accountID: accountID, destinationID: destinationID)
+            if issue == nil {
+                if row.isDateOnly {
+                    if !unmatchedRowIndices.contains(index) { dateOnlyCandidates.append(index) }
+                } else if timedDuplicates.matches(row, accountID: accountID) {
+                    issue = .duplicate
+                }
+            }
+            resolved.append((accountID, destinationID, issue))
+        }
+        let matches = LedgerMatcher(existing: existing).match(dateOnlyCandidates.compactMap { index in
+            resolved[index].accountID.map { (index: index, row: rows[index], accountID: $0) }
+        })
+
+        var entries: [ImportPlan.Entry] = []
+        for (index, row) in rows.enumerated() {
+            let (accountID, destinationID, resolvedIssue) = resolved[index]
+            let matchedDate = matches[index]
+            var issue = matchedDate == nil ? resolvedIssue : .duplicate
 
             var tagIDs: Set<UUID> = []
             var newLabels: [String] = []
             for name in row.labelNames {
                 if let id = tagsByName[normalized(name)] { tagIDs.insert(id) } else { newLabels.append(name) }
             }
-
-            var issue = accountIssue(for: row, accountID: accountID, destinationID: destinationID)
-            if issue == nil, duplicates.matches(row, accountID: accountID) { issue = .duplicate }
 
             // Transfers and adjustments carry no category.
             let needsCategory = row.kind != .transfer && !row.isAdjustment
@@ -140,7 +173,8 @@ public enum ImportPlanner {
                                             destinationAccountID: destinationID,
                                             categoryID: categoryID,
                                             tagIDs: tagIDs, newLabelNames: newLabels, issue: issue,
-                                            isUncategorized: isUncategorized))
+                                            isUncategorized: isUncategorized, matchedRecordDate: matchedDate,
+                                            rowIndex: index))
         }
         return ImportPlan(entries: entries)
     }
@@ -153,31 +187,114 @@ public enum ImportPlanner {
         return destinationID == accountID ? .transferToSameAccount : nil
     }
 
-    /// Tracks which existing records have matched a row so far.
-    private struct DuplicateMatcher {
-        /// Existing records per fingerprint not yet matched by a date-only row.
-        private var unmatched: [String: Int] = [:]
-        private var seenTimed = Set<String>()
+    /// Exact-second matching for rows with a time, as the app's own exports have.
+    private struct TimedDuplicateMatcher {
+        private let existing: Set<String>
+        private var seen = Set<String>()
 
         init(existing: [WalletRecord]) {
-            for record in existing {
-                unmatched[fingerprint(accountID: record.draft.accountID, kind: record.draft.kind,
-                                      amount: record.draft.amount, date: record.draft.date), default: 0] += 1
-            }
+            self.existing = Set(existing.map {
+                fingerprint(accountID: $0.draft.accountID, kind: $0.draft.kind, amount: $0.draft.amount, date: $0.draft.date)
+            })
         }
 
+        /// Also catches duplicates within the file itself, not just against the wallet.
         mutating func matches(_ row: RecordCSVRow, accountID: UUID?) -> Bool {
             let print = fingerprint(accountID: accountID, kind: row.kind, amount: row.amount, date: row.date)
-            let remaining = unmatched[print, default: 0]
-            if row.isDateOnly {
-                guard remaining > 0 else { return false }
-                unmatched[print] = remaining - 1
-                return true
-            }
-            // Timed rows also catch duplicates within the file itself, not just against the wallet.
-            return remaining > 0 || !seenTimed.insert(print).inserted
+            return existing.contains(print) || !seen.insert(print).inserted
         }
     }
+}
+
+/// Matches bank rows, which have a day but no time, to records already in the wallet, whether
+/// imported earlier or entered by hand.
+///
+/// A row matches a record moving the same amount the same way through the same account, dated
+/// the same day or up to `postingLagDays` earlier, because a bank posts a purchase a day or more
+/// after it was made, never before. A transfer counts as money out of its source account and money
+/// in to its destination, so a transfer entered by hand matches both banks' statements.
+///
+/// Matching is one-for-one: two identical coffees on one day are two purchases, so each record
+/// absorbs one row. Same-day matches are made for every row before any lagged one, so a row with
+/// an exact match is never beaten to it; within the lag the closest earlier record wins.
+public struct LedgerMatcher {
+    public static let postingLagDays = 3
+
+    private struct Leg {
+        /// A record and which side of it, so a transfer's two accounts are matched separately.
+        let id: String
+        let day: Date
+        let date: Date
+    }
+
+    private var legs: [String: [Leg]] = [:]
+    private let calendar = Calendar.current
+
+    public init(existing: [WalletRecord]) {
+        for record in existing {
+            let draft = record.draft
+            guard let accountID = draft.accountID else { continue }
+            switch draft.kind {
+            case .expense: add(record, side: "source", account: accountID, direction: "out", amount: draft.amount)
+            case .income: add(record, side: "source", account: accountID, direction: "in", amount: draft.amount)
+            case .transfer:
+                // A transfer row in the app's own date-only CSV, or a debit on the source's statement.
+                add(record, side: "source", account: accountID, direction: "transfer", amount: draft.amount)
+                add(record, side: "source", account: accountID, direction: "out", amount: draft.amount)
+                if let destination = draft.destinationAccountID {
+                    add(record, side: "destination", account: destination, direction: "in",
+                        amount: draft.receivedAmount ?? draft.amount)
+                }
+            }
+        }
+    }
+
+    private mutating func add(_ record: WalletRecord, side: String, account: UUID, direction: String, amount: Decimal) {
+        let leg = Leg(id: "\(record.id.uuidString)|\(side)", day: calendar.startOfDay(for: record.draft.date),
+                      date: record.draft.date)
+        legs[Self.key(account: account, direction: direction, amount: amount), default: []].append(leg)
+    }
+
+    private static func key(account: UUID, direction: String, amount: Decimal) -> String {
+        "\(account.uuidString)|\(direction)|\(RecordCSV.string(from: amount))"
+    }
+
+    private static func direction(of kind: RecordKind) -> String {
+        switch kind {
+        case .expense: "out"
+        case .income: "in"
+        case .transfer: "transfer"
+        }
+    }
+
+    /// The matched record's date for each candidate row that has one, keyed by the row's index.
+    public func match(_ candidates: [(index: Int, row: RecordCSVRow, accountID: UUID)]) -> [Int: Date] {
+        var consumed = Set<String>()
+        var matched: [Int: Date] = [:]
+        for lag in [0...0, 1...Self.postingLagDays] {
+            for candidate in candidates where matched[candidate.index] == nil {
+                let key = Self.key(account: candidate.accountID, direction: Self.direction(of: candidate.row.kind),
+                                   amount: candidate.row.amount)
+                let rowDay = calendar.startOfDay(for: candidate.row.date)
+                let best = (legs[key] ?? [])
+                    .filter { !consumed.contains($0.id) }
+                    .compactMap { leg -> (leg: Leg, days: Int)? in
+                        guard let days = calendar.dateComponents([.day], from: leg.day, to: rowDay).day,
+                              lag.contains(days) else { return nil }
+                        return (leg, days)
+                    }
+                    .min { ($0.days, $0.leg.date) < ($1.days, $1.leg.date) }
+                if let best {
+                    consumed.insert(best.leg.id)
+                    matched[candidate.index] = best.leg.date
+                }
+            }
+        }
+        return matched
+    }
+}
+
+extension ImportPlanner {
 
     private static func normalized(_ value: String) -> String {
         value.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
