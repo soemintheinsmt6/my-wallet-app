@@ -167,7 +167,7 @@ struct BalanceAdjustmentTests {
         #expect(rows.map(\.kind) == [.income, .expense])
         #expect(rows.allSatisfy { $0.isAdjustment })
 
-        let header = RecordCSVColumn.allCases.filter(\.isRequired).map(\.rawValue)
+        let header = ["Date", "Type", "Amount", "Account"]
         let spreadsheet = [header, ["2024-01-01", "Adjustment-Increase", "1", "Bank"]]
         let parsed = try RecordCSV.rows(from: spreadsheet, mapping: RecordCSV.mapping(header: header))
         #expect(parsed.first?.isAdjustment == true)

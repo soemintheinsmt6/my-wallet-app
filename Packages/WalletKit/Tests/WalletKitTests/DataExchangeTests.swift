@@ -107,10 +107,16 @@ struct RecordCSVTests {
         #expect(rows[0].accountName == "Cash")
     }
 
+    /// Type is optional since a signed amount can carry the direction; Amount can be replaced by
+    /// Debit or Credit, and Account by a chosen account.
     @Test func missingRequiredColumnsAreReported() {
         let table = [["Date", "Amount"], ["2024-01-01", "5"]]
-        #expect(throws: RecordCSVError.missingColumns([.type, .account])) {
+        #expect(throws: RecordCSVError.missingColumns([.account])) {
             try RecordCSV.rows(from: table, mapping: RecordCSV.mapping(header: table[0]))
+        }
+        let bare = [["Memo"], ["x"]]
+        #expect(throws: RecordCSVError.missingColumns([.date, .amount, .account])) {
+            try RecordCSV.rows(from: bare, mapping: RecordCSV.mapping(header: bare[0]))
         }
     }
 
@@ -245,9 +251,11 @@ struct WalletArchiveTests {
 
 struct ImportPlannerTests {
     private let now = Date(timeIntervalSince1970: 1_704_110_400)
+    /// Income and expenses need a category to be importable.
+    private let food = WalletCategory(name: "Food")
 
     private func row(amount: Decimal = 10, kind: RecordKind = .expense, account: String = "Cash",
-                     destination: String = "", category: String = "", labels: [String] = [],
+                     destination: String = "", category: String = "Food", labels: [String] = [],
                      offset: TimeInterval = 0) -> RecordCSVRow {
         RecordCSVRow(date: now.addingTimeInterval(offset), kind: kind, amount: amount,
                      accountName: account, destinationAccountName: destination,
@@ -290,7 +298,7 @@ struct ImportPlannerTests {
                    row(kind: .transfer, offset: 1),
                    row(kind: .transfer, destination: "Missing", offset: 2),
                    row(kind: .transfer, destination: "Cash", offset: 3)],
-            accounts: [cash], categories: [], tags: [], existing: [])
+            accounts: [cash], categories: [food], tags: [], existing: [])
 
         #expect(plan.entries[0].issue == .unknownAccount("Nowhere"))
         #expect(plan.entries[1].issue == .transferNeedsDestination)
@@ -303,7 +311,7 @@ struct ImportPlannerTests {
     @Test func reimportingAnExportIsDetectedAsDuplicates() {
         let cash = Account(name: "Cash", type: .cash)
         let existing = existingRecord(amount: 10, account: cash)
-        let plan = ImportPlanner.plan(rows: [row()], accounts: [cash], categories: [], tags: [],
+        let plan = ImportPlanner.plan(rows: [row()], accounts: [cash], categories: [food], tags: [],
                                       existing: [existing])
 
         #expect(plan.duplicates.count == 1)
@@ -313,7 +321,7 @@ struct ImportPlannerTests {
     /// A file containing the same row twice must not import it twice.
     @Test func duplicatesWithinTheFileItselfAreCaught() {
         let cash = Account(name: "Cash", type: .cash)
-        let plan = ImportPlanner.plan(rows: [row(), row()], accounts: [cash], categories: [],
+        let plan = ImportPlanner.plan(rows: [row(), row()], accounts: [cash], categories: [food],
                                       tags: [], existing: [])
 
         #expect(plan.importable.count == 1)
@@ -325,7 +333,7 @@ struct ImportPlannerTests {
         let existing = existingRecord(amount: 10, account: cash)
         let plan = ImportPlanner.plan(
             rows: [row(amount: 11), row(kind: .income, offset: 1), row(offset: 60)],
-            accounts: [cash], categories: [], tags: [], existing: [existing])
+            accounts: [cash], categories: [food], tags: [], existing: [existing])
 
         #expect(plan.importable.count == 3)
         #expect(plan.duplicates.isEmpty)
@@ -336,7 +344,7 @@ struct ImportPlannerTests {
         let existing = existingRecord(amount: 10, account: cash)
         let plan = ImportPlanner.plan(
             rows: [row(), row(amount: 25, offset: 1), row(account: "Nowhere", offset: 2)],
-            accounts: [cash], categories: [], tags: [], existing: [existing])
+            accounts: [cash], categories: [food], tags: [], existing: [existing])
 
         #expect(plan.entries.count == 3)
         #expect(plan.importable.count + plan.duplicates.count + plan.problems.count == plan.entries.count)

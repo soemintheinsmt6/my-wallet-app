@@ -41,9 +41,23 @@ public struct DataExchangeView: View {
             case .failure(let error): viewModel.errorMessage = error.localizedDescription
             }
         }
-        .sheet(item: Binding(get: { viewModel.plan.map(IdentifiedPlan.init) },
-                             set: { if $0 == nil { viewModel.cancelImport() } })) { wrapper in
-            ImportPreviewView(viewModel: viewModel, plan: wrapper.plan)
+        // Dismissing runs the Cancel button's action, so the binding never cancels on its own: it
+        // may be set to false before an account button's action runs, which would drop the file.
+        .confirmationDialog("Import into which account?", isPresented: Binding(
+            get: { viewModel.needsAccountChoice }, set: { _ in }
+        ), titleVisibility: .visible) {
+            ForEach(viewModel.accountNames, id: \.self) { name in
+                Button(name) { viewModel.chooseImportAccount(name) }
+            }
+            Button("Cancel", role: .cancel) { viewModel.cancelImport() }
+        } message: {
+            Text("This file has no Account column, as is usual for a bank statement. Every row will go into the account you choose.")
+        }
+        // Presented by whether a plan exists rather than by plan identity, so re-planning after a
+        // sign flip updates the open sheet instead of replacing it.
+        .sheet(isPresented: Binding(get: { viewModel.plan != nil },
+                                    set: { if !$0 { viewModel.cancelImport() } })) {
+            ImportPreviewView(viewModel: viewModel)
         }
     }
 
@@ -94,7 +108,9 @@ public struct DataExchangeView: View {
         } header: {
             Text("Import")
         } footer: {
-            Text("Records are matched to your existing accounts and categories by name, and you review everything before it is saved. Rows already in your wallet are skipped.")
+            Text("Reads this app's CSV or a bank statement export with Debit/Credit columns or signed amounts. "
+                 + "Rows are matched to your accounts and categories by name, and you review everything before it "
+                 + "is saved. Rows already in your wallet are skipped.")
         }
     }
 
@@ -104,23 +120,48 @@ public struct DataExchangeView: View {
     }
 }
 
-/// `ImportPlan` is not `Identifiable`; this wraps it for `sheet(item:)`.
-private struct IdentifiedPlan: Identifiable {
-    let plan: ImportPlan
-    let id = UUID()
-
-    init(_ plan: ImportPlan) { self.plan = plan }
-}
-
 /// Shows what an import would do before anything is written.
 private struct ImportPreviewView: View {
     @ObservedObject var viewModel: DataExchangeViewModel
-    let plan: ImportPlan
     @Environment(\.dismiss) private var dismiss
+
+    /// Kept after the plan clears, so the sheet does not go blank while it animates away.
+    @State private var lastPlan = ImportPlan(entries: [])
+    private var plan: ImportPlan { viewModel.plan ?? lastPlan }
 
     var body: some View {
         NavigationStack {
             List {
+                if viewModel.canReverseSigns {
+                    Section {
+                        Toggle("Amounts are spending", isOn: Binding(
+                            get: { viewModel.importOptions.reversesSigns },
+                            set: { viewModel.setReversesSigns($0) }))
+                    } footer: {
+                        Text("Turn on if spending shows as income below, as some card statements list purchases as positive amounts.")
+                    }
+                }
+
+                let uncategorized = plan.uncategorizedKinds
+                if !uncategorized.isEmpty {
+                    Section {
+                        ForEach([RecordKind.expense, .income].filter(uncategorized.contains)) { kind in
+                            Picker(kind == .expense ? "Expenses" : "Income", selection: Binding(
+                                get: { viewModel.fallbackCategoryIDs[kind] },
+                                set: { viewModel.setFallbackCategory($0, for: kind) })) {
+                                Text("Choose").tag(UUID?.none)
+                                ForEach(viewModel.categoryChoices, id: \.id) { choice in
+                                    Text(choice.path).tag(UUID?.some(choice.id))
+                                }
+                            }
+                        }
+                    } header: {
+                        Text("Rows without a category")
+                    } footer: {
+                        Text("Income and expenses need a category. Rows the file doesn't categorise use these; you can change any record afterwards.")
+                    }
+                }
+
                 Section {
                     summary("Ready to import", count: plan.importable.count, symbol: "checkmark.circle", tint: .green)
                     summary("Already in your wallet", count: plan.duplicates.count, symbol: "equal.circle", tint: .secondary)
@@ -165,8 +206,7 @@ private struct ImportPreviewView: View {
                         ForEach(plan.importable.prefix(10)) { entry in
                             HStack(spacing: WalletMetrics.medium) {
                                 VStack(alignment: .leading, spacing: WalletMetrics.hair) {
-                                    Text(!entry.row.categoryPath.isEmpty ? entry.row.categoryPath
-                                         : entry.row.isAdjustment ? RecordDraft.adjustmentTitle : entry.row.kind.title)
+                                    Text(viewModel.previewTitle(for: entry))
                                         .font(.callout.weight(.medium))
                                         .lineLimit(1)
                                     Text("\(entry.row.accountName) · \(entry.row.date.formatted(date: .abbreviated, time: .shortened))")
@@ -176,7 +216,7 @@ private struct ImportPreviewView: View {
                                 }
                                 Spacer(minLength: WalletMetrics.small)
                                 WalletAmountText(amount: entry.row.amount,
-                                                 currencyCode: entry.row.currencyCode.isEmpty ? "USD" : entry.row.currencyCode,
+                                                 currencyCode: viewModel.currencyCode(for: entry),
                                                  kind: entry.row.kind, font: .callout.weight(.semibold))
                             }
                             .accessibilityElement(children: .combine)
@@ -205,6 +245,8 @@ private struct ImportPreviewView: View {
                 }
             }
             .interactiveDismissDisabled(viewModel.isWorking)
+            .onAppear { if let plan = viewModel.plan { lastPlan = plan } }
+            .onChange(of: viewModel.plan) { _, plan in if let plan { lastPlan = plan } }
         }
         #if os(macOS)
         .frame(minWidth: 520, minHeight: 560)

@@ -15,11 +15,15 @@ public struct ImportPlan: Sendable, Equatable {
         /// Names that do not exist yet and would be created as labels.
         public let newLabelNames: [String]
         public let issue: Issue?
+        /// An income or expense row whose file named no category this wallet has, so `categoryID`
+        /// is the import's fallback for its kind, or `nil` when none was chosen.
+        public let isUncategorized: Bool
 
         public var isImportable: Bool { issue == nil }
 
         public init(id: UUID = UUID(), row: RecordCSVRow, accountID: UUID?, destinationAccountID: UUID?,
-                    categoryID: UUID?, tagIDs: Set<UUID>, newLabelNames: [String], issue: Issue?) {
+                    categoryID: UUID?, tagIDs: Set<UUID>, newLabelNames: [String], issue: Issue?,
+                    isUncategorized: Bool = false) {
             self.id = id
             self.row = row
             self.accountID = accountID
@@ -28,6 +32,7 @@ public struct ImportPlan: Sendable, Equatable {
             self.tagIDs = tagIDs
             self.newLabelNames = newLabelNames
             self.issue = issue
+            self.isUncategorized = isUncategorized
         }
     }
 
@@ -38,6 +43,9 @@ public struct ImportPlan: Sendable, Equatable {
         case unknownDestinationAccount(String)
         case transferNeedsDestination
         case transferToSameAccount
+        /// Income and expenses need a category; the file named none this wallet has (the text it
+        /// gave, possibly empty) and no fallback was chosen for the row's kind.
+        case needsCategory(String)
 
         public var message: String {
             switch self {
@@ -46,6 +54,8 @@ public struct ImportPlan: Sendable, Equatable {
             case .unknownDestinationAccount(let name): "No destination account named “\(name)”"
             case .transferNeedsDestination: "Transfer has no destination account"
             case .transferToSameAccount: "Transfer source and destination match"
+            case .needsCategory(let path) where path.isEmpty: "No category; choose one for rows without"
+            case .needsCategory(let path): "No category named “\(path)”; choose one for rows without"
             }
         }
     }
@@ -69,6 +79,11 @@ public struct ImportPlan: Sendable, Equatable {
         return names
     }
 
+    /// Kinds with rows the file left uncategorised, so the review can offer a fallback for each.
+    public var uncategorizedKinds: Set<RecordKind> {
+        Set(entries.filter { $0.isUncategorized && $0.issue != .duplicate }.map(\.row.kind))
+    }
+
     public var isEmpty: Bool { entries.isEmpty }
 }
 
@@ -82,15 +97,20 @@ public enum ImportPlanner {
         return "\(accountID?.uuidString ?? "-")|\(kind.rawValue)|\(RecordCSV.string(from: amount))|\(seconds)"
     }
 
+    ///
+    /// Rows without a time of day (bank statements) are matched one-for-one instead: two identical
+    /// coffees on one day are two purchases, so each existing record absorbs one matching row, and
+    /// repeats inside the file are kept. Re-importing the same statement still matches every row.
+    ///
+    /// Income and expense rows whose category the wallet does not have take the fallback chosen
+    /// for their kind in `fallbackCategoryIDs`, and without one cannot be imported.
     public static func plan(rows: [RecordCSVRow], accounts: [Account], categories: [WalletCategory],
-                            tags: [WalletTag], existing: [WalletRecord]) -> ImportPlan {
+                            tags: [WalletTag], existing: [WalletRecord],
+                            fallbackCategoryIDs: [RecordKind: UUID] = [:]) -> ImportPlan {
         let accountsByName = index(accounts.map { ($0.name, $0.id) })
         let tagsByName = index(tags.map { ($0.name, $0.id) })
         let categoryIDs = categoryIndex(categories)
-        var fingerprints = Set(existing.map {
-            fingerprint(accountID: $0.draft.accountID, kind: $0.draft.kind,
-                        amount: $0.draft.amount, date: $0.draft.date)
-        })
+        var duplicates = DuplicateMatcher(existing: existing)
 
         var entries: [ImportPlan.Entry] = []
         for row in rows {
@@ -104,31 +124,59 @@ public enum ImportPlanner {
                 if let id = tagsByName[normalized(name)] { tagIDs.insert(id) } else { newLabels.append(name) }
             }
 
-            var issue: ImportPlan.Issue?
-            if accountID == nil {
-                issue = .unknownAccount(row.accountName)
-            } else if row.kind == .transfer {
-                if row.destinationAccountName.isEmpty {
-                    issue = .transferNeedsDestination
-                } else if destinationID == nil {
-                    issue = .unknownDestinationAccount(row.destinationAccountName)
-                } else if destinationID == accountID {
-                    issue = .transferToSameAccount
-                }
-            }
+            var issue = accountIssue(for: row, accountID: accountID, destinationID: destinationID)
+            if issue == nil, duplicates.matches(row, accountID: accountID) { issue = .duplicate }
 
-            if issue == nil {
-                let print = fingerprint(accountID: accountID, kind: row.kind, amount: row.amount, date: row.date)
-                // Also catches duplicates within the file itself, not just against the wallet.
-                if !fingerprints.insert(print).inserted { issue = .duplicate }
+            // Transfers and adjustments carry no category.
+            let needsCategory = row.kind != .transfer && !row.isAdjustment
+            var categoryID = categoryIDs[normalized(row.categoryPath)]
+            let isUncategorized = needsCategory && categoryID == nil
+            if isUncategorized {
+                categoryID = fallbackCategoryIDs[row.kind]
+                if categoryID == nil, issue == nil { issue = .needsCategory(row.categoryPath) }
             }
 
             entries.append(ImportPlan.Entry(row: row, accountID: accountID,
                                             destinationAccountID: destinationID,
-                                            categoryID: categoryIDs[normalized(row.categoryPath)],
-                                            tagIDs: tagIDs, newLabelNames: newLabels, issue: issue))
+                                            categoryID: categoryID,
+                                            tagIDs: tagIDs, newLabelNames: newLabels, issue: issue,
+                                            isUncategorized: isUncategorized))
         }
         return ImportPlan(entries: entries)
+    }
+
+    private static func accountIssue(for row: RecordCSVRow, accountID: UUID?, destinationID: UUID?) -> ImportPlan.Issue? {
+        guard accountID != nil else { return .unknownAccount(row.accountName) }
+        guard row.kind == .transfer else { return nil }
+        if row.destinationAccountName.isEmpty { return .transferNeedsDestination }
+        guard let destinationID else { return .unknownDestinationAccount(row.destinationAccountName) }
+        return destinationID == accountID ? .transferToSameAccount : nil
+    }
+
+    /// Tracks which existing records have matched a row so far.
+    private struct DuplicateMatcher {
+        /// Existing records per fingerprint not yet matched by a date-only row.
+        private var unmatched: [String: Int] = [:]
+        private var seenTimed = Set<String>()
+
+        init(existing: [WalletRecord]) {
+            for record in existing {
+                unmatched[fingerprint(accountID: record.draft.accountID, kind: record.draft.kind,
+                                      amount: record.draft.amount, date: record.draft.date), default: 0] += 1
+            }
+        }
+
+        mutating func matches(_ row: RecordCSVRow, accountID: UUID?) -> Bool {
+            let print = fingerprint(accountID: accountID, kind: row.kind, amount: row.amount, date: row.date)
+            let remaining = unmatched[print, default: 0]
+            if row.isDateOnly {
+                guard remaining > 0 else { return false }
+                unmatched[print] = remaining - 1
+                return true
+            }
+            // Timed rows also catch duplicates within the file itself, not just against the wallet.
+            return remaining > 0 || !seenTimed.insert(print).inserted
+        }
     }
 
     private static func normalized(_ value: String) -> String {

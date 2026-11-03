@@ -49,6 +49,7 @@ Tests live in `Packages/WalletKit/Tests/WalletKitTests/` and use Swift Testing (
 | `TagTests` | Ten colors, name validation/uniqueness, stable edit identity, selective/idempotent deletion, notifications, view-model failure state and migration/reopening |
 | `RecordTests` | Ledger balances, idempotent creation, transfers and received amounts, reference/amount validation, details/photos, label detachment, most-used ranking and additive migration/reopening |
 | `BalanceAdjustmentTests` | Adjustment increases/decreases changing balances without a category, account balance edits recorded as adjustments without shifting earlier history (and none for a name-only edit), edit/delete reversal, transfers rejected as adjustments, totals excluding adjustments while balance history and statements include them, older drafts decoding and CSV round-tripping |
+| `BankStatementImportTests` | Bank header aliases (the app's own names winning), signed amounts, Debit/Credit columns (including negative debits), bank Type values, sign reversal, day-first date detection, bank date forms, accounting negatives, a chosen account filling missing or empty Account cells, typed rows keeping their strict checks, exports unchanged; date-only rows matched one-for-one against existing records; per-kind category fallbacks; and the view model's account choice, sign flip, fallback categories and re-import detection |
 | `RecordSearchTests` | Field matching (payee, note, amount, category and parent, label), multi-term AND, case/diacritic insensitivity, relevance ranking and tie-breaks, intersecting filter groups, transfer account legs, date/amount bounds, sort determinism and recent-search history |
 | `SettingsTests` | Confirmed-reset operation, deletion notifications, starter reseeding, preference retention/clearing, failure state and appearance mapping |
 
@@ -586,3 +587,20 @@ Small cleanups made:
 - The Delete Account sheets name their dismiss handlers instead of passing an inline closure next to the trailing content.
 
 **342 tests across 53 suites passed**, and unsigned iOS Simulator and macOS builds passed with no compiler warnings.
+
+## Bank Statement CSV Import (2026-11-03)
+
+CSV import now reads bank statement exports: bank header names, signed amounts or Debit/Credit columns, files without an Account column (an account is chosen first), day-first dates and date-only rows. **358 tests across 56 suites passed**, and unsigned builds passed for the app on iOS Simulator and macOS and for `WalletWatch` and `WalletWatchWidgets` on watchOS Simulator. SwiftLint reports 68 warnings, down from 69; none are new.
+
+The new suites are `BankStatementImportTests`, `DateOnlyDuplicateTests` and `BankStatementImportViewModelTests`; the coverage table lists what they check. Two existing tests changed on purpose. `missingRequiredColumnsAreReported` now expects only Account to be missing from a Date and Amount file, because Type is optional when amounts carry a sign. `ImportPlannerTests` rows now carry a category, because rows without one are now flagged.
+
+**Defect found and fixed:** the view-model test showed that every income or expense row without a matching category passed the preview as importable, then failed at save with "Choose a category or subcategory". This affected the app's own CSVs without a Category column before this change, and it would have hit every bank row. The planner now lists such rows under "Cannot import" until a fallback category is chosen for their kind.
+
+**Not verified:** the app was not run, so the account choice dialog, the "Amounts are spending" toggle and the fallback category pickers were checked only by build and unit tests. No real bank export was tried; the fixtures are modelled on common layouts.
+
+Manual checks:
+
+1. Export a statement from your bank as CSV, import it, choose the account, and confirm the payees, amounts, directions and dates (especially day/month order) in the preview.
+2. For a card statement that lists purchases as positive, turn on "Amounts are spending" and confirm the preview flips.
+3. Choose an expense fallback category, import, then import the same file again and confirm every row is reported as already in your wallet.
+4. Confirm that cancelling the account dialog or the review sheet leaves nothing behind, and that the next import starts clean.
