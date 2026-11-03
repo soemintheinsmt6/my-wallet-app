@@ -11,7 +11,7 @@ Update this table whenever a feature is completed. As of 2026-11-01 every featur
 | Modular architecture | Complete | Domain, data and presentation modules with app-owned dependency injection |
 | Appearance | Complete | Settings offers System, Light and Dark; choice persists on this device and applies across app windows |
 | Temporary data reset | Debug builds only | Confirmed deletion of wallet data; retains theme, clears last-used entry defaults and dismisses open drafts |
-| Account creation and editing | Complete | Name, current balance, type, color, an optional chosen icon (synced; CloudKit production schema deploy pending) and saved settings |
+| Account creation and editing | Complete | Name, current balance, type, color, an optional chosen icon (synced; CloudKit production schema deploy pending), an optional account, card or loan number for every type but Cash (stored whole and synced end-to-end encrypted in iCloud, shown masked as •••• 1234, copied from the account screen; CloudKit production schema deploy pending) and saved settings |
 | Balance adjustments | Complete; device check pending | Adjust Balance on an account records an increase or decrease (interest, fees, statement differences) as a ledger entry, left out of income/expense totals; editing an account's balance records the difference the same way (CloudKit production schema deploy pending) |
 | Account types | Complete | Cash, Checking Account, Credit Card, Savings Account, Investments, Loans & Mortgage, Other |
 | Currency selection | Complete | Search by name/code during creation; immutable after saving |

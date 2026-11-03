@@ -17,6 +17,8 @@ struct AccountDetailView: View {
     /// Set when the account is deleted from its editor, so this screen leaves once the editor closes
     /// instead of showing "Account unavailable".
     @State private var accountDeleted = false
+    /// Shows "Copied" briefly after the account number is copied.
+    @State private var copiedNumber = false
     @Environment(\.dismiss) private var dismiss
 
     /// Read live, so an edit or a new record shows without leaving the screen.
@@ -95,6 +97,10 @@ struct AccountDetailView: View {
             .walletFirstRow(true)
             .listRowSeparator(.hidden, edges: .bottom)
 
+            if let masked = account.maskedAccountNumber, let number = account.settings.accountNumber {
+                accountNumberRow(title: account.type.accountNumberTitle, masked: masked, number: number)
+            }
+
             // Records interest, fees or any difference from a statement as its own entry, so the
             // balance's history explains every change rather than being silently overwritten.
             Button { adjusting = true } label: {
@@ -105,6 +111,38 @@ struct AccountDetailView: View {
             .buttonBorderShape(.capsule)
             .listRowSeparator(.hidden)
         }
+    }
+
+    /// The masked number; a tap copies the full one. The copy stays on this device and expires,
+    /// so the number is never on screen here and does not linger on the clipboard.
+    private func accountNumberRow(title: String, masked: String, number: String) -> some View {
+        Button {
+            WalletClipboard.copySensitive(number)
+            copiedNumber = true
+            Task {
+                try? await Task.sleep(for: .seconds(1.5))
+                copiedNumber = false
+            }
+        } label: {
+            LabeledContent(title) {
+                HStack(spacing: WalletMetrics.small) {
+                    Text(copiedNumber ? "Copied" : masked)
+                        .monospacedDigit()
+                        .contentTransition(.opacity)
+                    Image(systemName: copiedNumber ? "checkmark" : "doc.on.doc")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(copiedNumber ? AnyShapeStyle(.green) : AnyShapeStyle(.tertiary))
+                        .accessibilityHidden(true)
+                }
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .animation(.easeOut(duration: 0.2), value: copiedNumber)
+        .accessibilityLabel(title)
+        .accessibilityValue(masked)
+        .accessibilityHint("Copies the full number")
+        .listRowSeparator(.hidden, edges: .bottom)
     }
 
     private var periodSection: some View {

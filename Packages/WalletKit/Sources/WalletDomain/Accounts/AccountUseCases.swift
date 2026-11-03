@@ -8,6 +8,7 @@ public enum AccountValidationError: LocalizedError {
     case invalidLimits
     case accountNotFound
     case saveInProgress
+    case invalidAccountNumber
 
     public var errorDescription: String? {
         switch self {
@@ -18,6 +19,7 @@ public enum AccountValidationError: LocalizedError {
         case .invalidLimits: "Minimum balance must be less than maximum balance when both notifications are enabled."
         case .accountNotFound: "This account no longer exists. Close this form and refresh your accounts."
         case .saveInProgress: "Another account is being saved. Please try again."
+        case .invalidAccountNumber: "Use up to 34 letters, digits, spaces or dashes for the account number."
         }
     }
 }
@@ -32,6 +34,7 @@ public struct AccountUseCases {
 
     public func create(name: String, type: AccountType, currencyCode: String = "USD", settings: AccountSettings = AccountSettings()) async throws {
         let trimmedName = try validate(name: name, settings: settings)
+        let settings = try withValidatedNumber(settings, type: type)
         guard Locale.commonISOCurrencyCodes.contains(currencyCode) else { throw AccountValidationError.invalidCurrency }
         try Task.checkCancellation()
         try await repository.createAccount(Account(name: trimmedName, type: type, currencyCode: currencyCode, settings: settings))
@@ -39,8 +42,22 @@ public struct AccountUseCases {
 
     public func update(id: UUID, name: String, type: AccountType, settings: AccountSettings) async throws {
         let trimmedName = try validate(name: name, settings: settings)
+        let settings = try withValidatedNumber(settings, type: type)
         try Task.checkCancellation()
         try await repository.updateAccount(id: id, name: trimmedName, type: type, settings: settings)
+    }
+
+    /// Trims the number and checks its characters. A type without numbers, cash, drops any number,
+    /// so switching an account to cash cannot leave a hidden one behind.
+    private func withValidatedNumber(_ settings: AccountSettings, type: AccountType) throws -> AccountSettings {
+        var settings = settings
+        guard type.hasAccountNumber, let number = AccountNumber.normalized(settings.accountNumber) else {
+            settings.accountNumber = nil
+            return settings
+        }
+        guard AccountNumber.isValid(number) else { throw AccountValidationError.invalidAccountNumber }
+        settings.accountNumber = number
+        return settings
     }
 
     public func deletionImpact(id: UUID) async throws -> AccountDeletionImpact {

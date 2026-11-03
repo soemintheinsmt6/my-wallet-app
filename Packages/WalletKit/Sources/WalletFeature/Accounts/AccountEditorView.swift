@@ -12,6 +12,7 @@ struct AccountEditorView: View {
     @State private var balanceText: String
     @State private var minimumText: String
     @State private var maximumText: String
+    @State private var accountNumberText: String
     @State private var errorMessage: String?
     @State private var choosingCurrency = false
     @State private var choosingSymbol = false
@@ -37,6 +38,7 @@ struct AccountEditorView: View {
             : AccountAmountInput.text(settings.currentBalance))
         _minimumText = State(initialValue: AccountAmountInput.text(settings.minimumBalance))
         _maximumText = State(initialValue: AccountAmountInput.text(settings.maximumBalance))
+        _accountNumberText = State(initialValue: settings.accountNumber ?? "")
     }
 
     private var trimmedName: String { name.trimmingCharacters(in: .whitespacesAndNewlines) }
@@ -109,6 +111,27 @@ struct AccountEditorView: View {
                         Text("Currency is chosen once when you create an account. Enter amounts using your local decimal separator; thousands are grouped for you. Leave the balance empty to open the account at zero.")
                     } else {
                         Text("Changing the balance records the difference as a balance adjustment dated now, so earlier history stays as it was. To choose the date or add a note, use Adjust Balance on the account.")
+                    }
+                }
+
+                // Follows the type being edited: cash has no number, so the section leaves with it.
+                if type.hasAccountNumber {
+                    Section {
+                        HStack(spacing: 16) {
+                            Text(type.accountNumberTitle)
+                            TextField("Optional", text: $accountNumberText)
+                                .multilineTextAlignment(.trailing)
+                                .monospacedDigit()
+                                .autocorrectionDisabled()
+                                #if os(iOS)
+                                    .textInputAutocapitalization(.characters)
+                                    .keyboardType(type == .creditCard ? .numberPad : .asciiCapable)
+                                    .textContentType(type == .creditCard ? .creditCardNumber : nil)
+                                #endif
+                                .accessibilityLabel(type.accountNumberTitle)
+                        }
+                    } footer: {
+                        Text("Shown as •••• and the last four characters everywhere but here; tap it on the account to copy the full number. It syncs end-to-end encrypted through iCloud and is included in JSON backups.")
                     }
                 }
 
@@ -226,6 +249,8 @@ struct AccountEditorView: View {
             if values.notifyAboveMaximum {
                 values.maximumBalance = try AccountAmountInput.parseAllowingEmpty(maximumText)
             }
+            // Trimmed and checked when saved; dropped there if the type is cash.
+            values.accountNumber = accountNumberText
             if let account {
                 try await viewModel.update(id: account.id, name: name, type: type, settings: values)
             } else {

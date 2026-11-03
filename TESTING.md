@@ -518,3 +518,16 @@ Manual check: in Records, on the Dashboard and in an account's detail, confirm e
 Search results, sorted by relevance, now show day section headers like the unfiltered list. Ranked results are regrouped by calendar day, newest day first, keeping the best match first within each day; amount sorts stay ungrouped. The sort hint in the filter sheet explains this while search text is entered. The day header's net counts only the matching records on that day. **326 tests across 51 suites passed**, and unsigned iOS Simulator and macOS builds passed. The updated grouping test and a new one cover search results being grouped, days running newest first, and the best match leading each day. Not run in the app.
 
 Manual check: search for a payee or category that appears on several days and confirm headers read Today, Yesterday and older dates in order, that a day's strongest match is listed first, and that Largest or Smallest sorting still shows a flat list.
+
+## Account Numbers (2026-11-03)
+
+Accounts of every type but Cash can hold an optional number (Card Number, Loan Number or Account Number by type), stored whole in a new defaulted `AccountRecord.accountNumberValue` marked `.allowsCloudEncryption` (end-to-end encrypted in iCloud), shown as `•••• 1234` in the Accounts list and on the account screen, and copied from the account screen to a device-only clipboard entry that expires after a minute on iOS. **331 tests across 52 suites passed**, and unsigned builds passed for the app on iOS Simulator and macOS and for `WalletWatch` and `WalletWatchWidgets` on watchOS Simulator; after rebasing onto the search day headers change, **332 tests** and the iOS Simulator and macOS builds passed again. A new `AccountNumberTests` suite covers which types have a number and its titles, trimming, the allowed characters and length, masking past separators, saving the whole number, clearing it when emptied or when the account becomes Cash, rejecting an invalid number without saving, JSON backups carrying it while older backups still decode, and the schema marking that field, and only that field, encrypted in iCloud. Existing account migration tests, which open a store written before later fields, still pass.
+
+**Not verified:** iCloud sync of the new field and its production CloudKit schema deploy. In the CloudKit Console the field should appear in the encrypted section of `CD_AccountRecord`; confirm that in the development schema before deploying, since encryption cannot be changed afterwards. Also unverified: the clipboard's device-only and expiry behavior, and the screens themselves; nothing was run in the app.
+
+Manual checks:
+
+1. Edit a Checking account, enter `0012 3456 7890`, save, and confirm Accounts shows `Checking Account · •••• 7890`.
+2. Confirm the field is titled Card Number for a credit card and Loan Number for a loan, and disappears when the type is set to Cash; save as Cash and confirm the number is gone when switching back.
+3. Open the account, tap the number row, confirm it shows "Copied", paste elsewhere to check the full number, and confirm on iOS it is no longer pasteable after a minute and does not reach a Mac through Universal Clipboard.
+4. Enter `12/34` and confirm saving reports the allowed characters.

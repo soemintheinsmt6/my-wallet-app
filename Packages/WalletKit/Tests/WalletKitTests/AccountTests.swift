@@ -6,6 +6,91 @@ import WalletDomain
 @testable import WalletFeature
 
 @MainActor
+struct AccountNumberTests {
+    @Test func everyTypeButCashHasANumberWithATypeSpecificTitle() {
+        #expect(!AccountType.cash.hasAccountNumber)
+        #expect(AccountType.allCases.filter(\.hasAccountNumber).count == AccountType.allCases.count - 1)
+        #expect(AccountType.creditCard.accountNumberTitle == "Card Number")
+        #expect(AccountType.loansAndMortgage.accountNumberTitle == "Loan Number")
+        #expect(AccountType.savings.accountNumberTitle == "Account Number")
+    }
+
+    @Test func numbersAreTrimmedCheckedAndMaskedToTheLastFour() {
+        #expect(AccountNumber.normalized("  1234 5678  ") == "1234 5678")
+        #expect(AccountNumber.normalized("   ") == nil)
+        #expect(AccountNumber.normalized(nil) == nil)
+
+        #expect(AccountNumber.isValid("4111 1111 1111 1234"))
+        #expect(AccountNumber.isValid("GB33-BUKB-2020-1555-5555-55"))
+        #expect(!AccountNumber.isValid("1234/5678"))
+        #expect(!AccountNumber.isValid("١٢٣٤")) // non-ASCII digits
+        #expect(!AccountNumber.isValid(String(repeating: "1", count: AccountNumber.maximumLength + 1)))
+
+        // Separators are skipped, so the mask always shows four real characters.
+        #expect(AccountNumber.masked("4111 1111 1111 1234") == "•••• 1234")
+        #expect(AccountNumber.masked("GB33-BUKB-2020-1555-5555-55") == "•••• 5555")
+        #expect(AccountNumber.masked("12") == "•••• 12")
+    }
+
+    @Test func numberIsSavedWholeAndClearedWhenEmptyOrWhenTheAccountBecomesCash() async throws {
+        let repository = try await SwiftDataWalletRepository.make(configuration: .inMemory)
+        let useCases = AccountUseCases(repository: repository)
+        try await useCases.create(name: "Visa", type: .creditCard, currencyCode: "USD",
+                                  settings: AccountSettings(accountNumber: "  4111 1111 1111 1234 "))
+        let created = try #require(try await useCases.load().first)
+        #expect(created.settings.accountNumber == "4111 1111 1111 1234")
+        #expect(created.maskedAccountNumber == "•••• 1234")
+
+        var settings = created.settings
+        settings.accountNumber = "   "
+        try await useCases.update(id: created.id, name: "Visa", type: .creditCard, settings: settings)
+        #expect(try await useCases.load().first?.settings.accountNumber == nil)
+
+        settings.accountNumber = "4111 1111 1111 1234"
+        try await useCases.update(id: created.id, name: "Visa", type: .cash, settings: settings)
+        let cash = try #require(try await useCases.load().first)
+        #expect(cash.settings.accountNumber == nil)
+        #expect(cash.maskedAccountNumber == nil)
+    }
+
+    @Test func anInvalidNumberIsRejectedAndNothingIsSaved() async throws {
+        let repository = try await SwiftDataWalletRepository.make(configuration: .inMemory)
+        let useCases = AccountUseCases(repository: repository)
+        await #expect(throws: AccountValidationError.invalidAccountNumber) {
+            try await useCases.create(name: "Bank", type: .checking, settings: AccountSettings(accountNumber: "12/34"))
+        }
+        #expect(try await useCases.load().isEmpty)
+    }
+
+    /// CloudKit cannot change a field's encryption after it reaches production, so dropping this
+    /// option later would be a one-way mistake; the test keeps it in place.
+    @Test func theNumberIsTheOnlyAccountFieldEncryptedInICloud() throws {
+        let schema = Schema([AccountRecord.self])
+        let entity = try #require(schema.entities.first { $0.name == "AccountRecord" })
+        let number = try #require(entity.attributes.first { $0.name == "accountNumberValue" })
+        #expect(number.options.contains(.allowsCloudEncryption))
+        let others = entity.attributes.filter { $0.name != "accountNumberValue" }
+        #expect(!others.isEmpty)
+        #expect(others.allSatisfy { !$0.options.contains(.allowsCloudEncryption) })
+    }
+
+    @Test func numbersAreBackedUpAndOlderBackupsWithoutThemStillDecode() throws {
+        let bank = Account(name: "Bank", type: .checking, settings: AccountSettings(accountNumber: "0012345678"))
+        let archive = WalletArchive(accounts: [bank], categories: [], tags: [], records: [])
+        #expect(try WalletArchive.decode(WalletArchive.encode(archive)).accounts.first?.accountNumber == "0012345678")
+
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        var object = try #require(try JSONSerialization.jsonObject(with: encoder.encode(archive)) as? [String: Any])
+        var accounts = try #require(object["accounts"] as? [[String: Any]])
+        accounts[0].removeValue(forKey: "accountNumber")
+        object["accounts"] = accounts
+        let older = try WalletArchive.decode(JSONSerialization.data(withJSONObject: object))
+        #expect(older.accounts.first?.accountNumber == nil)
+    }
+}
+
+@MainActor
 struct AccountTests {
     @Test func editsPersistAllSettingsAndPreserveCurrencyAndIdentity() async throws {
         let repository = try await SwiftDataWalletRepository.make(configuration: .inMemory)

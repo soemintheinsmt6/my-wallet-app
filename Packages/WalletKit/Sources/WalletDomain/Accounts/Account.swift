@@ -10,6 +10,37 @@ public enum AccountType: String, CaseIterable, Codable, Sendable, Identifiable {
     case other
 
     public var id: String { rawValue }
+
+    /// Every type but cash is held somewhere that numbers it: a bank, card issuer, broker or lender.
+    public var hasAccountNumber: Bool { self != .cash }
+}
+
+/// Rules for the optional account number. It is stored whole so it can be copied, but shown masked
+/// everywhere except the editor.
+public enum AccountNumber {
+    /// IBAN, the longest common format, runs to 34 characters.
+    public static let maximumLength = 34
+
+    /// Trims the input, and treats an empty one as no number.
+    public static func normalized(_ text: String?) -> String? {
+        guard let trimmed = text?.trimmingCharacters(in: .whitespacesAndNewlines), !trimmed.isEmpty else { return nil }
+        return trimmed
+    }
+
+    /// Letters, digits, spaces and dashes, as bank, card, IBAN and loan numbers are written.
+    public static func isValid(_ number: String) -> Bool {
+        guard number.count <= maximumLength else { return false }
+        return number.unicodeScalars.allSatisfy { scalar in
+            scalar.isASCII && (CharacterSet.alphanumerics.contains(scalar) || scalar == " " || scalar == "-")
+        }
+    }
+
+    /// The last four letters or digits behind a mask, e.g. "•••• 1234", so lists can tell accounts
+    /// apart without showing the number.
+    public static func masked(_ number: String) -> String {
+        let characters = number.filter { $0.isLetter || $0.isNumber }
+        return "•••• " + String(characters.suffix(4))
+    }
 }
 
 public struct Account: Identifiable, Equatable, Sendable {
@@ -45,8 +76,11 @@ public struct AccountSettings: Equatable, Sendable {
     public var excludeFromStats: Bool
     /// An SF Symbol chosen for the account. `nil` leaves the icon to the account's type.
     public var symbol: String?
+    /// The bank, card or loan number, stored whole and shown masked outside the editor. `nil` when
+    /// none is entered, and always `nil` for cash.
+    public var accountNumber: String?
 
-    public init(currentBalance: Decimal = 0, color: AccountColor = .blue, notifyBelowMinimum: Bool = false, minimumBalance: Decimal = 0, notifyAboveMaximum: Bool = false, maximumBalance: Decimal = 0, excludeFromStats: Bool = false, symbol: String? = nil) {
+    public init(currentBalance: Decimal = 0, color: AccountColor = .blue, notifyBelowMinimum: Bool = false, minimumBalance: Decimal = 0, notifyAboveMaximum: Bool = false, maximumBalance: Decimal = 0, excludeFromStats: Bool = false, symbol: String? = nil, accountNumber: String? = nil) {
         self.currentBalance = currentBalance
         self.color = color
         self.notifyBelowMinimum = notifyBelowMinimum
@@ -55,6 +89,7 @@ public struct AccountSettings: Equatable, Sendable {
         self.maximumBalance = maximumBalance
         self.excludeFromStats = excludeFromStats
         self.symbol = symbol
+        self.accountNumber = accountNumber
     }
 
     public var isBelowMinimum: Bool { notifyBelowMinimum && currentBalance < minimumBalance }

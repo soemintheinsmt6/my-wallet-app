@@ -55,6 +55,23 @@ Delete an account with full disclosure of the consequences. Show the number of r
 
 ---
 
+### 1.7 Account Numbers
+
+> **Status:** Implemented; not yet run in the app; CloudKit production schema deploy pending
+> **Modules:** `WalletDomain/Accounts`, `WalletData`, `WalletFeature/Accounts`
+
+Keep the number that identifies an account at its bank, card issuer, broker or lender, so accounts with similar names can be told apart and the number is at hand when it is needed.
+
+- [x] Optional number for every type but Cash, titled by type: Card Number, Loan Number, otherwise Account Number
+- [x] Letters, digits, spaces and dashes, up to 34 characters (IBAN length)
+- [x] Stored whole and synced with the account; shown as `•••• 1234` in the Accounts list and on the account screen
+- [x] Copying the full number from the account screen
+- [x] Included in JSON backups; older backups without it still open
+
+Implementation notes (2026-11-03): The number is kept whole rather than as its last four digits so it can be copied when paying or quoting it, but the full value appears only in the editor; everywhere else it is masked to its last four letters or digits, skipping separators. Copying uses a clipboard entry that stays on the device (no Universal Clipboard) and expires after a minute on iOS; macOS offers neither option, so it is an ordinary copy there. Switching an account to Cash clears its number when saved, so no hidden number is left behind. It travels with the account through iCloud and into the JSON backup, the user's own copy of their data, but not into the widget snapshot, the Apple Watch or Shortcuts. The stored field is a defaulted string, a lightweight CloudKit-compatible addition like the account icon, marked `.allowsCloudEncryption`: CloudKit encrypts it with keys from the user's iCloud Keychain, so the synced copy is end-to-end encrypted even without Advanced Data Protection. CloudKit cannot change a field's encryption once it is in the production schema, so the option ships with the field's first deploy and a test keeps it there. The cost is that a reset iCloud Keychain leaves the synced value unreadable; numbers already on devices stay. On the device the number is a plain field in the app's store, protected by the system's default file protection, and the JSON backup holds it in plain text.
+
+---
+
 ### 1.4 Category Deletion
 
 > **Status:** Implemented; verified on device, iCloud sync included

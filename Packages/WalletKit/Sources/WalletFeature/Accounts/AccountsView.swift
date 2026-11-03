@@ -145,13 +145,13 @@ public struct AccountsView: View {
                         .foregroundStyle(.primary)
                         .lineLimit(1)
                     if account.settings.excludeFromStats {
-                        Label("Excluded from stats", systemImage: "eye.slash")
+                        Label(subtitle(["Excluded from stats", account.maskedAccountNumber]) ?? "",
+                              systemImage: "eye.slash")
                             .font(.caption)
                             .foregroundStyle(.secondary)
-                    } else if account.name.caseInsensitiveCompare(account.type.title) != .orderedSame {
-                        // The balance already carries the currency, so the type says more here.
-                        // Skipped when it would only repeat the name, as with "Cash".
-                        Text(account.type.title)
+                            .lineLimit(1)
+                    } else if let line = subtitle([typeLine(account), account.maskedAccountNumber]) {
+                        Text(line)
                             .font(.caption)
                             .foregroundStyle(.secondary)
                             .lineLimit(1)
@@ -179,5 +179,17 @@ public struct AccountsView: View {
         .contextMenu {
             Button("Delete Account", role: .destructive) { deletingAccount = account }
         }
+    }
+
+    /// The balance already carries the currency, so the type says more here. Skipped when it would
+    /// only repeat the name, as with "Cash".
+    private func typeLine(_ account: Account) -> String? {
+        account.name.caseInsensitiveCompare(account.type.title) == .orderedSame ? nil : account.type.title
+    }
+
+    /// Joins the parts that are present with " · ", or `nil` when none are.
+    private func subtitle(_ parts: [String?]) -> String? {
+        let present = parts.compactMap { $0 }
+        return present.isEmpty ? nil : present.joined(separator: " · ")
     }
 }

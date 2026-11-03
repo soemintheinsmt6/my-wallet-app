@@ -20,6 +20,15 @@ final class AccountRecord {
     // Empty means no chosen icon, so the type's icon shows. A defaulted attribute keeps the change
     // a lightweight migration that CloudKit accepts.
     var symbolValue: String = ""
+    // Empty means no number. Defaulted like `symbolValue`, so it is a lightweight, CloudKit-compatible
+    // addition and existing accounts simply have none.
+    //
+    // Encrypted in iCloud with keys from the user's iCloud Keychain, so the synced copy is
+    // end-to-end encrypted even without Advanced Data Protection. CloudKit cannot change a field's
+    // encryption once it is in the production schema, so this must ship with the field's first
+    // deploy and never be removed. If the iCloud Keychain is reset, the synced value cannot be
+    // decrypted; copies already on devices are unaffected.
+    @Attribute(.allowsCloudEncryption) var accountNumberValue: String = ""
 
     init(account: Account) {
         id = account.id
@@ -41,6 +50,7 @@ final class AccountRecord {
         maximumBalanceValue = NSDecimalNumber(decimal: settings.maximumBalance).stringValue
         excludeFromStats = settings.excludeFromStats
         symbolValue = settings.symbol ?? ""
+        accountNumberValue = settings.accountNumber ?? ""
     }
 
     var account: Account {
@@ -52,7 +62,8 @@ final class AccountRecord {
             notifyAboveMaximum: notifyAboveMaximum,
             maximumBalance: Decimal(string: maximumBalanceValue, locale: Locale(identifier: "en_US_POSIX")) ?? 0,
             excludeFromStats: excludeFromStats,
-            symbol: symbolValue.isEmpty ? nil : symbolValue
+            symbol: symbolValue.isEmpty ? nil : symbolValue,
+            accountNumber: accountNumberValue.isEmpty ? nil : accountNumberValue
         ))
     }
 }

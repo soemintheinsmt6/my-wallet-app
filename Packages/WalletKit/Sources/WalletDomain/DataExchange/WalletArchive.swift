@@ -19,6 +19,9 @@ public struct WalletArchive: Codable, Sendable, Equatable {
         public var excludeFromStats: Bool
         /// Optional, so backups written before account icons existed still decode.
         public var symbol: String?
+        /// The full number, as the backup is the user's own copy of their data. Optional, so older
+        /// backups without it still decode.
+        public var accountNumber: String?
 
         public init(account: Account) {
             id = account.id
@@ -29,6 +32,7 @@ public struct WalletArchive: Codable, Sendable, Equatable {
             color = account.settings.color
             excludeFromStats = account.settings.excludeFromStats
             symbol = account.settings.symbol
+            accountNumber = account.settings.accountNumber
         }
     }
 
