@@ -120,7 +120,9 @@ struct RecordEditorView: View {
                         .onTapGesture { focusedField = nil }
                 }
             }
-            .scrollDismissesKeyboard(.interactively)
+            // Any scroll, up or down, puts the amount keyboard away so the form can be read; with
+            // `.interactively` it only left when dragged down into the number pad itself.
+            .scrollDismissesKeyboard(.immediately)
             .background {
                 Color.clear.contentShape(Rectangle())
                     .onTapGesture { focusedField = nil }

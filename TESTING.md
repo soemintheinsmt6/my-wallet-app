@@ -771,3 +771,11 @@ On device, the user found that the first push to Payee in a launch still lagged 
 **Not verified:** not yet run on the device.
 
 Manual check: launch the app fresh, open Add Record, then Payee (or Note). The slide should be smooth, with the keyboard rising just after it ends. Go back and open it again: the keyboard should rise with the slide.
+
+## Scrolling Dismisses the Record Keyboard (2026-11-04)
+
+At the user's request, scrolling the record form up or down now dismisses the amount keyboard at once (`.scrollDismissesKeyboard(.immediately)`). Before, it was `.interactively`, which dismissed the keyboard only when the drag reached down into the number pad. 401 tests passed, the unsigned iOS Simulator build passed, and SwiftLint still reports 68 warnings.
+
+**Not verified:** not yet run on the device.
+
+Manual check: open Add Record with the amount keyboard up, then scroll the form up and down. The keyboard should go away as soon as the scroll starts, in either direction, and tapping the amount should bring it back.
