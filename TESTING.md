@@ -743,7 +743,7 @@ Check 2 also covers the editor filling in the learned category when a suggestion
 
 ## Payer Label, Suggestions Across Kinds and Faster Payee Screen (2026-11-04)
 
-The user reported that income offered no payees and that the Recent list lagged as the Payee screen opened. **402 tests across 63 suites passed**, and unsigned builds passed for the app on iOS Simulator and macOS and for `WalletWatch` and `WalletWatchWidgets` on watchOS Simulator. SwiftLint still reports 68 warnings, none new. The two existing `RecordEditorView` length warnings grew by 2 lines.
+The user reported that income offered no payees and that the Recent list lagged as the Payee screen opened. **401 tests across 62 suites passed** (an earlier count of 402 across 63 included the throwaway timing test), and unsigned builds passed for the app on iOS Simulator and macOS and for `WalletWatch` and `WalletWatchWidgets` on watchOS Simulator. SwiftLint still reports 68 warnings, none new. The two existing `RecordEditorView` length warnings grew by 2 lines.
 
 **Measurement:** a throwaway timing test (deleted afterwards) built both structures from 10,000 records with 300 distinct payees, in a release build on a Mac. Before: 18 ms for suggestions and 17 ms for categories, paid on the main thread when Payee first opened. After keying each distinct payee text once: 1.5 ms and 2.0 ms. Six lookups took under 0.1 ms both times. The editor now also builds both in the background when it opens.
 
@@ -763,3 +763,11 @@ Manual checks:
 1. Add an income and confirm the row and screen say Payer and the caption says "Add payer".
 2. On an income with no payers recorded yet, open Payer and confirm your expense payees are offered; record an income from someone, then confirm they are listed first next time.
 3. With your full wallet, open Add Record, then Payee, and confirm the Recent list appears without a stutter.
+
+## First Keyboard of a Launch (2026-11-04)
+
+On device, the user found that the first push to Payee in a launch still lagged during the slide, and later pushes did not. Opening Note first lagged the same way, which ruled out the payee data: the cause is iOS loading the letter keyboard (autocorrect and predictions) the first time it appears in a launch, which the amount field's number pad does not do. `RecordTextEntry` raised the keyboard during the push. The first text screen of a launch on iOS now waits 0.4 seconds, just past the push, before focusing its field; later screens focus at once as before, and macOS is unchanged. 401 tests passed, unsigned iOS Simulator and macOS builds passed, and SwiftLint still reports 68 warnings.
+
+**Not verified:** not yet run on the device.
+
+Manual check: launch the app fresh, open Add Record, then Payee (or Note). The slide should be smooth, with the keyboard rising just after it ends. Go back and open it again: the keyboard should rise with the slide.

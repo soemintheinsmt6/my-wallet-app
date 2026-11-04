@@ -96,6 +96,10 @@ struct RecordTextEntry: View {
     var suggestions: ((String) -> [TextEntrySuggestion])?
     @Environment(\.dismiss) private var dismiss
     @FocusState private var focused: Bool
+    /// Set once any text screen has raised the keyboard in this launch.
+    @MainActor private static var hasRaisedKeyboard = false
+    /// A navigation push takes about 0.35 seconds; a little longer leaves the slide finished.
+    private static let pushDuration = Duration.milliseconds(400)
 
     var body: some View {
         // No field chrome or placeholder: a small caption above, the text centred and large.
@@ -132,6 +136,16 @@ struct RecordTextEntry: View {
         }
         .task {
             await Task.yield()
+            // The first letter keyboard of a launch takes iOS a moment to load (autocorrect,
+            // predictions), and raising it during the push stalls the slide. That first time,
+            // wait for the push to finish; afterwards the keyboard is loaded and comes up at once.
+            #if os(iOS)
+            if !Self.hasRaisedKeyboard {
+                try? await Task.sleep(for: Self.pushDuration)
+                guard !Task.isCancelled else { return }
+                Self.hasRaisedKeyboard = true
+            }
+            #endif
             focused = true
         }
     }
