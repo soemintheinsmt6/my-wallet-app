@@ -779,3 +779,14 @@ At the user's request, scrolling the record form up or down now dismisses the am
 **Not verified:** not yet run on the device.
 
 Manual check: open Add Record with the amount keyboard up, then scroll the form up and down. The keyboard should go away as soon as the scroll starts, in either direction, and tapping the amount should bring it back.
+
+## Payee Work Device Check (2026-11-04)
+
+After the payee work reached `main` at 6a63c66, the user ran every outstanding manual check on the device, and all passed:
+
+- Categories by Payee (2026-11-04): the import review's "Use categories from past records" toggle and the category shown beside each row, typing a known payee in full and changing it to an unknown one to clear the category, choosing a category first, and editing a saved record without its category changing
+- Payer Label, Suggestions Across Kinds and Faster Payee Screen (2026-11-04): Payer on income, an income with no payers yet offering the wallet's other payees, and the Recent list appearing without a stutter
+- First Keyboard of a Launch (2026-11-04): a smooth first push to Payee or Note after a fresh launch
+- Scrolling Dismisses the Record Keyboard (2026-11-04): scrolling either way dismissing the keyboard
+
+These entries' "Not verified" notes are superseded by this check. The bank import's earlier matching and tip checks from 2026-11-03 were not part of this run, so the README's Export and import row keeps their device check pending.
