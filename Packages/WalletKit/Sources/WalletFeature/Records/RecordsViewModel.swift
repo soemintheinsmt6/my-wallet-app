@@ -5,13 +5,19 @@ import WalletDomain
 @MainActor
 public final class RecordsViewModel: ObservableObject {
     @Published public private(set) var records: [WalletRecord] = [] {
-        didSet { cachedCategorizer = nil; cachedPayeeSuggestions = nil }
+        didSet { cachedCategorizer = nil; cachedPayeeSuggestions = nil; payeeDataVersion += 1 }
     }
     @Published public private(set) var accounts: [Account] = []
-    @Published public private(set) var categories: [WalletCategory] = [] { didSet { cachedCategorizer = nil } }
-    /// Built on first use after the records or categories change, not on every keystroke of a payee.
+    @Published public private(set) var categories: [WalletCategory] = [] {
+        didSet { cachedCategorizer = nil; payeeDataVersion += 1 }
+    }
+    /// Built by `preparePayeeData` off the main actor, or else on first use after the records or
+    /// categories change; never on every keystroke of a payee.
     private var cachedCategorizer: PayeeCategorizer?
     private var cachedPayeeSuggestions: PayeeSuggestions?
+    /// Bumped whenever the records or categories change, so a background build of the payee data
+    /// that read an older ledger is dropped instead of cached.
+    private var payeeDataVersion = 0
     @Published public private(set) var tags: [WalletTag] = []
     /// True until the wallet has been read once, and false from then on.
     ///
@@ -153,11 +159,26 @@ public final class RecordsViewModel: ObservableObject {
         payeeCategorizer.category(forPayee: payee, kind: kind)
     }
 
-    /// Payees already recorded for this kind of record that fit what has been typed.
+    /// Payees already recorded that fit what has been typed, this kind of record's first.
     func payeeSuggestions(for text: String, kind: RecordKind) -> [String] {
         let suggestions = cachedPayeeSuggestions ?? PayeeSuggestions(records: records)
         cachedPayeeSuggestions = suggestions
         return suggestions.suggestions(for: text, kind: kind)
+    }
+
+    /// Builds the payee suggestions and categories off the main actor, so the record editor can
+    /// start this when it opens and its Payee screen does not stall building them as it slides in.
+    func preparePayeeData() async {
+        guard cachedCategorizer == nil || cachedPayeeSuggestions == nil else { return }
+        let version = payeeDataVersion
+        let records = records
+        let categories = categories
+        let built = await Task.detached(priority: .userInitiated) {
+            (PayeeCategorizer(records: records, categories: categories), PayeeSuggestions(records: records))
+        }.value
+        guard version == payeeDataVersion else { return }
+        cachedCategorizer = built.0
+        cachedPayeeSuggestions = built.1
     }
     func account(_ id: UUID?) -> Account? { accounts.first { $0.id == id } }
     func category(_ id: UUID?) -> WalletCategory? { categories.first { $0.id == id } }

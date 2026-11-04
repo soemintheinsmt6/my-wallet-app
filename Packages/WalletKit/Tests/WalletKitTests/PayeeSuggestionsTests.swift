@@ -62,13 +62,31 @@ struct PayeeSuggestionsTests {
         #expect(payees.suggestions(for: "grab", kind: .expense) == ["Grab Food"])
     }
 
-    @Test func payeesAreKeptPerKindAndAdjustmentsAndBlanksAreLeftOut() {
-        let payees = PayeeSuggestions(records: [record("Acme Ltd", kind: .income), record("Bank", adjustment: true),
-                                                record("   ")])
+    @Test func theRecordsOwnKindComesFirstAndOtherKindsFillTheRest() {
+        let payees = PayeeSuggestions(records: [record("Acme Ltd", kind: .income, daysAgo: 9),
+                                                record("Acme Cafe", daysAgo: 1), record("Acme Hardware", daysAgo: 0)])
 
-        #expect(payees.suggestions(for: "ac", kind: .income) == ["Acme Ltd"])
-        #expect(payees.suggestions(for: "ac", kind: .expense).isEmpty)
-        #expect(payees.suggestions(for: "", kind: .expense).isEmpty)
+        // The employer leads for income, though the shops were used more recently.
+        #expect(payees.suggestions(for: "ac", kind: .income) == ["Acme Ltd", "Acme Hardware", "Acme Cafe"])
+        #expect(payees.suggestions(for: "", kind: .income) == ["Acme Ltd", "Acme Hardware", "Acme Cafe"])
+        #expect(payees.suggestions(for: "ac", kind: .expense) == ["Acme Hardware", "Acme Cafe", "Acme Ltd"])
+        #expect(payees.suggestions(for: "ac", kind: .income, limit: 1) == ["Acme Ltd"])
+    }
+
+    @Test func incomeWithoutPayersOfItsOwnStillOffersPayeesInTheWallet() {
+        let payees = PayeeSuggestions(records: [record("Starbucks"), record("Grab")])
+        #expect(payees.suggestions(for: "gr", kind: .income) == ["Grab"])
+        #expect(payees.suggestions(for: "", kind: .income).count == 2)
+    }
+
+    @Test func aPayeeRecordedUnderTwoKindsIsOfferedOnce() {
+        let payees = PayeeSuggestions(records: [record("Mom"), record("Mom", kind: .income)])
+        #expect(payees.suggestions(for: "", kind: .income) == ["Mom"])
+    }
+
+    @Test func adjustmentsAndBlanksAreLeftOut() {
+        let payees = PayeeSuggestions(records: [record("Bank", adjustment: true), record("   "), record(" Grab ")])
+        #expect(payees.suggestions(for: "", kind: .expense) == ["Grab"])
     }
 }
 
@@ -92,5 +110,33 @@ struct PayeeSuggestionsViewModelTests {
         try await records.save(id: UUID(), draft: draft)
 
         #expect(records.payeeSuggestions(for: "st", kind: .expense) == ["Starbucks"])
+    }
+
+    /// The editor builds the payee data in the background when it opens; a record saved after
+    /// that build must still be offered, so the change drops what was built.
+    @Test func dataBuiltInTheBackgroundFollowsLaterSaves() async throws {
+        let repository = try await SwiftDataWalletRepository.make(configuration: .inMemory)
+        let accounts = AccountUseCases(repository: repository)
+        try await accounts.create(name: "Checking", type: .checking, currencyCode: "USD")
+        let records = RecordsViewModel(useCases: RecordUseCases(repository: repository), accounts: accounts,
+                                       categories: CategoryUseCases(repository: repository),
+                                       tags: TagUseCases(repository: repository))
+        await records.reload()
+        let category = try #require(records.categories.first)
+
+        var draft = RecordDraft()
+        draft.accountID = try #require(records.accounts.first).id
+        draft.amount = 5
+        draft.categoryID = category.id
+        draft.payee = "Grab"
+        try await records.save(id: UUID(), draft: draft)
+        await records.preparePayeeData()
+        #expect(records.payeeSuggestions(for: "", kind: .expense) == ["Grab"])
+        #expect(records.learnedCategory(forPayee: "GRAB TRIP", kind: .expense) == category.id)
+
+        draft.payee = "Starbucks"
+        try await records.save(id: UUID(), draft: draft)
+        #expect(records.payeeSuggestions(for: "st", kind: .expense) == ["Starbucks"])
+        #expect(records.learnedCategory(forPayee: "Starbucks", kind: .expense) == category.id)
     }
 }

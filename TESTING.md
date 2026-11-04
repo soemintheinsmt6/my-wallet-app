@@ -734,3 +734,32 @@ Manual checks:
 2. Type the first letters of a known payee and confirm it is listed under "Suggestions" with its category. Choose it and confirm the form shows the payee and the filled-in category.
 3. Choose a category first, then open Payee, and confirm the suggestions show no category.
 4. Switch to Income and confirm only income payees are offered.
+
+## Payee Suggestions Device Check (2026-11-04)
+
+The user ran the four manual checks from Payee Suggestions (2026-11-04) in the app, and all four passed: recent payees listed with nothing typed, a typed payee suggested with its category and filling both in when chosen, no category shown once one was chosen, and only income payees offered for income.
+
+Check 2 also covers the editor filling in the learned category when a suggestion is chosen. The Categories by Payee (2026-11-04) checks are still not run on a device: the import review toggle and preview, typing a payee in full, and editing a saved record.
+
+## Payer Label, Suggestions Across Kinds and Faster Payee Screen (2026-11-04)
+
+The user reported that income offered no payees and that the Recent list lagged as the Payee screen opened. **402 tests across 63 suites passed**, and unsigned builds passed for the app on iOS Simulator and macOS and for `WalletWatch` and `WalletWatchWidgets` on watchOS Simulator. SwiftLint still reports 68 warnings, none new. The two existing `RecordEditorView` length warnings grew by 2 lines.
+
+**Measurement:** a throwaway timing test (deleted afterwards) built both structures from 10,000 records with 300 distinct payees, in a release build on a Mac. Before: 18 ms for suggestions and 17 ms for categories, paid on the main thread when Payee first opened. After keying each distinct payee text once: 1.5 ms and 2.0 ms. Six lookups took under 0.1 ms both times. The editor now also builds both in the background when it opens.
+
+The new and changed tests in `PayeeSuggestionsTests` cover:
+
+- the record's own kind coming first, with other kinds filling the remaining places, for typed and empty text and under a limit
+- income with no payers of its own still offering the wallet's payees
+- a payee recorded under two kinds being offered once
+- adjustments and blank payees being left out, and surrounding spaces trimmed
+
+The new `PayeeSuggestionsViewModelTests` test covers data built in the background being used, and a record saved afterwards still being suggested and categorised. The earlier test that expected income payees never to be offered on an expense was replaced, since that is now intended.
+
+**Not verified:** the app was not run, so the Payer label and the lag were not checked in the app; the lag fix is measured only on a Mac.
+
+Manual checks:
+
+1. Add an income and confirm the row and screen say Payer and the caption says "Add payer".
+2. On an income with no payers recorded yet, open Payer and confirm your expense payees are offered; record an income from someone, then confirm they are listed first next time.
+3. With your full wallet, open Add Record, then Payee, and confirm the Recent list appears without a stutter.

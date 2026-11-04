@@ -186,7 +186,7 @@ struct RecordEditorView: View {
                 case .note:
                     RecordTextEntry(title: "Note", text: $draft.note, caption: "Add note", multiline: true)
                 case .payee:
-                    RecordTextEntry(title: "Payee", text: $draft.payee, caption: "Add payee",
+                    RecordTextEntry(title: payeeTitle, text: $draft.payee, caption: "Add \(payeeTitle.lowercased())",
                                     suggestions: payeeSuggestions)
                 }
             }
@@ -202,6 +202,8 @@ struct RecordEditorView: View {
                 focusedField = .amount
             }
             .interactiveDismissDisabled(isBusy)
+            // Ready long before the Payee screen opens, so it does not stall while sliding in.
+            .task { await viewModel.preparePayeeData() }
             .task(id: photoItem) { await loadPhoto() }
             .onChange(of: draft.accountID) { _, id in
                 if draft.destinationAccountID == id { draft.destinationAccountID = nil }
@@ -373,7 +375,11 @@ struct RecordEditorView: View {
         record == nil && draft.countsAsActivity && (draft.categoryID == nil || draft.categoryID == learnedCategoryID)
     }
 
-    /// Payees already recorded for this kind, each with the category choosing it would fill in.
+    /// Income comes from someone, so its counterpart is the payer; spending and transfers go to a payee.
+    /// Both are stored as the record's payee.
+    private var payeeTitle: String { draft.kind == .income ? "Payer" : "Payee" }
+
+    /// Past payees, this kind's first, each with the category choosing it would fill in.
     private func payeeSuggestions(for text: String) -> [TextEntrySuggestion] {
         viewModel.payeeSuggestions(for: text, kind: draft.kind).map { payee in
             let category = fillsLearnedCategory ? viewModel.learnedCategory(forPayee: payee, kind: draft.kind) : nil
@@ -497,7 +503,7 @@ struct RecordEditorView: View {
         // An adjustment is a correction to a balance, not a payment to or from someone.
         if !draft.isAdjustment {
             recordRow("person") {
-                selectionButton("Payee", value: draft.payee.isEmpty ? nil : draft.payee, screen: .payee)
+                selectionButton(payeeTitle, value: draft.payee.isEmpty ? nil : draft.payee, screen: .payee)
             }
             recordRow("creditcard") {
                 selectionButton(

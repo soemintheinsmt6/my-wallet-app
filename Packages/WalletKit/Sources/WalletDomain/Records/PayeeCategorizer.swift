@@ -34,10 +34,11 @@ public struct PayeeCategorizer: Sendable {
     /// Transfers and balance adjustments are not filed under categories, so they teach nothing.
     public init(records: [WalletRecord], categories: [WalletCategory]) {
         let existing = Set(categories.map(\.id))
+        var keys = KeyCache()
         for record in records {
             let draft = record.draft
             guard draft.countsAsActivity, let categoryID = draft.categoryID, existing.contains(categoryID) else { continue }
-            let key = Self.key(for: draft.payee)
+            let key = keys.key(for: draft.payee)
             guard !key.isEmpty else { continue }
             if let current = learned[draft.kind]?[key], current.date >= draft.date { continue }
             learned[draft.kind, default: [:]][key] = Learned(categoryID: categoryID, date: draft.date)
@@ -62,6 +63,19 @@ public struct PayeeCategorizer: Sendable {
     /// The payee as it is compared: lowercased words without accents, numbers or processor prefixes.
     public static func key(for payee: String) -> String {
         words(in: payee).joined(separator: " ")
+    }
+
+    /// Keys worked out once per distinct payee text. A ledger repeats the same few hundred payees
+    /// across thousands of records, and folding and splitting each one is most of the build time.
+    struct KeyCache {
+        private var keys: [String: String] = [:]
+
+        mutating func key(for payee: String) -> String {
+            if let key = keys[payee] { return key }
+            let key = PayeeCategorizer.key(for: payee)
+            keys[payee] = key
+            return key
+        }
     }
 
     private static func words(in payee: String) -> [String] {
