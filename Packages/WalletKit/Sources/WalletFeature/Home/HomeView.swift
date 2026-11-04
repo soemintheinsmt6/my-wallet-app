@@ -209,6 +209,8 @@ public struct HomeView: View {
         case .budgets: budgetSection
         case .goals: goalsSection
         case .bills: billsSection
+        case .forecast:
+            CashFlowForecastSection(planning: planning, previewLimit: previewLimit) { selection = .planning }
         case .recent: recentSection
         }
     }

@@ -15,6 +15,7 @@ public enum DashboardCard: String, CaseIterable, Codable, Sendable, Identifiable
     case budgets
     case goals
     case bills
+    case forecast
     case recent
 
     public var id: String { rawValue }
@@ -32,6 +33,7 @@ public enum DashboardCard: String, CaseIterable, Codable, Sendable, Identifiable
         case .budgets: "Budget Progress"
         case .goals: "Savings Goals"
         case .bills: "Upcoming Bills"
+        case .forecast: "Cash Flow Forecast"
         case .recent: "Recent Activity"
         }
     }
@@ -49,6 +51,7 @@ public enum DashboardCard: String, CaseIterable, Codable, Sendable, Identifiable
         case .budgets: "chart.bar.fill"
         case .goals: "target"
         case .bills: "calendar.badge.clock"
+        case .forecast: "chart.line.text.clipboard"
         case .recent: "list.bullet.rectangle"
         }
     }
@@ -56,7 +59,7 @@ public enum DashboardCard: String, CaseIterable, Codable, Sendable, Identifiable
     /// Shown on a fresh install, in this order.
     public static let defaultOrder: [DashboardCard] = [
         .balance, .accounts, .quickActions, .summary, .balanceTrend, .expenseBreakdown, .topExpenses,
-        .budgets, .bills, .recent,
+        .budgets, .bills, .forecast, .recent,
     ]
 }
 
@@ -135,6 +138,8 @@ public final class DashboardViewModel: ObservableObject {
             stored.introduce(.balanceTrend, after: .summary)
             stored.introduce(.expenseBreakdown, after: .balanceTrend)
             stored.introduce(.topExpenses, after: .expenseBreakdown)
+            // The forecast reads the same bills, so it follows them.
+            stored.introduce(.forecast, after: .bills)
             configuration = stored
         } else {
             configuration = DashboardConfiguration()

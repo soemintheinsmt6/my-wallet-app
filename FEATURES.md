@@ -196,6 +196,30 @@ Track upcoming bills and due dates with push notification reminders.
 
 ---
 
+### 2.5 Cash-Flow Forecast
+
+> **Status:** Implemented; unit-tested and built, not yet verified on device
+> **Modules:** `WalletDomain` (new `Forecast/`), `WalletFeature/Home`, `WalletFeature/Planning`
+
+See each account's balance over the next 30 days, moved by what is already planned for it, so a shortfall shows up before it happens rather than on a statement.
+
+- [x] `CashFlowForecaster` projects each account from its recurring series and unpaid bills
+- [x] Skipped, modified and already-generated occurrences honoured; paused and cancelled series ignored
+- [x] A bill that a recurring expense already pays is counted once
+- [x] Warning when an account is forecast to fall below zero, or below its minimum when one is set
+- [x] Cash Flow Forecast Dashboard card, with a detail sheet charting the daily balance and listing every planned item
+- [ ] Notification ahead of a forecast shortfall
+
+Implementation notes (2026-11-04): the forecast only moves a balance by what the person has scheduled — recurring series and unpaid bills — and never guesses from past spending, so every figure traces back to something they can open in Planning and change. Nothing new is stored; it is worked out from the accounts' balances and the planning data whenever the Dashboard draws, which is cheap since a wallet holds few series and bills.
+
+Each active series contributes the occurrences the generator would write within the horizon, from its next index: a skipped or already-generated occurrence contributes nothing, and a modified one lands on its own date and amount whatever its index, as generation treats it. Paused and cancelled series contribute nothing. A transfer moves both accounts, through the same `balanceEffects` the stored balances use. Each unpaid bill contributes every due date in the horizon as an expense on its account, since paying it with Add Expense records exactly that. An occurrence or bill already due has not reached the balance yet, so it lands today and is marked overdue.
+
+A bill is often only a reminder for a payment a recurring series already records (rent, a subscription). When a bill falls within three days (`LedgerMatcher.postingLagDays`) of a recurring expense of the same amount on the same account, only the recurring one is counted; otherwise the payment would be taken twice. A bill reminding of a payment with a different amount, or on another account, is still counted.
+
+Warnings depend on the account. Cash, checking, savings and other accounts warn when the balance would fall below zero; credit cards, loans and investments routinely sit below zero or swing, so they warn only when the person has turned on a minimum-balance alert for them, and then below that minimum. Any account with a minimum alert warns below its minimum. The card lists accounts forecast to fall below their threshold first, soonest first, and shows when and how low ("Falls to −$30 on 19 Nov"); other accounts show their lowest point and where they end in 30 days. The detail sheet reuses the Balance Trend chart for the day-by-day balance and lists each planned item with the balance it leaves.
+
+Limitations: income or spending that is not scheduled (most day-to-day purchases) is not forecast, so the figure is what the plan alone does to the balance; a bill in another currency than its account is taken at its own amount, as paying it does; and the notification ahead of a shortfall is not built yet.
+
 Implementation notes (2026-09-06): Phase 2 adds a Planning tab for budgets, recurring series, bills and reports. Monthly/weekly budgets are anchored to their start date, use included accounts in one currency, and roll over only positive unused funds. Recurring records are generated on launch/foreground or manual refresh in batches of up to 500 per series; later records do not block behind postponed individual occurrences. Occurrence receipts prevent local retries or record deletion from regenerating charges. Notification permission is explicitly requested from the budget/bill editor; the nearest 60 eligible notices are scheduled/refreshed on app activity. Reports include native paginated PDF export and currency-separated summaries. Four additive SwiftData models store Codable payloads; signed-device CloudKit and notification delivery still require verification.
 
 ## Phase 3 — User Experience Enhancements

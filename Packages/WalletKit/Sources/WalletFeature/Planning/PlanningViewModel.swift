@@ -66,6 +66,17 @@ public final class PlanningViewModel: ObservableObject {
         }
     }
 
+    /// Each account's balance over the coming days, moved by its recurring records and unpaid bills.
+    /// Accounts with something planned come first when they are forecast to fall below their
+    /// threshold, soonest first.
+    public func forecast(days: Int = CashFlowForecaster.defaultDays, now: Date = Date()) -> [AccountForecast] {
+        let forecasts = CashFlowForecaster.forecast(accounts: records.accounts, series: series, occurrences: occurrences,
+                                                    bills: bills, categories: records.categories, now: now, days: days)
+        let warned = forecasts.filter { $0.firstBelowThreshold != nil }
+            .sorted { ($0.firstBelowThreshold?.date ?? now) < ($1.firstBelowThreshold?.date ?? now) }
+        return warned + forecasts.filter { $0.firstBelowThreshold == nil }
+    }
+
     public func save(_ budget: Budget) async throws {
         try await mutate { try await BudgetUseCases(repository: repository).save(budget) }
     }

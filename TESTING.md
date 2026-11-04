@@ -790,3 +790,34 @@ After the payee work reached `main` at 6a63c66, the user ran every outstanding m
 - Scrolling Dismisses the Record Keyboard (2026-11-04): scrolling either way dismissing the keyboard
 
 These entries' "Not verified" notes are superseded by this check. The bank import's earlier matching and tip checks from 2026-11-03 were not part of this run, so the README's Export and import row keeps their device check pending.
+
+## Cash-Flow Forecast (2026-11-04)
+
+Each account's balance is projected over the next 30 days from its recurring series and unpaid bills, on a new Dashboard card with a detail sheet. **413 tests across 64 suites passed**, and unsigned builds passed for the app on iOS Simulator and macOS and for `WalletWatch` and `WalletWatchWidgets` on watchOS Simulator. SwiftLint still reports 68 warnings, none new. The two existing `HomeView` length warnings grew by 2 lines.
+
+New tests in `CashFlowForecastTests` use a fixed UTC calendar and cover:
+
+- a weekly series contributing days 1, 8, 15, 22 and 29 from its next index, with running balances, the lowest point and no warning
+- a skipped occurrence dropped, a modified one moved to its own date and amount, and an already-generated one dropped; an untitled record taking its category's name
+- paused, cancelled and finished (count reached) series contributing nothing
+- an occurrence already due landing today as overdue
+- unpaid bills, repeating and one-off, as expenses on their account; a paid bill dropped; an overdue bill landing today
+- a bill within three days of a recurring expense of the same amount counted once, while a bill of another amount is counted
+- a transfer moving both accounts, and an account with nothing planned left out
+- thresholds: zero for cash, checking and savings; none for cards and loans unless a minimum is set; the minimum when set
+- the first fall below the threshold, below a set minimum, already below today, and none for a card
+- day-by-day balances from the start of today to the last day, ending at the ending balance
+
+`CashFlowForecastViewModelTests` uses an in-memory store. It covers accounts forecast to fall below zero coming first, soonest first, and the card being in the default arrangement right after Upcoming Bills and introduced there into an older saved arrangement.
+
+**Not verified:** the app was not run, so the card, its rows, the detail sheet and its chart were checked only by build.
+
+Manual checks:
+
+1. With a recurring expense and a bill on a checking account, open the Dashboard and confirm the Next 30 days card lists it with its balance in 30 days. Tap it and confirm the chart and the Planned list, with the balance after each item.
+2. Add a bill large enough to take the account below zero within 30 days. Confirm the row turns red with the date and balance, that the account moves to the top, and that the detail sheet shows the warning.
+3. Create a bill with the same amount as a recurring expense on the same account, due a day after it. Confirm only one of the two is listed.
+4. Skip the next occurrence of a series in Recurring and confirm it leaves the forecast; pause the series and confirm all its items leave.
+5. Pay a bill with Mark Paid and Add Expense and confirm the forecast no longer lists that occurrence, while the balance today has dropped by its amount.
+6. Confirm a credit card with charges planned shows its lowest point but no red warning, until a minimum-balance alert is turned on for it.
+7. Confirm that on an existing install the card appears right after Upcoming Bills, and can be hidden and reordered in Edit Dashboard.
