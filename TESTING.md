@@ -709,3 +709,28 @@ Manual checks:
 2. Turn the toggle off and confirm the row uses the expense fallback; turn it back on.
 3. Add a new expense, leave the category empty and enter payee "Starbucks". Confirm the category fills in, and that changing the payee to an unknown one clears it again.
 4. Choose a category first, then enter the payee, and confirm your choice is kept. Edit a saved record's payee and confirm its category does not change.
+
+## Payee Suggestions (2026-11-04)
+
+The Payee screen in the record editor now lists past payees for the record's kind as you type. **397 tests across 62 suites passed**, and unsigned builds passed for the app on iOS Simulator and macOS and for `WalletWatch` and `WalletWatchWidgets` on watchOS Simulator. SwiftLint still reports 68 warnings, none new. The two existing `RecordEditorView` length warnings grew by 9 lines.
+
+New tests in `PayeeSuggestionsTests` cover:
+
+- matching the start of a payee or of any word in it ("COF" finds "Blue Bottle Coffee", "ele" finds "7-Eleven"), but not the middle of a word ("ucks")
+- ignoring accents and case
+- "Starbucks", "STARBUCKS #0042" and "STARBUCKS #0051" offered once, as "Starbucks"
+- payees the text starts listed first, then the most used
+- the most recent payees offered when nothing is typed, up to the limit
+- a payee typed in full not being offered back
+- payees kept per kind, with adjustments and blank payees left out
+
+`PayeeSuggestionsViewModelTests` uses an in-memory store and covers a saved record's payee being offered without a reload.
+
+**Not verified:** the app was not run, so the suggestion list, its category detail and choosing a suggestion were checked only by build.
+
+Manual checks:
+
+1. Add an expense, open Payee with nothing typed, and confirm recent payees are listed under "Recent".
+2. Type the first letters of a known payee and confirm it is listed under "Suggestions" with its category. Choose it and confirm the form shows the payee and the filled-in category.
+3. Choose a category first, then open Payee, and confirm the suggestions show no category.
+4. Switch to Income and confirm only income payees are offered.

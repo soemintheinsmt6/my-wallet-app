@@ -186,7 +186,8 @@ struct RecordEditorView: View {
                 case .note:
                     RecordTextEntry(title: "Note", text: $draft.note, caption: "Add note", multiline: true)
                 case .payee:
-                    RecordTextEntry(title: "Payee", text: $draft.payee, caption: "Add payee")
+                    RecordTextEntry(title: "Payee", text: $draft.payee, caption: "Add payee",
+                                    suggestions: payeeSuggestions)
                 }
             }
             .task {
@@ -361,11 +362,23 @@ struct RecordEditorView: View {
     /// Files a new income or expense under the category last used for its payee, unless the
     /// person already chose one. Editing a saved record never changes its category.
     private func applyLearnedCategory() {
-        guard record == nil, draft.countsAsActivity,
-              draft.categoryID == nil || draft.categoryID == learnedCategoryID else { return }
+        guard fillsLearnedCategory else { return }
         let learned = viewModel.learnedCategory(forPayee: draft.payee, kind: draft.kind)
         draft.categoryID = learned
         learnedCategoryID = learned
+    }
+
+    /// A new income or expense whose category the person has not chosen themselves.
+    private var fillsLearnedCategory: Bool {
+        record == nil && draft.countsAsActivity && (draft.categoryID == nil || draft.categoryID == learnedCategoryID)
+    }
+
+    /// Payees already recorded for this kind, each with the category choosing it would fill in.
+    private func payeeSuggestions(for text: String) -> [TextEntrySuggestion] {
+        viewModel.payeeSuggestions(for: text, kind: draft.kind).map { payee in
+            let category = fillsLearnedCategory ? viewModel.learnedCategory(forPayee: payee, kind: draft.kind) : nil
+            return TextEntrySuggestion(text: payee, detail: category.map { viewModel.categoryName($0) })
+        }
     }
 
     /// Adjustments are not filed under a category, so they leave this row out.

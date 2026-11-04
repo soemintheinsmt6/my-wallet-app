@@ -4,11 +4,14 @@ import WalletDomain
 
 @MainActor
 public final class RecordsViewModel: ObservableObject {
-    @Published public private(set) var records: [WalletRecord] = [] { didSet { cachedCategorizer = nil } }
+    @Published public private(set) var records: [WalletRecord] = [] {
+        didSet { cachedCategorizer = nil; cachedPayeeSuggestions = nil }
+    }
     @Published public private(set) var accounts: [Account] = []
     @Published public private(set) var categories: [WalletCategory] = [] { didSet { cachedCategorizer = nil } }
     /// Built on first use after the records or categories change, not on every keystroke of a payee.
     private var cachedCategorizer: PayeeCategorizer?
+    private var cachedPayeeSuggestions: PayeeSuggestions?
     @Published public private(set) var tags: [WalletTag] = []
     /// True until the wallet has been read once, and false from then on.
     ///
@@ -148,6 +151,13 @@ public final class RecordsViewModel: ObservableObject {
     /// The category last used for this payee, for filing a new record.
     func learnedCategory(forPayee payee: String, kind: RecordKind) -> UUID? {
         payeeCategorizer.category(forPayee: payee, kind: kind)
+    }
+
+    /// Payees already recorded for this kind of record that fit what has been typed.
+    func payeeSuggestions(for text: String, kind: RecordKind) -> [String] {
+        let suggestions = cachedPayeeSuggestions ?? PayeeSuggestions(records: records)
+        cachedPayeeSuggestions = suggestions
+        return suggestions.suggestions(for: text, kind: kind)
     }
     func account(_ id: UUID?) -> Account? { accounts.first { $0.id == id } }
     func category(_ id: UUID?) -> WalletCategory? { categories.first { $0.id == id } }

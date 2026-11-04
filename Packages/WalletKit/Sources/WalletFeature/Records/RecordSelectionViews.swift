@@ -78,6 +78,12 @@ struct RecordPaymentSelection: View {
     }
 }
 
+/// Text offered below a `RecordTextEntry` field, with an optional note such as its category.
+struct TextEntrySuggestion: Hashable {
+    let text: String
+    var detail: String?
+}
+
 /// A pushed screen for one piece of text, focused on arrival so the keyboard is already up.
 /// Edits go straight to the binding; Done or Back returns to the form.
 struct RecordTextEntry: View {
@@ -86,6 +92,8 @@ struct RecordTextEntry: View {
     /// Shown small above the field, in place of a placeholder.
     let caption: String
     var multiline = false
+    /// What to offer for the text typed so far; choosing one fills it in and returns to the form.
+    var suggestions: ((String) -> [TextEntrySuggestion])?
     @Environment(\.dismiss) private var dismiss
     @FocusState private var focused: Bool
 
@@ -109,6 +117,7 @@ struct RecordTextEntry: View {
                 .textFieldStyle(.plain)
                 .focused($focused)
                 .accessibilityLabel(caption)
+                suggestionList
             }
             .padding(.horizontal, WalletMetrics.large)
             .padding(.top, 48)
@@ -124,6 +133,42 @@ struct RecordTextEntry: View {
         .task {
             await Task.yield()
             focused = true
+        }
+    }
+
+    /// Rows that fill the text in, so they carry no chevron: they return rather than open a screen.
+    @ViewBuilder private var suggestionList: some View {
+        let offered = suggestions?(text) ?? []
+        if !offered.isEmpty {
+            VStack(alignment: .leading, spacing: 0) {
+                Text(text.trimmingCharacters(in: .whitespaces).isEmpty ? "Recent" : "Suggestions")
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .padding(.bottom, WalletMetrics.tight)
+                ForEach(offered, id: \.self) { suggestion in
+                    Button {
+                        text = suggestion.text
+                        dismiss()
+                    } label: {
+                        HStack(spacing: WalletMetrics.medium) {
+                            Image(systemName: "clock.arrow.circlepath")
+                                .foregroundStyle(.secondary)
+                                .accessibilityHidden(true)
+                            Text(suggestion.text).foregroundStyle(.primary).lineLimit(1)
+                            Spacer(minLength: WalletMetrics.small)
+                            if let detail = suggestion.detail {
+                                Text(detail).font(.callout).foregroundStyle(.secondary).lineLimit(1)
+                            }
+                        }
+                        .frame(minHeight: WalletMetrics.touchTarget)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityHint("Uses this \(title.lowercased())")
+                    if suggestion != offered.last { Divider() }
+                }
+            }
+            .padding(.top, WalletMetrics.xxLarge)
         }
     }
 }
