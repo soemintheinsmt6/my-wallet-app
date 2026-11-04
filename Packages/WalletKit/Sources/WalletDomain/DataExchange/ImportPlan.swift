@@ -26,6 +26,9 @@ public struct ImportPlan: Sendable, Equatable {
         /// An income or expense row whose file named no category this wallet has, so `categoryID`
         /// is the import's fallback for its kind, or `nil` when none was chosen.
         public let isUncategorized: Bool
+        /// The file named no category this wallet has, and `categoryID` is the one last used for
+        /// the row's payee in the wallet's own records.
+        public let hasLearnedCategory: Bool
         /// For a date-only row, the existing record it matched.
         public let match: LedgerMatcher.Match?
         /// How the matched record's amount would change to what the bank moved, or `nil` when they
@@ -49,8 +52,9 @@ public struct ImportPlan: Sendable, Equatable {
 
         public init(id: UUID = UUID(), row: RecordCSVRow, accountID: UUID?, destinationAccountID: UUID?,
                     categoryID: UUID?, tagIDs: Set<UUID>, newLabelNames: [String], issue: Issue?,
-                    isUncategorized: Bool = false, match: LedgerMatcher.Match? = nil,
-                    amountUpdate: AmountUpdate? = nil, rowIndex: Int = 0) {
+                    isUncategorized: Bool = false, hasLearnedCategory: Bool = false,
+                    match: LedgerMatcher.Match? = nil, amountUpdate: AmountUpdate? = nil, rowIndex: Int = 0) {
+            self.hasLearnedCategory = hasLearnedCategory
             self.match = match
             self.amountUpdate = amountUpdate
             self.rowIndex = rowIndex
@@ -138,6 +142,9 @@ public struct ImportPlan: Sendable, Equatable {
         Set(entries.filter { $0.isUncategorized && $0.issue != .duplicate }.map(\.row.kind))
     }
 
+    /// Rows to be imported under the category last used for their payee.
+    public var learnedCategoryCount: Int { importable.count { $0.hasLearnedCategory } }
+
     /// Bank rows recognised as records already in the wallet, so the review can show what each
     /// matched and the person can spot a wrong match.
     public var matchedToRecords: [Entry] { entries.filter { $0.matchedRecordDate != nil } }
@@ -162,14 +169,16 @@ public enum ImportPlanner {
     /// Rows without a time of day (bank statements) are matched by day instead, against records
     /// imported earlier and entered by hand alike; see `LedgerMatcher`.
     ///
-    /// Income and expense rows whose category the wallet does not have take the fallback chosen
-    /// for their kind in `fallbackCategoryIDs`, and without one cannot be imported.
+    /// Income and expense rows whose category the wallet does not have take the category last used
+    /// for their payee in `categorizer`, else the fallback chosen for their kind in
+    /// `fallbackCategoryIDs`, and without either cannot be imported.
     ///
     /// Rows at `unmatchedRowIndices` are ones the person chose to import despite a match, so they
     /// are left out of matching and the record they matched is free for another row.
     public static func plan(rows: [RecordCSVRow], accounts: [Account], categories: [WalletCategory],
                             tags: [WalletTag], existing: [WalletRecord],
                             fallbackCategoryIDs: [RecordKind: UUID] = [:],
+                            categorizer: PayeeCategorizer? = nil,
                             unmatchedRowIndices: Set<Int> = []) -> ImportPlan {
         let accountsByName = index(accounts.map { ($0.name, $0.id) })
         let tagsByName = index(tags.map { ($0.name, $0.id) })
@@ -213,20 +222,16 @@ public enum ImportPlanner {
                 if let id = tagsByName[normalized(name)] { tagIDs.insert(id) } else { newLabels.append(name) }
             }
 
-            // Transfers and adjustments carry no category.
-            let needsCategory = row.kind != .transfer && !row.isAdjustment
-            var categoryID = categoryIDs[normalized(row.categoryPath)]
-            let isUncategorized = needsCategory && categoryID == nil
-            if isUncategorized {
-                categoryID = fallbackCategoryIDs[row.kind]
-                if categoryID == nil, issue == nil { issue = .needsCategory(row.categoryPath) }
-            }
+            let category = category(for: row, in: categoryIDs, categorizer: categorizer,
+                                    fallbackCategoryIDs: fallbackCategoryIDs)
+            if category.isUncategorized, category.id == nil, issue == nil { issue = .needsCategory(row.categoryPath) }
 
             entries.append(ImportPlan.Entry(row: row, accountID: accountID,
                                             destinationAccountID: destinationID,
-                                            categoryID: categoryID,
+                                            categoryID: category.id,
                                             tagIDs: tagIDs, newLabelNames: newLabels, issue: issue,
-                                            isUncategorized: isUncategorized, match: match,
+                                            isUncategorized: category.isUncategorized,
+                                            hasLearnedCategory: category.isLearned, match: match,
                                             amountUpdate: match.flatMap {
                                                 amountUpdate(for: $0, row: row, record: recordsByID[$0.recordID],
                                                              currencies: currencies)
@@ -234,6 +239,17 @@ public enum ImportPlanner {
                                             rowIndex: index))
         }
         return ImportPlan(entries: entries)
+    }
+
+    /// The category the file names, else the one last used for the row's payee, else the fallback
+    /// for its kind. Transfers and adjustments carry no category.
+    private static func category(for row: RecordCSVRow, in categoryIDs: [String: UUID], categorizer: PayeeCategorizer?,
+                                 fallbackCategoryIDs: [RecordKind: UUID])
+        -> (id: UUID?, isLearned: Bool, isUncategorized: Bool) {
+        guard row.kind != .transfer, !row.isAdjustment else { return (categoryIDs[normalized(row.categoryPath)], false, false) }
+        if let named = categoryIDs[normalized(row.categoryPath)] { return (named, false, false) }
+        if let learned = categorizer?.category(forPayee: row.payee, kind: row.kind) { return (learned, true, false) }
+        return (fallbackCategoryIDs[row.kind], false, true)
     }
 
     /// The change that brings a matched record to the bank's amount. A same-currency transfer moves

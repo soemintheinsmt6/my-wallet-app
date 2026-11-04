@@ -683,3 +683,29 @@ Manual checks:
 2. Repeat with the update toggle off and confirm the record is unchanged.
 3. Split a bill with someone, then import its tipped charge. Confirm the record keeps its amount and the result explains why.
 4. Confirm a record with a receipt photo still has it after its amount is updated.
+
+## Categories by Payee (2026-11-04)
+
+Bank rows without a category now take the category last used for their payee, and a new record in the editor takes it when a payee is entered. **389 tests across 60 suites passed**, and unsigned builds passed for the app on iOS Simulator and macOS and for `WalletWatch` and `WalletWatchWidgets` on watchOS Simulator. SwiftLint still reports 68 warnings, none new. The two existing `RecordEditorView` length warnings grew by 10 lines.
+
+New tests in `PayeeCategorizerTests` cover:
+
+- "STARBUCKS #1234", "POS STARBUCKS 0042" and "GRAB*TRIP SINGAPORE SG" matching payees typed as "Starbucks" and "Grab", while "Grabbing Lunch" does not
+- accented and Burmese payees
+- the longest known start of a description winning ("Grab Food" over "Grab")
+- the most recent record for a payee winning
+- income and spending being learned separately
+- transfers, adjustments, uncategorised records and deleted categories teaching nothing
+- processor words alone ("CARD PAYMENT") naming no payee
+- an import row taking the learned category before the fallback, a category named in the file winning over both, and a learned row not needing a fallback
+
+`PayeeCategorizerViewModelTests` uses an in-memory store. It covers a saved record updating the cached suggestions without a reload, the review's category preview, the toggle switching rows back to the fallback, and the imported records keeping the learned category.
+
+**Not verified:** the app was not run, so the review toggle, the category in the preview rows and the editor filling in the category were checked only by build.
+
+Manual checks:
+
+1. Enter an expense with payee "Starbucks" under a coffee category. Import a statement with a "STARBUCKS #0042" row and confirm the review shows that category beside it and counts it in the toggle's footer.
+2. Turn the toggle off and confirm the row uses the expense fallback; turn it back on.
+3. Add a new expense, leave the category empty and enter payee "Starbucks". Confirm the category fills in, and that changing the payee to an unknown one clears it again.
+4. Choose a category first, then enter the payee, and confirm your choice is kept. Edit a saved record's payee and confirm its category does not change.

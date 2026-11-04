@@ -33,6 +33,9 @@ struct RecordEditorView: View {
     @State private var confirmingDelete = false
     /// Set once a save succeeds, so closing afterwards keeps what was attached.
     @State private var didSave = false
+    /// The category filled in from the payee, which a later payee may replace; one the person
+    /// chose is never replaced.
+    @State private var learnedCategoryID: UUID?
     @AppStorage(WalletPreferenceKeys.lastUsedAccountID) private var lastUsedAccountID = ""
     @AppStorage(WalletPreferenceKeys.lastUsedPaymentType) private var lastUsedPaymentType = PaymentType.unspecified.rawValue
     @FocusState private var focusedField: InputField?
@@ -202,6 +205,8 @@ struct RecordEditorView: View {
             .onChange(of: draft.accountID) { _, id in
                 if draft.destinationAccountID == id { draft.destinationAccountID = nil }
             }
+            .onChange(of: draft.payee) { applyLearnedCategory() }
+            .onChange(of: draft.kind) { applyLearnedCategory() }
         }
         // Pushed pickers and the split sheet stay inside this view, so this runs only when the
         // editor itself closes.
@@ -351,6 +356,16 @@ struct RecordEditorView: View {
                 .contentShape(Rectangle())
             }.buttonStyle(.plain)
         }
+    }
+
+    /// Files a new income or expense under the category last used for its payee, unless the
+    /// person already chose one. Editing a saved record never changes its category.
+    private func applyLearnedCategory() {
+        guard record == nil, draft.countsAsActivity,
+              draft.categoryID == nil || draft.categoryID == learnedCategoryID else { return }
+        let learned = viewModel.learnedCategory(forPayee: draft.payee, kind: draft.kind)
+        draft.categoryID = learned
+        learnedCategoryID = learned
     }
 
     /// Adjustments are not filed under a category, so they leave this row out.

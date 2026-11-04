@@ -155,6 +155,20 @@ private struct ImportPreviewView: View {
                     }
                 }
 
+                let learned = plan.learnedCategoryCount
+                // Kept once turned off, so the person can turn it back on.
+                if learned > 0 || !viewModel.usesLearnedCategories {
+                    Section {
+                        Toggle("Use categories from past records", isOn: Binding(
+                            get: { viewModel.usesLearnedCategories },
+                            set: { viewModel.setUsesLearnedCategories($0) }))
+                    } footer: {
+                        Text(viewModel.usesLearnedCategories
+                             ? "\(learned) row\(learned == 1 ? "" : "s") from payees you've recorded before take the category you used most recently for them."
+                             : "Rows the file doesn't categorise use the categories chosen below.")
+                    }
+                }
+
                 let uncategorized = plan.uncategorizedKinds
                 if !uncategorized.isEmpty {
                     Section {
@@ -245,7 +259,9 @@ private struct ImportPreviewView: View {
                                     Text(viewModel.previewTitle(for: entry))
                                         .font(.callout.weight(.medium))
                                         .lineLimit(1)
-                                    Text("\(entry.row.accountName) · \(entry.row.date.formatted(date: .abbreviated, time: .shortened))")
+                                    Text([viewModel.previewCategory(for: entry), entry.row.accountName,
+                                          entry.row.date.formatted(date: .abbreviated, time: .shortened)]
+                                        .compactMap { $0 }.joined(separator: " · "))
                                         .font(.caption)
                                         .foregroundStyle(.secondary)
                                         .lineLimit(1)

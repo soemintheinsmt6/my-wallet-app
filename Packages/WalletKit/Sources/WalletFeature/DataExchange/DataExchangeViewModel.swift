@@ -21,6 +21,8 @@ public final class DataExchangeViewModel: ObservableObject {
     @Published public private(set) var canReverseSigns = false
     /// Categories for income and expense rows the file leaves uncategorised, as bank statements do.
     @Published public private(set) var fallbackCategoryIDs: [RecordKind: UUID] = [:]
+    /// Whether uncategorised rows take the category last used for their payee before the fallback.
+    @Published public private(set) var usesLearnedCategories = true
     /// Rows matched to an existing record that the person chose to import anyway.
     @Published public private(set) var unmatchedRowIndices: Set<Int> = []
     /// Whether matched records take the bank's amount, so a tip or fee reaches the balance.
@@ -164,6 +166,12 @@ public final class DataExchangeViewModel: ObservableObject {
         replan()
     }
 
+    public func setUsesLearnedCategories(_ uses: Bool) {
+        guard usesLearnedCategories != uses else { return }
+        usesLearnedCategories = uses
+        replan()
+    }
+
     /// Every category and subcategory by its full path, for choosing a fallback.
     public var categoryChoices: [(id: UUID, path: String)] {
         let byID = Dictionary(records.categories.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
@@ -179,6 +187,7 @@ public final class DataExchangeViewModel: ObservableObject {
             plan = ImportPlanner.plan(rows: rows, accounts: records.accounts,
                                       categories: records.categories, tags: records.tags,
                                       existing: records.records, fallbackCategoryIDs: fallbackCategoryIDs,
+                                      categorizer: usesLearnedCategories ? records.payeeCategorizer : nil,
                                       unmatchedRowIndices: unmatchedRowIndices)
             errorMessage = nil
         } catch {
@@ -190,9 +199,25 @@ public final class DataExchangeViewModel: ObservableObject {
     /// The payee for a bank row (its description), else the category it will be saved under.
     public func previewTitle(for entry: ImportPlan.Entry) -> String {
         if entry.row.isAdjustment { return RecordDraft.adjustmentTitle }
-        if entry.isUncategorized, !entry.row.payee.isEmpty { return entry.row.payee }
-        if !entry.row.categoryPath.isEmpty, !entry.isUncategorized { return entry.row.categoryPath }
-        return categoryChoices.first { $0.id == entry.categoryID }?.path ?? entry.row.kind.title
+        if titlesByPayee(entry) { return entry.row.payee }
+        if !entry.row.categoryPath.isEmpty, !entry.isUncategorized, !entry.hasLearnedCategory {
+            return entry.row.categoryPath
+        }
+        return categoryPath(for: entry) ?? entry.row.kind.title
+    }
+
+    /// The category a row titled by its payee will be saved under, so the preview shows both.
+    public func previewCategory(for entry: ImportPlan.Entry) -> String? {
+        titlesByPayee(entry) ? categoryPath(for: entry) : nil
+    }
+
+    /// A row the file gave no category for is better known by its payee.
+    private func titlesByPayee(_ entry: ImportPlan.Entry) -> Bool {
+        !entry.row.isAdjustment && (entry.isUncategorized || entry.hasLearnedCategory) && !entry.row.payee.isEmpty
+    }
+
+    private func categoryPath(for entry: ImportPlan.Entry) -> String? {
+        categoryChoices.first { $0.id == entry.categoryID }?.path
     }
 
     /// The row's own currency, else its account's, so a statement without a Currency column
@@ -218,6 +243,7 @@ public final class DataExchangeViewModel: ObservableObject {
         importOptions = RecordCSVImportOptions()
         canReverseSigns = false
         fallbackCategoryIDs = [:]
+        usesLearnedCategories = true
         unmatchedRowIndices = []
         updatesMatchedAmounts = true
     }

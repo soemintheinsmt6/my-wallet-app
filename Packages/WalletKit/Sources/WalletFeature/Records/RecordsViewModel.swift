@@ -4,9 +4,11 @@ import WalletDomain
 
 @MainActor
 public final class RecordsViewModel: ObservableObject {
-    @Published public private(set) var records: [WalletRecord] = []
+    @Published public private(set) var records: [WalletRecord] = [] { didSet { cachedCategorizer = nil } }
     @Published public private(set) var accounts: [Account] = []
-    @Published public private(set) var categories: [WalletCategory] = []
+    @Published public private(set) var categories: [WalletCategory] = [] { didSet { cachedCategorizer = nil } }
+    /// Built on first use after the records or categories change, not on every keystroke of a payee.
+    private var cachedCategorizer: PayeeCategorizer?
     @Published public private(set) var tags: [WalletTag] = []
     /// True until the wallet has been read once, and false from then on.
     ///
@@ -134,6 +136,19 @@ public final class RecordsViewModel: ObservableObject {
     }
 
     public func photo(id: UUID) async throws -> Data? { try await useCases.photo(id: id) }
+
+    /// Categories learned from the payees of the records held now.
+    public var payeeCategorizer: PayeeCategorizer {
+        if let cachedCategorizer { return cachedCategorizer }
+        let categorizer = PayeeCategorizer(records: records, categories: categories)
+        cachedCategorizer = categorizer
+        return categorizer
+    }
+
+    /// The category last used for this payee, for filing a new record.
+    func learnedCategory(forPayee payee: String, kind: RecordKind) -> UUID? {
+        payeeCategorizer.category(forPayee: payee, kind: kind)
+    }
     func account(_ id: UUID?) -> Account? { accounts.first { $0.id == id } }
     func category(_ id: UUID?) -> WalletCategory? { categories.first { $0.id == id } }
     /// The category or subcategory by its own name, without its parent.
