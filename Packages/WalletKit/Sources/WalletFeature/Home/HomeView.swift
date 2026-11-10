@@ -142,16 +142,23 @@ public struct HomeView: View {
 
     public var body: some View {
         NavigationStack {
-            List {
-                if includedAccounts.isEmpty {
-                    if !records.isLoading { setUpSection }
-                } else {
-                    ForEach(configuration.visible) { card in
-                        section(for: card)
+            // Cards drawn here rather than as grouped list sections, so they all share one radius
+            // (see `DashboardSection`).
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: WalletMetrics.xxLarge) {
+                    if includedAccounts.isEmpty {
+                        if !records.isLoading { setUpSection }
+                    } else {
+                        ForEach(configuration.visible) { card in
+                            section(for: card)
+                        }
+                        InsightsSection(viewModel: insights) { records.categoryName($0) }
                     }
-                    InsightsSection(viewModel: insights) { records.categoryName($0) }
                 }
+                .padding(.horizontal, WalletMetrics.large)
+                .padding(.vertical, WalletMetrics.small)
             }
+            .background(Color.walletGroupedBackground)
             .navigationTitle("Dashboard")
             .toolbar {
                 ToolbarItem {
@@ -218,16 +225,15 @@ public struct HomeView: View {
     // MARK: - Cards
 
     private var setUpSection: some View {
-        Section {
+        DashboardSection(isBare: true) {
             WalletEmptyState(title: "Your wallet starts here", symbol: WalletSymbols.wallet,
                              message: "Create an account to start tracking balances, spending and budgets.",
                              actionTitle: "Go to Accounts") { selection = .more }
-                .listRowBackground(Color.clear)
         }
     }
 
     private var balanceSection: some View {
-        Section {
+        DashboardSection {
             VStack(alignment: .leading, spacing: WalletMetrics.medium) {
                 HStack(alignment: .firstTextBaseline) {
                     Text("Total balance")
@@ -331,7 +337,8 @@ public struct HomeView: View {
     /// Every account as a card with its balance, two to a row, and a tile to add another. A card
     /// opens that account's own screen.
     private var accountsSection: some View {
-        Section {
+        // Bare: the cards are the surface, edge to edge like the Balance card above.
+        DashboardSection(isBare: true) {
             LazyVGrid(columns: [GridItem(.flexible(), spacing: WalletMetrics.medium),
                                 GridItem(.flexible(), spacing: WalletMetrics.medium)],
                       spacing: WalletMetrics.medium) {
@@ -363,18 +370,14 @@ public struct HomeView: View {
                 }
                 .buttonStyle(.plain)
             }
-            // Edge to edge within the section, so the cards line up with the Balance card above.
-            .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: WalletMetrics.small, trailing: 0))
-            .listRowBackground(Color.clear)
-            // The cards are the surface; macOS would otherwise draw rules peeking out around them.
-            .listRowSeparator(.hidden)
         } header: {
             WalletSectionHeader(title: "Accounts", actionTitle: nil) {}
         }
     }
 
     private var quickActionsSection: some View {
-        Section {
+        // Bare: each action is its own card, edge to edge like the cards above.
+        DashboardSection(isBare: true) {
             HStack(spacing: WalletMetrics.medium) {
                 ForEach(RecordKind.allCases) { kind in
                     Button { pendingAdd = kind } label: {
@@ -396,16 +399,12 @@ public struct HomeView: View {
                     .accessibilityLabel("Add \(kind.title.lowercased())")
                 }
             }
-            // Same edges as the Balance card and the account cards.
-            .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: WalletMetrics.small, trailing: 0))
-            .listRowBackground(Color.clear)
-            .listRowSeparator(.hidden)
         }
     }
 
     private var summarySection: some View {
         let result = statistics
-        return Section {
+        return DashboardSection {
             WalletSummaryCard(income: result.income, expenses: result.expenses, currencyCode: selectedCurrency)
         } header: {
             WalletSectionHeader(title: "This Month", actionTitle: "Details") {
@@ -415,7 +414,7 @@ public struct HomeView: View {
     }
 
     private var balanceTrendSection: some View {
-        Section {
+        DashboardSection {
             VStack(alignment: .leading, spacing: WalletMetrics.medium) {
                 VStack(alignment: .leading, spacing: WalletMetrics.hair) {
                     Text("Today")
@@ -438,7 +437,7 @@ public struct HomeView: View {
     }
 
     private var expenseBreakdownSection: some View {
-        Section {
+        DashboardSection {
             ExpenseBreakdownView(byCategory: expensesByCategory, byLabel: expensesByLabel,
                                  total: statistics.expenses, currencyCode: selectedCurrency)
         } header: {
@@ -447,7 +446,7 @@ public struct HomeView: View {
     }
 
     private var topExpensesSection: some View {
-        Section {
+        DashboardSection {
             TopExpensesView(entries: Array(expensesByCategory.prefix(5)), currencyCode: selectedCurrency)
         } header: {
             WalletSectionHeader(title: "Top Expenses · This Month", actionTitle: "Show more") {
@@ -458,7 +457,7 @@ public struct HomeView: View {
 
     @ViewBuilder private var spendingChartSection: some View {
         let trend = statistics.spendingTrend
-        Section {
+        DashboardSection {
             if trend.allSatisfy({ $0.amount == 0 }) {
                 Text("No spending in this period.").foregroundStyle(.secondary)
             } else {
@@ -492,7 +491,7 @@ public struct HomeView: View {
 
     @ViewBuilder private var budgetSection: some View {
         if !budgetProgress.isEmpty {
-            Section {
+            DashboardSection {
                 ForEach(budgetProgress) { BudgetProgressRow(progress: $0) }
             } header: {
                 WalletSectionHeader(title: "Budget progress", actionTitle: "All budgets") { selection = .planning }
@@ -502,7 +501,7 @@ public struct HomeView: View {
 
     @ViewBuilder private var goalsSection: some View {
         if !goalProgress.isEmpty {
-            Section {
+            DashboardSection {
                 ForEach(goalProgress) { progress in
                     HStack(spacing: WalletMetrics.medium) {
                         GoalRing(fraction: progress.fraction, isAchieved: progress.isAchieved)
@@ -530,7 +529,7 @@ public struct HomeView: View {
 
     @ViewBuilder private var billsSection: some View {
         if !upcomingBills.isEmpty {
-            Section {
+            DashboardSection {
                 ForEach(upcomingBills) { entry in
                     BillSummaryRow(bill: entry.bill, due: entry.due)
                 }
@@ -541,7 +540,7 @@ public struct HomeView: View {
     }
 
     @ViewBuilder private var recentSection: some View {
-        Section {
+        DashboardSection {
             if recentRecords.isEmpty {
                 Text("No records yet. Add your first expense or income.")
                     .font(.subheadline)

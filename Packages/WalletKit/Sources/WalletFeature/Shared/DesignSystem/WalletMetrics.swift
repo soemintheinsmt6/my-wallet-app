@@ -18,19 +18,10 @@ enum WalletMetrics {
     /// Minimum height for anything tappable.
     static let touchTarget: CGFloat = 44
 
-    /// The corner radius of a card laid out inside a grouped list, such as the Dashboard's account
-    /// cards and quick actions. It matches the radius the list itself rounds a section to, which
-    /// also clips the outer corners of cards placed edge to edge in a row; any other radius leaves
-    /// a card rounded one way where it meets the section's edge and another way inside it.
-    /// Measured from the system's sections: 30 points from iOS 26, 10 before.
-    static var cardRadius: CGFloat {
-        #if os(iOS)
-        if #available(iOS 26, *) { return 30 }
-        return 10
-        #else
-        return large
-        #endif
-    }
+    /// The corner radius of every Dashboard card. The Dashboard draws its own cards
+    /// (`DashboardSection`) rather than grouped list sections, which from iOS 26 round to about 30
+    /// points and clip cards placed inside them to that, so one radius holds on every corner.
+    static let cardRadius: CGFloat = 20
 
     /// Leading icon tiles shared by records, categories, accounts and labels.
     enum Tile {

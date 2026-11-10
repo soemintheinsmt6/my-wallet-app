@@ -14,7 +14,7 @@ struct CashFlowForecastSection: View {
 
     var body: some View {
         let forecasts = forecasts
-        Section {
+        DashboardSection {
             if forecasts.isEmpty {
                 Text("Nothing planned in the next \(CashFlowForecaster.defaultDays) days. Recurring records and bills appear here.")
                     .font(.subheadline)

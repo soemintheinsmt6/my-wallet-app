@@ -11,7 +11,7 @@ struct InsightsSection: View {
 
     var body: some View {
         if !insights.isEmpty {
-            Section("Insights") {
+            DashboardSection("Insights") {
                 if let week = insights.week, week.current > 0 || week.previous > 0 {
                     comparisonRow("Spent this week", period: "last week", week)
                 }
@@ -42,8 +42,9 @@ struct InsightsSection: View {
                     .lineLimit(2)
             }
             Spacer(minLength: WalletMetrics.small)
-            WalletAmountText(amount: comparison.current, currencyCode: comparison.currencyCode, kind: .expense,
-                             font: .subheadline.weight(.semibold))
+            // Nothing spent yet reads as a plain 0, not "−0" in red.
+            WalletAmountText(amount: comparison.current, currencyCode: comparison.currencyCode,
+                             kind: comparison.current > 0 ? .expense : nil, font: .subheadline.weight(.semibold))
         }
         .frame(minHeight: WalletMetrics.touchTarget)
         .walletListRowPadding(WalletMetrics.tight)
