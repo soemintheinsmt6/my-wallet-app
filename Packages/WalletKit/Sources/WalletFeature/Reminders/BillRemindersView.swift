@@ -236,7 +236,7 @@ private struct BillDetailView: View {
     private func header(_ bill: BillReminder) -> some View {
         let due = bill.nextDueDate
         let isOverdue = due.map { $0 < Date() } ?? false
-        return Section {
+        return Group {
             VStack(spacing: WalletMetrics.medium) {
                 WalletIconTile(symbol: BillStatus.symbol(due: due, isOverdue: isOverdue),
                                color: BillStatus.color(due: due, isOverdue: isOverdue), large: true)
@@ -265,11 +265,14 @@ private struct BillDetailView: View {
     }
 
     /// Every row leads with a tile, so the section's icons match: the account's and category's
-    /// own, and Planning's recurring and reminder colors for the schedule.
-    private func details(_ bill: BillReminder) -> some View {
+    /// own, and Planning's recurring and reminder colors for the schedule. Rows under a band row
+    /// rather than a section with a header, so the space under the last row matches the space
+    /// above the first (see `WalletListSectionHeader`).
+    @ViewBuilder private func details(_ bill: BillReminder) -> some View {
         let account = viewModel.records.account(bill.accountID)
         let category = viewModel.records.category(bill.categoryID)
-        return Section {
+        WalletListSectionHeader("Details")
+        Group {
             WalletListValueRow(title: "Account", value: account?.name ?? "None") {
                 WalletIconTile(symbol: account?.symbol ?? WalletSymbols.walletFill,
                                color: account?.settings.color.tint ?? .gray)
@@ -284,15 +287,14 @@ private struct BillDetailView: View {
                                : bill.reminderDaysBefore == 0 ? "On due date" : "\(bill.reminderDaysBefore) days before") {
                 WalletIconTile(symbol: "bell.fill", color: .purple)
             }
-            // The band below separates sections, so the last row draws no rule of its own.
+            // The band below separates the groups, so the last row draws no rule of its own.
             .listRowSeparator(.hidden, edges: .bottom)
-        } header: {
-            WalletListSectionHeader("Details")
         }
     }
 
-    private func actions(_ bill: BillReminder) -> some View {
-        Section {
+    @ViewBuilder private func actions(_ bill: BillReminder) -> some View {
+        WalletListSectionHeader("Manage")
+        Group {
             Button { editing = bill } label: {
                 Label("Edit Bill", systemImage: "square.and.pencil")
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -300,8 +302,6 @@ private struct BillDetailView: View {
             }
             WalletDestructiveRow(title: "Delete Bill") { confirmingDelete = true }
                 .listRowSeparator(.hidden, edges: .bottom)
-        } header: {
-            WalletListSectionHeader("Manage")
         }
     }
 }

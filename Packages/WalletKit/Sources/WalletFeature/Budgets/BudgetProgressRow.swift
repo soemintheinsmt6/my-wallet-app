@@ -84,16 +84,16 @@ struct BudgetProgressSection: View {
     var body: some View {
         let values = viewModel.progress(categoryID: categoryID)
         if !values.isEmpty {
-            Section {
+            if bandHeader {
+                // The band is a row, and the next band separates the groups, so the last row draws
+                // no rule of its own.
+                WalletListSectionHeader("Budget progress")
                 ForEach(values) { progress in
                     BudgetProgressRow(progress: progress)
-                        // Under a band heading the next band separates sections, so the last
-                        // row draws no rule of its own.
-                        .listRowSeparator(bandHeader && progress.id == values.last?.id ? .hidden : .automatic,
-                                          edges: .bottom)
+                        .listRowSeparator(progress.id == values.last?.id ? .hidden : .automatic, edges: .bottom)
                 }
-            } header: {
-                if bandHeader { WalletListSectionHeader("Budget progress") } else { Text("Budget progress") }
+            } else {
+                Section("Budget progress") { ForEach(values) { BudgetProgressRow(progress: $0) } }
             }
         }
     }

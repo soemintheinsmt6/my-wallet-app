@@ -42,9 +42,11 @@ struct WalletEditorSectionHeader: View {
     }
 }
 
-/// The editor's section heading as a plain `List` section header, for detail screens that need a
-/// list's swipe actions and pull to refresh but should read like the editors. Full width, and
-/// opaque so it stays solid while pinned over the rows scrolling beneath it.
+/// The editor's section heading as a row of a plain `List`, for detail screens that need a list's
+/// swipe actions and pull to refresh but should read like the editors. Placed among the rows rather
+/// than as a section header, because a plain list pads above every header: the gap under a group's
+/// last row would then be larger than the gap above its first. Full width and without rules; the
+/// row above it hides its bottom rule, since the band separates the groups.
 struct WalletListSectionHeader: View {
     let title: String
 
@@ -52,8 +54,9 @@ struct WalletListSectionHeader: View {
 
     var body: some View {
         WalletEditorSectionHeader(title: title)
-            .background(.background)
             .listRowInsets(EdgeInsets())
+            .listRowSeparator(.hidden)
+            .accessibilityAddTraits(.isHeader)
     }
 }
 

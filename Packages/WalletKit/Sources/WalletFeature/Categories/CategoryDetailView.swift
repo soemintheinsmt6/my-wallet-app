@@ -39,7 +39,7 @@ struct CategoryDetailView: View {
     }
 
     private func header(_ category: WalletCategory) -> some View {
-        Section {
+        Group {
             VStack(spacing: WalletMetrics.medium) {
                 CategoryIcon(category: category).scaleEffect(1.25)
                 VStack(spacing: WalletMetrics.small) {
@@ -56,9 +56,12 @@ struct CategoryDetailView: View {
         }
     }
 
-    private func subcategories(_ category: WalletCategory) -> some View {
+    /// Rows under a band row rather than a section with a header, so the space under the last row
+    /// matches the space above the first (see `WalletListSectionHeader`).
+    @ViewBuilder private func subcategories(_ category: WalletCategory) -> some View {
         let children = viewModel.subcategories(of: category.id)
-        return Section {
+        WalletListSectionHeader("Subcategories")
+        Group {
             if children.isEmpty {
                 Text("No subcategories yet.").foregroundStyle(.secondary)
             }
@@ -94,26 +97,21 @@ struct CategoryDetailView: View {
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            // The band below separates sections, so the last row draws no rule of its own.
+            // The band below separates the groups, so the last row draws no rule of its own.
             .listRowSeparator(.hidden, edges: .bottom)
-        } header: {
-            WalletListSectionHeader("Subcategories")
         }
     }
 
     /// Name, icon, color and nature are all in the editor, so editing is one row; the color and
     /// icon rows that repeated it here are gone.
-    private func actions(_ category: WalletCategory) -> some View {
-        Section {
-            Button { editor = CategoryEditorRoute(category: category) } label: {
-                Label("Edit Category", systemImage: "square.and.pencil")
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .contentShape(Rectangle())
-            }
-            WalletDestructiveRow(title: "Delete Category") { deleting = category }
-                .listRowSeparator(.hidden, edges: .bottom)
-        } header: {
-            WalletListSectionHeader("Manage")
+    @ViewBuilder private func actions(_ category: WalletCategory) -> some View {
+        WalletListSectionHeader("Manage")
+        Button { editor = CategoryEditorRoute(category: category) } label: {
+            Label("Edit Category", systemImage: "square.and.pencil")
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
         }
+        WalletDestructiveRow(title: "Delete Category") { deleting = category }
+            .listRowSeparator(.hidden, edges: .bottom)
     }
 }
