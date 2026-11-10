@@ -208,7 +208,13 @@ struct GoalContributionView: View {
     @State private var toAccountID: UUID?
     @State private var categoryID: UUID?
     @State private var errorMessage: String?
+    @State private var screen: Screen?
+    @State private var didLoad = false
+    @FocusState private var focusedField: Field?
     @Environment(\.dismiss) private var dismiss
+
+    private enum Field: Hashable { case amount }
+    private enum Screen: Hashable { case from, to, category }
 
     private var accounts: [Account] {
         viewModel.records.accounts.filter { $0.currencyCode == progress.goal.currencyCode }
@@ -221,91 +227,166 @@ struct GoalContributionView: View {
 
     /// A transfer needs two distinct accounts; a withdrawal cannot be recorded as one here.
     private var canMoveMoney: Bool { accounts.count >= 2 && !isWithdrawal }
+    /// The switch only counts while its section shows: switching to a withdrawal hides it, and a
+    /// hidden switch must not keep Save waiting for accounts that can no longer be chosen.
+    private var transfers: Bool { movesMoney && canMoveMoney }
+
+    private var canSave: Bool { parsed != nil && !viewModel.isSaving && (!transfers || hasValidTransfer) }
 
     var body: some View {
         NavigationStack {
-            Form {
-                Section {
-                    Picker("Type", selection: $isWithdrawal.animation()) {
-                        Text("Contribution").tag(false)
-                        Text("Withdrawal").tag(true)
-                    }
-                    .pickerStyle(.segmented)
-                    LabeledContent("Amount") {
-                        WalletAmountField(amount: amount) {
-                            TextField("", text: $amount.groupedAmount())
-                                #if os(iOS)
-                                    .keyboardType(.decimalPad)
-                                #endif
-                        }
-                        .monospacedDigit()
-                    }
-                    if !isWithdrawal, progress.remaining > 0 {
-                        Button("Finish the Goal") {
-                            amount = AccountAmountInput.text(progress.remaining)
-                        }
-                    }
-                } header: {
-                    Text(progress.goal.name)
-                } footer: {
-                    Text("Saved so far: \(progress.saved.walletFormatted(progress.goal.currencyCode)) of \(progress.goal.targetAmount.walletFormatted(progress.goal.currencyCode)).")
-                }
-
-                if canMoveMoney {
-                    Section {
-                        Toggle("Also move the money", isOn: $movesMoney.animation())
-                        if movesMoney {
-                            WalletMenuPicker("From", selection: $fromAccountID,
-                                             value: viewModel.records.account(fromAccountID)?.name ?? "Choose") {
-                                Text("Choose").tag(nil as UUID?)
-                                ForEach(accounts) { Text($0.name).tag(Optional($0.id)) }
-                            }
-                            WalletMenuPicker("To", selection: $toAccountID,
-                                             value: viewModel.records.account(toAccountID)?.name ?? "Choose") {
-                                Text("Choose").tag(nil as UUID?)
-                                ForEach(accounts.filter { $0.id != fromAccountID }) {
-                                    Text($0.name).tag(Optional($0.id))
-                                }
-                            }
-                            WalletMenuPicker("Category", selection: $categoryID,
-                                             value: categoryID == nil ? "None" : viewModel.records.categoryName(categoryID)) {
-                                Text("None").tag(nil as UUID?)
-                                ForEach(viewModel.records.categories) {
-                                    Text(viewModel.records.categoryName($0.id)).tag(Optional($0.id))
-                                }
-                            }
-                        }
-                    } header: {
-                        Text("Ledger")
-                    } footer: {
-                        Text("Records a transfer between two of your accounts. Leave off to track the contribution against the goal only.")
+            // The record editor's layout: the kind and amount on top, then rows.
+            ScrollView {
+                VStack(spacing: 0) {
+                    amountSection
+                    goalSection
+                    if canMoveMoney { ledgerSection }
+                    if let errorMessage {
+                        Label(errorMessage, systemImage: "exclamationmark.triangle")
+                            .foregroundStyle(.red)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(20)
                     }
                 }
-
-                if let errorMessage {
-                    Section {
-                        Label(errorMessage, systemImage: "exclamationmark.triangle").foregroundStyle(.red)
-                    }
+                .background {
+                    Color.clear.contentShape(Rectangle())
+                        .onTapGesture { focusedField = nil }
                 }
+                .walletEditorRows()
             }
-            .formStyle(.grouped)
+            .scrollDismissesKeyboard(.immediately)
+            .walletEditorPage()
             .navigationTitle(isWithdrawal ? "Withdraw" : "Contribute")
             #if !os(macOS)
                 .navigationBarTitleDisplayMode(.inline)
             #endif
+            .navigationDestination(item: $screen) { screen in
+                switch screen {
+                case .from:
+                    RecordAccountSelection(accounts: accounts, selection: $fromAccountID, title: "From account")
+                case .to:
+                    RecordAccountSelection(accounts: accounts.filter { $0.id != fromAccountID },
+                                           selection: $toAccountID, title: "To account")
+                case .category:
+                    RecordCategoryPicker(viewModel: viewModel.records, kind: .transfer,
+                                         selection: $categoryID) { self.screen = nil }
+                }
+            }
+            // Moving the money out of the account it was going into would make no transfer.
+            .onChange(of: fromAccountID) { _, id in if toAccountID == id { toAccountID = nil } }
             .disabled(viewModel.isSaving)
+            // Pinned at the bottom like the record editor's Save.
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                WalletEditorBottomButton(title: "Save", isBusy: viewModel.isSaving, isEnabled: canSave) { save() }
+            }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") { save() }
-                        .disabled(parsed == nil || viewModel.isSaving || (movesMoney && !hasValidTransfer))
-                }
+            }
+            .task {
+                // Runs again on returning from a pushed screen; only the first appearance focuses.
+                guard !didLoad else { return }
+                didLoad = true
+                await Task.yield()
+                focusedField = .amount
             }
             .interactiveDismissDisabled(viewModel.isSaving)
         }
         #if os(macOS)
         .frame(minWidth: 500, minHeight: 520)
         #endif
+    }
+
+    /// Green with a plus for money put toward the goal, red with a minus for money taken out, as
+    /// income and expenses are in the record editor. The currency is the goal's, so its chip is not
+    /// a button.
+    private var amountSection: some View {
+        VStack(spacing: 12) {
+            Picker("Type", selection: $isWithdrawal.animation()) {
+                Text("Contribution").tag(false)
+                Text("Withdrawal").tag(true)
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            RecordAmountField(
+                sign: isWithdrawal ? "−" : "+", color: isWithdrawal ? .red : .green,
+                label: isWithdrawal ? "Withdrawal amount" : "Contribution amount",
+                currency: progress.goal.currencyCode, amount: $amount, focus: $focusedField, field: .amount)
+        }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 12)
+    }
+
+    /// Where the goal stands, and a shortcut to the amount that completes it. Both rows lead with
+    /// a tile, as the goal editor's name and account rows do.
+    @ViewBuilder private var goalSection: some View {
+        let currency = progress.goal.currencyCode
+        let finishes = !isWithdrawal && progress.remaining > 0
+        WalletEditorSectionHeader(title: progress.goal.name) { focusedField = nil }
+        RecordFormRow(symbol: "banknote.fill", color: .green, filledIcon: true, showsDivider: finishes) {
+            Text("Saved")
+            Spacer()
+            Text("\(progress.saved.walletFormatted(currency)) of \(progress.goal.targetAmount.walletFormatted(currency))")
+                .foregroundStyle(.secondary)
+                .monospacedDigit()
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+        }
+        .frame(minHeight: 44)
+        .accessibilityElement(children: .combine)
+        if finishes {
+            RecordFormRow(symbol: "flag.fill", color: .orange, filledIcon: true, showsDivider: false) {
+                Button {
+                    focusedField = nil
+                    amount = AccountAmountInput.text(progress.remaining)
+                } label: {
+                    HStack {
+                        Text("Finish the Goal").foregroundStyle(.tint)
+                        Spacer()
+                        Text(progress.remaining.walletFormatted(currency)).foregroundStyle(.secondary).monospacedDigit()
+                    }
+                    .frame(maxWidth: .infinity, minHeight: 44)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+
+    /// The switch and the transfer it records. Every row leads with a tile: the switch's own, the
+    /// record editor's wallet for both accounts, and the chosen category's.
+    @ViewBuilder private var ledgerSection: some View {
+        WalletEditorSectionHeader(title: "Ledger") { focusedField = nil }
+        RecordFormRow(symbol: "arrow.left.arrow.right", color: .blue, filledIcon: true, showsDivider: movesMoney) {
+            Toggle("Also move the money", isOn: $movesMoney.animation())
+        }
+        if movesMoney {
+            RecordFormRow(symbol: WalletSymbols.walletFill, color: .blue, filledIcon: true) {
+                WalletEditorNavigationButton(title: "From account",
+                                             value: viewModel.records.account(fromAccountID)?.name ?? "Choose") {
+                    open(.from)
+                }
+            }
+            RecordFormRow(symbol: WalletSymbols.walletFill, color: .blue, filledIcon: true) {
+                WalletEditorNavigationButton(title: "To account",
+                                             value: viewModel.records.account(toAccountID)?.name ?? "Choose") {
+                    open(.to)
+                }
+            }
+            RecordFormRow(symbol: "questionmark", category: viewModel.records.category(categoryID),
+                          categoryTile: true, showsDivider: false) {
+                WalletEditorNavigationButton(title: "Category",
+                                             value: categoryID == nil ? "None" : viewModel.records.categoryName(categoryID)) {
+                    open(.category)
+                }
+            }
+        }
+        WalletEditorCaption("Records a transfer between two of your accounts. Leave off to track the contribution "
+                            + "against the goal only.")
+    }
+
+    private func open(_ destination: Screen) {
+        focusedField = nil
+        screen = destination
     }
 
     private var hasValidTransfer: Bool {
@@ -317,11 +398,11 @@ struct GoalContributionView: View {
         guard let value = parsed else { return }
         Task {
             do {
-                let from = movesMoney ? accounts.first { $0.id == fromAccountID } : nil
-                let to = movesMoney ? accounts.first { $0.id == toAccountID } : nil
+                let from = transfers ? accounts.first { $0.id == fromAccountID } : nil
+                let to = transfers ? accounts.first { $0.id == toAccountID } : nil
                 try await viewModel.contribute(to: progress.goal, amount: value,
                                                from: from, to: to,
-                                               categoryID: movesMoney ? categoryID : nil)
+                                               categoryID: transfers ? categoryID : nil)
                 dismiss()
             } catch { errorMessage = error.localizedDescription }
         }
