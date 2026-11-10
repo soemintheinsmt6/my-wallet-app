@@ -197,10 +197,11 @@ private struct BudgetEditorView: View {
     }
 
     /// The category row shows the chosen category's own tile, as the record editor does; a gray
-    /// grid stands for Overall.
+    /// grid stands for Overall. The name takes a tile too, the budget's own green chart from the
+    /// Budgets list, so the two rows of the section match.
     @ViewBuilder private var generalSection: some View {
         WalletEditorSectionHeader(title: "General") { focusedField = nil }
-        RecordFormRow(symbol: "chart.bar") {
+        RecordFormRow(symbol: "chart.bar.fill", color: .green, filledIcon: true) {
             WalletEditorNavigationButton(title: "Name", value: budget.name.isEmpty ? nil : budget.name) { open(.name) }
         }
         RecordFormRow(symbol: "square.grid.2x2.fill", category: viewModel.records.category(budget.categoryID),
