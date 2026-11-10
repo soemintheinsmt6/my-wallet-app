@@ -18,6 +18,8 @@ public struct DebtsView: View {
                     ForEach(balance.debts) { progress in
                         Button { editing = progress.debt } label: { row(progress) }
                             .buttonStyle(.plain)
+                            // Its Settle line below belongs to it, so no rule between them.
+                            .listRowSeparator(progress.isSettled ? .automatic : .hidden, edges: .bottom)
                             .swipeActions(edge: .leading) {
                                 if !progress.isSettled {
                                     Button("Settle", systemImage: "checkmark") { settling = progress }
@@ -27,6 +29,7 @@ public struct DebtsView: View {
                             .swipeActions {
                                 Button("Delete", role: .destructive) { deleting = progress }
                             }
+                        if !progress.isSettled { settleRow(progress) }
                     }
                 } header: {
                     header(balance)
@@ -119,15 +122,6 @@ public struct DebtsView: View {
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
                 }
-                // Visible, as bills carry Pay, so settling never depends on discovering the swipe.
-                if !progress.isSettled {
-                    Button("Settle") { settling = progress }
-                        .buttonStyle(.borderedProminent)
-                        .buttonBorderShape(.capsule)
-                        .controlSize(.small)
-                        .tint(progress.isOverdue ? .red : progress.debt.direction == .owedToMe ? .green : .orange)
-                        .accessibilityLabel("Settle \(progress.debt.direction.title.lowercased()), \(progress.debt.person)")
-                }
             }
             // Tapping opens the debt's editor.
             WalletDisclosure()
@@ -136,6 +130,23 @@ public struct DebtsView: View {
         .padding(.vertical, WalletMetrics.tight)
         .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
+    }
+
+    /// Settling on its own line under the debt, as goals carry Add Money, so it never depends on
+    /// discovering the swipe and the debt's row keeps its amount clear. Indented under the debt's
+    /// text and tinted like its tile: green, orange, or red once overdue.
+    private func settleRow(_ progress: DebtProgress) -> some View {
+        Button { settling = progress } label: {
+            Label("Settle", systemImage: "checkmark.circle.fill")
+                .font(.body.weight(.medium))
+                .foregroundStyle(progress.isOverdue ? .red : progress.debt.direction == .owedToMe ? .green : .orange)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .padding(.leading, WalletMetrics.Tile.size + WalletMetrics.medium)
+        .listRowSeparator(.hidden, edges: .top)
+        .accessibilityLabel("Settle \(progress.debt.direction.title.lowercased()), \(progress.debt.person)")
     }
 
     private func detail(_ progress: DebtProgress) -> String {
