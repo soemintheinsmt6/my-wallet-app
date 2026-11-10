@@ -14,13 +14,17 @@ struct AccountEditorView: View {
     @State private var maximumText: String
     @State private var accountNumberText: String
     @State private var errorMessage: String?
-    @State private var choosingCurrency = false
+    @State private var screen: Screen?
     @State private var choosingSymbol = false
     @State private var confirmingDeletion = false
     @State private var wasDeleted = false
+    @FocusState private var focusedField: Field?
     @Environment(\.mainCurrency) private var mainCurrency
     /// Called after the account is deleted from here, once this editor has closed.
     private let onDeleted: () -> Void
+
+    private enum Field: Hashable { case balance, accountNumber, minimum, maximum }
+    private enum Screen: Hashable { case currency, name }
 
     init(viewModel: AccountsViewModel, account: Account? = nil, onDeleted: @escaping () -> Void = {}) {
         self.viewModel = viewModel
@@ -42,167 +46,53 @@ struct AccountEditorView: View {
     }
 
     private var trimmedName: String { name.trimmingCharacters(in: .whitespacesAndNewlines) }
+    /// Follows the type being edited until an icon is chosen.
+    private var symbol: String { settings.symbol ?? type.symbol }
 
     var body: some View {
         NavigationStack {
-            Form {
-                Section {
-                    // Label leading and the field trailing, like Currency, Balance and Type below it
-                    // and the Name row in the category and label editors.
-                    HStack(spacing: 16) {
-                        Text("Name")
-                        TextField("Name", text: $name)
-                            .multilineTextAlignment(.trailing)
-                            .accessibilityLabel("Name")
+            // The record editor's layout: the balance on top, then rows.
+            ScrollView {
+                VStack(spacing: 0) {
+                    balanceSection
+                    generalSection
+                    appearanceSection
+                    alertsSection
+                    statisticsSection
+                    if let errorMessage {
+                        Text(errorMessage)
+                            .foregroundStyle(.red)
+                            .padding(20)
+                            .accessibilityLabel("Error: \(errorMessage)")
                     }
-                    .onAppear { if currencyCode.isEmpty { currencyCode = mainCurrency } }
-                    if account == nil {
-                        // Reads as the row it is — a label, the choice, and somewhere to go —
-                        // rather than as a line of button-tinted text.
-                        Button { choosingCurrency = true } label: {
-                            HStack {
-                                Text("Currency").foregroundStyle(.primary)
-                                Spacer()
-                                Text(currencyCode).foregroundStyle(.secondary)
-                                WalletDisclosure()
-                            }
-                            .contentShape(.rect)
+                    // Last, like Delete Record in the record editor. Opens the same sheet as swiping
+                    // an account, which shows what happens to its records before anything is deleted.
+                    if account != nil {
+                        WalletEditorDeleteButton(title: "Delete Account") {
+                            focusedField = nil
+                            confirmingDeletion = true
                         }
-                        // Without this the form tints the whole label, and the row reads as a line
-                        // of blue text rather than as a setting with a value.
-                        .buttonStyle(.plain)
-                    } else {
-                        LabeledContent("Currency", value: currencyCode)
-                    }
-                    // The opening amount is the number people check before saving, so it is set in
-                    // the rounded balance type the dashboard total uses. The currency is chosen a
-                    // row above, so it is not repeated here.
-                    LabeledContent("Balance") {
-                        WalletAmountField(amount: balanceText) {
-                            TextField("", text: $balanceText.groupedAmount())
-                                #if os(iOS)
-                                    .keyboardType(.decimalPad)
-                                #endif
-                                .accessibilityLabel("Balance in \(currencyCode)")
-                        }
-                        .font(.system(.largeTitle, design: .rounded, weight: .semibold))
-                        .monospacedDigit()
-                    }
-                    WalletMenuPicker("Type", selection: $type, value: type.title) {
-                        ForEach(AccountType.allCases) { option in
-                            Label(option.title, systemImage: option.symbol).tag(option)
-                        }
-                    }
-                    Button { choosingSymbol = true } label: {
-                        LabeledContent("Icon") {
-                            HStack(spacing: WalletMetrics.small) {
-                                // Follows the type being edited until an icon is chosen.
-                                WalletIconTile(symbol: settings.symbol ?? type.symbol, color: settings.color.tint)
-                                WalletDisclosure()
-                            }
-                        }
-                        .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                } header: {
-                    Text("Account")
-                } footer: {
-                    if account == nil {
-                        Text("Currency is chosen once when you create an account. Enter amounts using your local decimal separator; thousands are grouped for you. Leave the balance empty to open the account at zero.")
-                    } else {
-                        Text("Changing the balance records the difference as a balance adjustment dated now, so earlier history stays as it was. To choose the date or add a note, use Adjust Balance on the account.")
                     }
                 }
-
-                // Follows the type being edited: cash has no number, so the section leaves with it.
-                if type.hasAccountNumber {
-                    Section {
-                        HStack(spacing: 16) {
-                            Text(type.accountNumberTitle)
-                            TextField("Optional", text: $accountNumberText)
-                                .multilineTextAlignment(.trailing)
-                                .monospacedDigit()
-                                .autocorrectionDisabled()
-                                #if os(iOS)
-                                    .textInputAutocapitalization(.characters)
-                                    .keyboardType(type == .creditCard ? .numberPad : .asciiCapable)
-                                    .textContentType(type == .creditCard ? .creditCardNumber : nil)
-                                #endif
-                                .accessibilityLabel(type.accountNumberTitle)
-                        }
-                    } footer: {
-                        Text("Shown as •••• and the last four characters everywhere but here; tap it on the account to copy the full number. It syncs end-to-end encrypted through iCloud and is included in JSON backups.")
-                    }
-                }
-
-                Section("Color") {
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 60))], spacing: 12) {
-                        ForEach(AccountColor.allCases) { color in
-                            Button { settings.color = color } label: {
-                                VStack(spacing: 6) {
-                                    Circle().fill(color.tint)
-                                        .frame(width: 36, height: 36)
-                                        .overlay {
-                                            if settings.color == color {
-                                                Image(systemName: "checkmark").font(.headline).foregroundStyle(.white)
-                                            }
-                                        }
-                                    Text(color.title).font(.caption).foregroundStyle(.primary)
-                                }
-                                .frame(minWidth: 44, minHeight: 60)
-                            }
-                            .buttonStyle(.plain)
-                            .accessibilityLabel(color.title)
-                            .accessibilityAddTraits(settings.color == color ? .isSelected : [])
-                        }
-                    }
-                    .padding(.vertical, 4)
-                }
-
-                Section {
-                    Toggle("Balance below limit", isOn: $settings.notifyBelowMinimum)
-                    if settings.notifyBelowMinimum {
-                        WalletAmountField(amount: minimumText, placeholder: "Minimum balance (\(currencyCode))",
-                                          alignment: .leading) {
-                            TextField("", text: $minimumText.groupedAmount())
-                                .accessibilityLabel("Minimum balance in \(currencyCode)")
-                        }
-                    }
-                    Toggle("Balance above limit", isOn: $settings.notifyAboveMaximum)
-                    if settings.notifyAboveMaximum {
-                        WalletAmountField(amount: maximumText, placeholder: "Maximum balance (\(currencyCode))",
-                                          alignment: .leading) {
-                            TextField("", text: $maximumText.groupedAmount())
-                                .accessibilityLabel("Maximum balance in \(currencyCode)")
-                        }
-                    }
-                } header: {
-                    Text("In-app notifications")
-                } footer: {
-                    Text("An alert appears in Accounts while the balance is below your minimum or above your maximum. Alerts clear when the balance returns within your limits.")
-                }
-
-                Section {
-                    Toggle("Exclude from stats", isOn: $settings.excludeFromStats)
-                } header: {
-                    Text("Actions")
-                } footer: {
-                    Text("Keep this account visible while excluding it from statistics. Balance alerts remain active.")
-                }
-                // Last, like Delete Record in the record editor. Opens the same sheet as swiping an
-                // account, which shows what happens to its records before anything is deleted.
-                if account != nil {
-                    Section {
-                        WalletDestructiveRow(title: "Delete Account") { confirmingDeletion = true }
-                    }
-                }
-                if let errorMessage {
-                    Section { Text(errorMessage).foregroundStyle(.red).accessibilityLabel("Error: \(errorMessage)") }
+                .background {
+                    Color.clear.contentShape(Rectangle())
+                        .onTapGesture { focusedField = nil }
                 }
             }
-            .formStyle(.grouped)
+            .scrollDismissesKeyboard(.immediately)
             .disabled(viewModel.isSaving)
             .navigationTitle(account == nil ? "Create Account" : "Edit Account")
+            #if !os(macOS)
+                .navigationBarTitleDisplayMode(.inline)
+            #endif
+            .navigationDestination(item: $screen) { screen in
+                switch screen {
+                case .currency:
+                    CurrencyPickerView(selection: $currencyCode, pushed: true)
+                case .name:
+                    RecordTextEntry(title: "Name", text: $name, caption: "Name this account")
+                }
+            }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }.disabled(viewModel.isSaving)
@@ -216,7 +106,7 @@ struct AccountEditorView: View {
                     .disabled(viewModel.isSaving || trimmedName.isEmpty || trimmedName.count > 80)
                 }
             }
-            .sheet(isPresented: $choosingCurrency) { CurrencyPickerView(selection: $currencyCode) }
+            .task { if currencyCode.isEmpty { currencyCode = mainCurrency } }
             .sheet(isPresented: $choosingSymbol) {
                 AccountSymbolPicker(name: trimmedName.isEmpty ? "New account" : trimmedName,
                                     type: type, color: settings.color.tint, selection: $settings.symbol)
@@ -232,6 +122,160 @@ struct AccountEditorView: View {
         #if os(macOS)
         .frame(minWidth: 480, minHeight: 680)
         #endif
+    }
+
+    /// The balance is the number people check before saving, so it leads, large. The currency is
+    /// chosen once, when the account is created: only then is its chip a button.
+    private var balanceSection: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text("Balance")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .accessibilityHidden(true)
+            RecordAmountField(
+                sign: "", color: .primary, label: "Balance in \(currencyCode)",
+                currency: currencyCode, amount: $balanceText, focus: $focusedField, field: .balance,
+                chooseCurrency: account == nil ? { open(.currency) } : nil)
+            Text(account == nil ? Self.newBalanceCaption : Self.editBalanceCaption)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 12)
+    }
+
+    private static let newBalanceCaption = "Currency is chosen once, when you create the account. "
+        + "Leave the balance empty to open the account at zero."
+    private static let editBalanceCaption = "Changing the balance records the difference as a balance adjustment "
+        + "dated now, so earlier history stays as it was. To choose the date or add a note, use Adjust Balance on the account."
+    private static let accountNumberCaption = "Shown as •••• and the last four characters everywhere but here; "
+        + "tap it on the account to copy the full number. It syncs end-to-end encrypted through iCloud and is included in JSON backups."
+    private static let alertsCaption = "An alert appears in Accounts while the balance is below your minimum or above "
+        + "your maximum. Alerts clear when the balance returns within your limits."
+
+    @ViewBuilder private var generalSection: some View {
+        WalletEditorSectionHeader(title: "General") { focusedField = nil }
+        RecordFormRow(symbol: "square.and.pencil") {
+            WalletEditorNavigationButton(title: "Name", value: trimmedName.isEmpty ? nil : trimmedName) {
+                open(.name)
+            }
+        }
+        RecordFormRow(symbol: type.symbol, showsDivider: type.hasAccountNumber) {
+            WalletMenuPicker("Type", selection: $type, value: type.title) {
+                ForEach(AccountType.allCases) { option in
+                    Label(option.title, systemImage: option.symbol).tag(option)
+                }
+            }
+        }
+        // Follows the type being edited: cash has no number, so the row leaves with it. Typed in
+        // place rather than on its own screen, for the card or plain keyboard it needs.
+        if type.hasAccountNumber {
+            RecordFormRow(symbol: "number", showsDivider: false) {
+                HStack(spacing: 16) {
+                    Text(type.accountNumberTitle)
+                    TextField("Optional", text: $accountNumberText)
+                        .focused($focusedField, equals: .accountNumber)
+                        .multilineTextAlignment(.trailing)
+                        .monospacedDigit()
+                        .autocorrectionDisabled()
+                        #if os(iOS)
+                            .textInputAutocapitalization(.characters)
+                            .keyboardType(type == .creditCard ? .numberPad : .asciiCapable)
+                            .textContentType(type == .creditCard ? .creditCardNumber : nil)
+                        #endif
+                        .accessibilityLabel(type.accountNumberTitle)
+                }
+            }
+            WalletEditorCaption(Self.accountNumberCaption)
+        }
+    }
+
+    /// Both rows lead with a tile in the account's color, so the section's icons match.
+    @ViewBuilder private var appearanceSection: some View {
+        WalletEditorSectionHeader(title: "Appearance") { focusedField = nil }
+        RecordFormRow(symbol: symbol, color: settings.color.tint, filledIcon: true) {
+            WalletEditorNavigationButton(title: "Icon", value: nil) {
+                focusedField = nil
+                choosingSymbol = true
+            }
+        }
+        RecordFormRow(symbol: "paintpalette.fill", color: settings.color.tint, filledIcon: true,
+                      showsDivider: false) {
+            Text("Color")
+            Spacer()
+            Text(settings.color.title).foregroundStyle(.secondary)
+        }
+        LazyVGrid(columns: [GridItem(.adaptive(minimum: 60))], spacing: 12) {
+            ForEach(AccountColor.allCases) { color in
+                Button { settings.color = color } label: {
+                    VStack(spacing: 6) {
+                        Circle().fill(color.tint)
+                            .frame(width: 36, height: 36)
+                            .overlay {
+                                if settings.color == color {
+                                    Image(systemName: "checkmark").font(.headline).foregroundStyle(.white)
+                                }
+                            }
+                        Text(color.title).font(.caption).foregroundStyle(.primary)
+                    }
+                    .frame(minWidth: 44, minHeight: 60)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(color.title)
+                .accessibilityAddTraits(settings.color == color ? .isSelected : [])
+            }
+        }
+        .padding(.horizontal, 20)
+        .padding(.bottom, 12)
+    }
+
+    /// Each limit's amount sits on its switch's row, as the repeat rows keep their values.
+    @ViewBuilder private var alertsSection: some View {
+        WalletEditorSectionHeader(title: "Balance Alerts") { focusedField = nil }
+        RecordFormRow(symbol: "arrow.down.to.line") {
+            limitField("Balance below limit", isOn: $settings.notifyBelowMinimum, title: "Minimum",
+                       text: $minimumText, field: .minimum)
+        }
+        RecordFormRow(symbol: "arrow.up.to.line", showsDivider: false) {
+            limitField("Balance above limit", isOn: $settings.notifyAboveMaximum, title: "Maximum",
+                       text: $maximumText, field: .maximum)
+        }
+        WalletEditorCaption(Self.alertsCaption)
+    }
+
+    private func limitField(_ label: String, isOn: Binding<Bool>, title: String,
+                            text: Binding<String>, field: Field) -> some View {
+        VStack(spacing: WalletMetrics.small) {
+            Toggle(label, isOn: isOn.animation())
+            if isOn.wrappedValue {
+                HStack {
+                    Text(title).foregroundStyle(.secondary)
+                    Spacer()
+                    WalletAmountField(amount: text.wrappedValue) {
+                        TextField("", text: text.groupedAmount())
+                            .focused($focusedField, equals: field)
+                            #if os(iOS)
+                                .keyboardType(.decimalPad)
+                            #endif
+                            .accessibilityLabel("\(title) balance in \(currencyCode)")
+                    }
+                    .monospacedDigit()
+                }
+            }
+        }
+    }
+
+    @ViewBuilder private var statisticsSection: some View {
+        WalletEditorSectionHeader(title: "Statistics") { focusedField = nil }
+        RecordFormRow(symbol: "chart.pie", showsDivider: false) {
+            Toggle("Exclude from stats", isOn: $settings.excludeFromStats)
+        }
+        WalletEditorCaption("Keep this account visible while excluding it from statistics. Balance alerts remain active.")
+    }
+
+    private func open(_ destination: Screen) {
+        focusedField = nil
+        screen = destination
     }
 
     /// After the deletion sheet closes, closes this editor too if the account was deleted.
