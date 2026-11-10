@@ -11,6 +11,9 @@ struct RecordCategoryPicker: View {
     var allowsNone = false
     /// What clearing the selection means here, such as "Overall" for a budget over all spending.
     var noneTitle = "No category"
+    /// The gray tile beside it, so it lines up with the category tiles below: the record editor's
+    /// question mark for no category, a grid for a budget's Overall.
+    var noneSymbol = "questionmark"
     /// Called after a choice. The presenter closes the picker by clearing the state that pushed it,
     /// which also removes a subcategory list pushed above it. `dismiss` is avoided here because
     /// inside an editor sheet it can close the whole sheet.
@@ -28,7 +31,16 @@ struct RecordCategoryPicker: View {
         List {
             if search.isEmpty {
                 if kind == .transfer || allowsNone {
-                    Button(noneTitle) { pick(nil) }
+                    Button { pick(nil) } label: {
+                        HStack {
+                            WalletIconTile(symbol: noneSymbol)
+                            Text(noneTitle).foregroundStyle(.primary)
+                            Spacer()
+                        }
+                        .frame(minHeight: 44)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
                 }
                 let frequent = viewModel.mostUsedCategories(for: kind, limit: Self.pageSize * 2)
                 if !frequent.isEmpty {

@@ -16,7 +16,13 @@ struct RecordAccountSelection: View {
                     selection = nil
                     dismiss()
                 } label: {
-                    HStack {
+                    // A gray tile like the account tiles below, so the names line up.
+                    HStack(spacing: 12) {
+                        Image(systemName: "nosign")
+                            .foregroundStyle(.white)
+                            .frame(width: 36, height: 36)
+                            .background(Color.gray, in: RoundedRectangle(cornerRadius: 10))
+                            .accessibilityHidden(true)
                         Text(noneTitle).foregroundStyle(.primary)
                         Spacer()
                         if selection == nil { Image(systemName: "checkmark").foregroundStyle(.tint) }

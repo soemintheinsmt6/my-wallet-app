@@ -143,7 +143,8 @@ private struct BudgetEditorView: View {
                     RecordTextEntry(title: "Name", text: $budget.name, caption: "What is this budget for?")
                 case .category:
                     RecordCategoryPicker(viewModel: viewModel.records, kind: .expense, selection: $budget.categoryID,
-                                         allowsNone: true, noneTitle: "Overall") { self.screen = nil }
+                                         allowsNone: true, noneTitle: "Overall",
+                                         noneSymbol: "square.grid.2x2.fill") { self.screen = nil }
                 }
             }
             .disabled(viewModel.isSaving)
