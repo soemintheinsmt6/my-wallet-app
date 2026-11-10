@@ -123,8 +123,10 @@ private struct BudgetEditorView: View {
                     Color.clear.contentShape(Rectangle())
                         .onTapGesture { focusedField = nil }
                 }
+                .walletEditorRows()
             }
             .scrollDismissesKeyboard(.immediately)
+            .walletEditorPage()
             .alert("Delete Budget?", isPresented: $confirmingDelete) {
                 Button("Cancel", role: .cancel) {}
                 Button("Delete", role: .destructive) { delete() }

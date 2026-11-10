@@ -4,6 +4,24 @@ import SwiftUI
 // an amount at the top, then uppercase section headings over rows of gray symbols
 // (`RecordFormRow`), with text and choices pushed as their own screens.
 
+extension View {
+    /// On an editor's stack of rows: white behind them, so the rows stay white on the page's band.
+    func walletEditorRows() -> some View {
+        background(.background)
+    }
+
+    /// On an editor's `ScrollView`: the page beyond its rows takes the headings' band, so a page
+    /// that ends before the screen does carries the band to the bottom, as a grouped form's
+    /// background does, instead of stopping in white.
+    func walletEditorPage() -> some View {
+        background {
+            Rectangle().fill(.background)
+                .overlay(Rectangle().fill(.quaternary.opacity(0.35)))
+                .ignoresSafeArea()
+        }
+    }
+}
+
 /// An uppercase heading on a tinted band, opening a group of editor rows.
 struct WalletEditorSectionHeader: View {
     let title: String

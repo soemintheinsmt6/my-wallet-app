@@ -315,7 +315,9 @@ private struct SeriesScheduleEditor: View {
                     WalletEditorCaption("Changes apply to unprocessed occurrences. Counts include the original record. Resuming catches up missed dates.")
                     if let error { Text(error).foregroundStyle(.red).padding(20) }
                 }
+                .walletEditorRows()
             }
+            .walletEditorPage()
             .navigationTitle("Edit Schedule")
             #if !os(macOS)
                 .navigationBarTitleDisplayMode(.inline)

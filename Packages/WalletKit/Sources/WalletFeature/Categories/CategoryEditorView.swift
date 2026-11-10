@@ -79,7 +79,9 @@ struct CategoryEditorView: View {
                         WalletEditorCaption("Records using it become Uncategorized. No financial records or balances are removed.")
                     }
                 }
+                .walletEditorRows()
             }
+            .walletEditorPage()
             .disabled(viewModel.isSaving)
             .navigationTitle(title)
             #if !os(macOS)

@@ -50,8 +50,10 @@ struct GoalEditorView: View {
                     Color.clear.contentShape(Rectangle())
                         .onTapGesture { focusedField = nil }
                 }
+                .walletEditorRows()
             }
             .scrollDismissesKeyboard(.immediately)
+            .walletEditorPage()
             .alert("Delete Goal?", isPresented: $confirmingDelete) {
                 Button("Cancel", role: .cancel) {}
                 Button("Delete", role: .destructive) { delete() }

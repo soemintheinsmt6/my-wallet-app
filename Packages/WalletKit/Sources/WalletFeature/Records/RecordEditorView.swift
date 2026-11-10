@@ -111,6 +111,7 @@ struct RecordEditorView: View {
                     Color.clear.contentShape(Rectangle())
                         .onTapGesture { focusedField = nil }
                 }
+                .walletEditorRows()
             }
             // Any scroll, up or down, puts the amount keyboard away so the form can be read; with
             // `.interactively` it only left when dragged down into the number pad itself.
@@ -119,6 +120,7 @@ struct RecordEditorView: View {
                 Color.clear.contentShape(Rectangle())
                     .onTapGesture { focusedField = nil }
             }
+            .walletEditorPage()
             .disabled(isBusy)
             .safeAreaInset(edge: .bottom, spacing: 0) {
                 WalletEditorBottomButton(title: "Save", isBusy: isBusy, isEnabled: canSave) {

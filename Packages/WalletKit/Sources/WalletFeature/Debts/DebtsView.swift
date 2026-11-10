@@ -192,8 +192,10 @@ private struct DebtEditorView: View {
                     Color.clear.contentShape(Rectangle())
                         .onTapGesture { focusedField = nil }
                 }
+                .walletEditorRows()
             }
             .scrollDismissesKeyboard(.immediately)
+            .walletEditorPage()
             .alert("Delete Debt?", isPresented: $confirmingDelete) {
                 Button("Cancel", role: .cancel) {}
                 Button("Delete", role: .destructive) { delete() }

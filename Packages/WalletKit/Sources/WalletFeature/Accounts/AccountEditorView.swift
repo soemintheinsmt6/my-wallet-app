@@ -81,8 +81,10 @@ struct AccountEditorView: View {
                     Color.clear.contentShape(Rectangle())
                         .onTapGesture { focusedField = nil }
                 }
+                .walletEditorRows()
             }
             .scrollDismissesKeyboard(.immediately)
+            .walletEditorPage()
             .disabled(viewModel.isSaving)
             .navigationTitle(account == nil ? "Create Account" : "Edit Account")
             #if !os(macOS)

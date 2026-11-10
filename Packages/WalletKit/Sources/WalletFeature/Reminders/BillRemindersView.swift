@@ -380,8 +380,10 @@ private struct BillEditorView: View {
                     Color.clear.contentShape(Rectangle())
                         .onTapGesture { focusedField = nil }
                 }
+                .walletEditorRows()
             }
             .scrollDismissesKeyboard(.immediately)
+            .walletEditorPage()
             .navigationTitle(isNew ? "New Bill" : "Edit Bill")
             #if !os(macOS)
                 .navigationBarTitleDisplayMode(.inline)
