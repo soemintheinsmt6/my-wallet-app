@@ -208,13 +208,8 @@ private struct BillDetailView: View {
                         .foregroundStyle(isOverdue ? Color.red : Color.secondary)
                 }
                 if due != nil {
-                    Button { paying = bill } label: {
-                        Label("Mark as Paid", systemImage: "checkmark.circle.fill")
-                            .frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.large)
-                    .tint(.green)
+                    // The same action button as a debt's Settle.
+                    WalletActionButton(title: "Mark as Paid", tint: isOverdue ? .red : .green) { paying = bill }
                 }
             }
             .frame(maxWidth: .infinity)

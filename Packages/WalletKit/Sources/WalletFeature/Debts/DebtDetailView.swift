@@ -92,19 +92,7 @@ struct DebtDetailView: View {
                     .multilineTextAlignment(.center)
             }
             if !progress.isSettled {
-                Button { settling = progress } label: {
-                    // One color for the check and the word, and semibold, so the button reads as a
-                    // single label rather than an icon tinted apart from its text.
-                    Label("Settle", systemImage: "checkmark.circle.fill")
-                        .font(.body.weight(.semibold))
-                        .symbolRenderingMode(.monochrome)
-                        .foregroundStyle(.white)
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.borderedProminent)
-                .buttonBorderShape(.capsule)
-                .controlSize(.large)
-                .tint(progress.tileColor)
+                WalletActionButton(title: "Settle", tint: progress.tileColor) { settling = progress }
             }
         }
         .frame(maxWidth: .infinity)
