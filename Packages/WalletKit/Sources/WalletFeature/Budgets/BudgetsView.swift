@@ -5,61 +5,44 @@ struct BudgetsView: View {
     @ObservedObject var viewModel: PlanningViewModel
     @State private var editing: Budget?
     @State private var deleting: Budget?
-    @State private var date = Date()
+    /// Months back from the current one; 0 is now.
+    @State private var monthOffset = 0
     @Environment(\.mainCurrency) private var mainCurrency
+
+    /// The moment each budget is measured at: now for the current month, otherwise the last moment
+    /// of the chosen month, so a calendar-monthly budget shows that whole month.
+    private var compareDate: Date {
+        let calendar = Calendar.current
+        guard monthOffset != 0,
+              let month = calendar.date(byAdding: .month, value: monthOffset, to: Date()),
+              let interval = calendar.dateInterval(of: .month, for: month) else { return Date() }
+        return interval.end.addingTimeInterval(-1)
+    }
 
     var body: some View {
         List {
             if !viewModel.budgets.isEmpty {
+                monthStepper
+                // Each budget once: its progress for the chosen month when it runs then, otherwise
+                // when it does run. Flat, like the other lists.
+                let progress = Dictionary(uniqueKeysWithValues: viewModel.progress(on: compareDate).map { ($0.id, $0) })
                 Section {
-                    DatePicker("Compare on", selection: $date, displayedComponents: .date)
-                } footer: {
-                    Text("Shows budget against actual spending for the period containing this date.")
-                }
-
-                Section("Progress") {
-                    ForEach(viewModel.progress(on: date)) { BudgetProgressRow(progress: $0) }
-                }
-            }
-
-            Section {
-                ForEach(viewModel.budgets) { budget in
-                    Button { editing = budget } label: {
-                        HStack(spacing: WalletMetrics.medium) {
-                            WalletIconTile(symbol: "chart.bar.fill", color: .green)
-                            VStack(alignment: .leading, spacing: WalletMetrics.hair) {
-                                Text(budget.name)
-                                    .font(.body.weight(.medium))
-                                    .foregroundStyle(.primary)
-                                    .lineLimit(1)
-                                Text(scope(for: budget))
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                    .lineLimit(1)
+                    ForEach(viewModel.budgets) { budget in
+                        Button { editing = budget } label: { row(budget, progress: progress[budget.id]) }
+                            .buttonStyle(.plain)
+                            .accessibilityHint("Edit budget")
+                            .contextMenu {
+                                Button("Edit", systemImage: "pencil") { editing = budget }
+                                Button("Delete", role: .destructive) { deleting = budget }
                             }
-                            Spacer(minLength: WalletMetrics.small)
-                            Text(budget.amount.walletFormatted(budget.currencyCode))
-                                .font(.body.weight(.semibold))
-                                .monospacedDigit()
-                                .foregroundStyle(.primary)
-                                .lineLimit(1)
-                            WalletDisclosure()
-                        }
-                        .frame(minHeight: WalletMetrics.touchTarget)
-                        .walletListRowPadding(WalletMetrics.tight)
-                        .contentShape(Rectangle())
+                            .swipeActions { Button("Delete", role: .destructive) { deleting = budget } }
                     }
-                    .buttonStyle(.plain)
-                    .accessibilityHint("Edit budget")
-                    .contextMenu { Button("Delete", role: .destructive) { deleting = budget } }
-                    .swipeActions { Button("Delete", role: .destructive) { deleting = budget } }
+                } footer: {
+                    WalletListFooter("Budgets use expenses from included accounts in the selected currency. Weekly and monthly periods start on the chosen date; only unused positive amounts roll over.")
                 }
-            } header: {
-                Text("Budget definitions")
-            } footer: {
-                Text("Budgets use expenses from included accounts in the selected currency. Weekly and monthly periods start on the chosen date; only unused positive amounts roll over.")
             }
         }
+        .listStyle(.plain)
         .overlay {
             if viewModel.budgets.isEmpty {
                 WalletEmptyState(title: "No budgets yet", symbol: "chart.bar",
@@ -80,9 +63,82 @@ struct BudgetsView: View {
         .disabled(viewModel.isSaving)
     }
 
-    private func scope(for budget: Budget) -> String {
-        let category = budget.categoryID.map { viewModel.records.categoryName($0) } ?? "All categories"
-        return "\(budget.period.rawValue.capitalized) · \(category)"
+    /// Steps back through months, like an account's screen steps through its periods.
+    private var monthStepper: some View {
+        HStack {
+            Button { monthOffset -= 1 } label: {
+                Image(systemName: "chevron.left")
+                    .frame(minWidth: WalletMetrics.touchTarget, minHeight: WalletMetrics.touchTarget)
+            }
+            .accessibilityLabel("Previous month")
+            Spacer()
+            Text(compareDate.formatted(.dateTime.month(.wide).year())).font(.headline)
+            Spacer()
+            Button { monthOffset += 1 } label: {
+                Image(systemName: "chevron.right")
+                    .frame(minWidth: WalletMetrics.touchTarget, minHeight: WalletMetrics.touchTarget)
+            }
+            // Nothing has been spent after the current month yet.
+            .disabled(monthOffset >= 0)
+            .accessibilityLabel("Next month")
+        }
+        .buttonStyle(.borderless)
+        .listRowSeparator(.hidden)
+    }
+
+    /// The budget's category tile, as its editor shows it (a gray grid for Overall), then its
+    /// progress for the chosen month, or when it runs if it does not run then.
+    private func row(_ budget: Budget, progress: BudgetProgress?) -> some View {
+        HStack(spacing: WalletMetrics.medium) {
+            if let category = viewModel.records.category(budget.categoryID) {
+                CategoryIcon(category: category)
+            } else {
+                WalletIconTile(symbol: "square.grid.2x2.fill")
+            }
+            if let progress {
+                BudgetProgressRow(progress: progress, caption: periodCaption(budget, interval: progress.interval))
+            } else {
+                VStack(alignment: .leading, spacing: WalletMetrics.hair) {
+                    Text(budget.name)
+                        .font(.body.weight(.medium))
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
+                    Text(inactiveCaption(budget))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+                Spacer(minLength: WalletMetrics.small)
+                Text(budget.amount.walletFormatted(budget.currencyCode))
+                    .font(.body.weight(.semibold))
+                    .monospacedDigit()
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+            WalletDisclosure()
+        }
+        .frame(minHeight: WalletMetrics.touchTarget)
+        .contentShape(Rectangle())
+    }
+
+    /// The period and the dates it is measuring, which differ by budget: "Monthly · 1 – 30 Nov".
+    private func periodCaption(_ budget: Budget, interval: DateInterval) -> String {
+        let end = interval.end.addingTimeInterval(-1)
+        let dates = "\(interval.start.formatted(.dateTime.day().month())) – \(end.formatted(.dateTime.day().month()))"
+        return budget.period == .custom ? dates : "\(budget.period.rawValue.capitalized) · \(dates)"
+    }
+
+    /// Why a budget shows no progress for the chosen month: it has not started, or a custom one ended.
+    private func inactiveCaption(_ budget: Budget) -> String {
+        if budget.startDate > compareDate {
+            return "Starts \(budget.startDate.formatted(date: .abbreviated, time: .omitted))"
+        }
+        if budget.period == .custom {
+            // The end date is exclusive, so the last day it covered is the one before.
+            let lastDay = budget.endDate.addingTimeInterval(-1)
+            return "Ended \(lastDay.formatted(date: .abbreviated, time: .omitted))"
+        }
+        return budget.period.rawValue.capitalized
     }
 }
 

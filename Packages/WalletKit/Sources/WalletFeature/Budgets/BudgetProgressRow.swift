@@ -3,6 +3,8 @@ import WalletDomain
 
 struct BudgetProgressRow: View {
     let progress: BudgetProgress
+    /// A line under the name, such as the period being measured; the Budgets list sets it.
+    var caption: String?
 
     /// Color reinforces the status text but never carries it alone — `progress.status` is always shown.
     private var tint: Color {
@@ -22,6 +24,13 @@ struct BudgetProgressRow: View {
                 Text(progress.status)
                     .font(.caption.weight(.medium))
                     .foregroundStyle(tint)
+            }
+            if let caption {
+                Text(caption)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .padding(.top, -WalletMetrics.tight)
             }
 
             BudgetBar(fraction: fraction, tint: tint)
