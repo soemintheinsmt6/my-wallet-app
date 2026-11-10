@@ -147,43 +147,59 @@ private struct DebtEditorView: View {
     @State private var hasDueDate = false
     @State private var dueDate = Date()
     @State private var errorMessage: String?
+    @State private var choosingCurrency = false
+    @FocusState private var focusedField: Field?
     @Environment(\.dismiss) private var dismiss
 
+    private enum Field: Hashable { case amount }
+
     private var isNew: Bool { !viewModel.debts.contains { $0.debt.id == debt.id } }
+
+    /// Green for money coming to the user, red for money they owe, as income and expenses are.
+    private var amountColor: Color { debt.direction == .owedToMe ? .green : .red }
 
     var body: some View {
         NavigationStack {
             Form {
-                Section("Debt") {
-                    LabeledContent("Person") {
-                        TextField("Name", text: $debt.person).multilineTextAlignment(.trailing)
-                    }
-                    Picker("Direction", selection: $debt.direction) {
-                        ForEach(DebtDirection.allCases) { Text($0.title).tag($0) }
-                    }
-                    .pickerStyle(.segmented)
-                    LabeledContent("Amount") {
-                        WalletAmountField(amount: amount) {
-                            TextField("", text: $amount.groupedAmount())
-                                #if os(iOS)
-                                    .keyboardType(.decimalPad)
-                                #endif
+                // Laid out like the record editor: who owes whom, then the amount large in its color.
+                Section {
+                    VStack(spacing: 12) {
+                        Picker("Direction", selection: $debt.direction) {
+                            ForEach(DebtDirection.allCases) { Text($0.title).tag($0) }
                         }
-                        .monospacedDigit()
+                        .pickerStyle(.segmented)
+                        .labelsHidden()
+                        RecordAmountField(
+                            sign: "", color: amountColor, label: "\(debt.direction.title) amount",
+                            currency: debt.currencyCode, amount: $amount, focus: $focusedField, field: .amount
+                        ) {
+                            focusedField = nil
+                            choosingCurrency = true
+                        }
                     }
-                    NavigationLink {
-                        CurrencyPickerView(selection: $debt.currencyCode, pushed: true)
+                    .padding(.vertical, 4)
+                }
+
+                Section {
+                    LabeledContent {
+                        TextField("Name", text: $debt.person).multilineTextAlignment(.trailing)
                     } label: {
-                        LabeledContent("Currency", value: debt.currencyCode)
+                        rowLabel("Person", symbol: "person.fill", color: .blue)
                     }
                 }
 
                 Section {
-                    Toggle("Has a due date", isOn: $hasDueDate.animation())
+                    Toggle(isOn: $hasDueDate.animation()) {
+                        rowLabel("Has a due date", symbol: "calendar", color: .red)
+                    }
                     if hasDueDate {
-                        DatePicker("Due", selection: $dueDate, displayedComponents: .date)
-                        Toggle("Remind me", isOn: $debt.notificationsEnabled)
-                            .refreshesNotificationAuthorization { await viewModel.refreshNotificationAuthorization() }
+                        DatePicker(selection: $dueDate, displayedComponents: .date) {
+                            rowLabel("Due", symbol: "clock.fill", color: .orange)
+                        }
+                        Toggle(isOn: $debt.notificationsEnabled) {
+                            rowLabel("Remind me", symbol: "bell.fill", color: .purple)
+                        }
+                        .refreshesNotificationAuthorization { await viewModel.refreshNotificationAuthorization() }
                         if debt.notificationsEnabled && !viewModel.notificationsAuthorized {
                             Button("Enable System Notifications") {
                                 Task { await viewModel.requestNotifications() }
@@ -196,8 +212,12 @@ private struct DebtEditorView: View {
                     Text("Reminders only fire while the debt is still outstanding.")
                 }
 
-                Section("Note") {
-                    TextField("Optional", text: $debt.note, axis: .vertical).lineLimit(1...6)
+                Section {
+                    Label {
+                        TextField("Note", text: $debt.note, axis: .vertical).lineLimit(1...6)
+                    } icon: {
+                        rowIcon("note.text", color: .gray)
+                    }
                 }
 
                 if let errorMessage {
@@ -211,6 +231,10 @@ private struct DebtEditorView: View {
             #if !os(macOS)
                 .navigationBarTitleDisplayMode(.inline)
             #endif
+            .scrollDismissesKeyboard(.immediately)
+            .navigationDestination(isPresented: $choosingCurrency) {
+                CurrencyPickerView(selection: $debt.currencyCode, pushed: true)
+            }
             .disabled(viewModel.isSaving)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
@@ -228,6 +252,15 @@ private struct DebtEditorView: View {
         #if os(macOS)
         .frame(minWidth: 500, minHeight: 560)
         #endif
+    }
+
+    /// A row title with the same colored symbol the record editor puts beside its rows.
+    private func rowLabel(_ title: String, symbol: String, color: Color) -> some View {
+        Label { Text(title) } icon: { rowIcon(symbol, color: color) }
+    }
+
+    private func rowIcon(_ symbol: String, color: Color) -> some View {
+        Image(systemName: symbol).foregroundStyle(color).accessibilityHidden(true)
     }
 
     private func save() {
