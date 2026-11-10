@@ -63,6 +63,13 @@ public final class DebtsViewModel: ObservableObject {
         return titles
     }
 
+    /// The records a debt wrote: the money lent or borrowed, then each settlement that added one,
+    /// oldest first. Records the person has since deleted are left out.
+    func records(for progress: DebtProgress) -> [WalletRecord] {
+        let ids = [progress.debt.openingRecordID].compactMap { $0 } + progress.payments.compactMap(\.recordID)
+        return ids.compactMap { id in records.records.first { $0.id == id } }
+    }
+
     private func publishLoanTitles() {
         let titles = Self.loanTitles(debts)
         if records.loanTitles != titles { records.loanTitles = titles }

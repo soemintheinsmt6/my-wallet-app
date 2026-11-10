@@ -15,21 +15,29 @@ public struct DebtsView: View {
         List {
             ForEach(viewModel.balances) { balance in
                 Section {
+                    // Each debt opens its own screen, which carries Settle prominently, as a bill's
+                    // carries Mark as Paid; the swipe and the menu stay as shortcuts.
                     ForEach(balance.debts) { progress in
-                        Button { editing = progress.debt } label: { row(progress) }
-                            .buttonStyle(.plain)
-                            // Its Settle line below belongs to it, so no rule between them.
-                            .listRowSeparator(progress.isSettled ? .automatic : .hidden, edges: .bottom)
-                            .swipeActions(edge: .leading) {
-                                if !progress.isSettled {
-                                    Button("Settle", systemImage: "checkmark") { settling = progress }
-                                        .tint(.green)
-                                }
+                        NavigationLink { DebtDetailView(viewModel: viewModel, debtID: progress.id) } label: {
+                            row(progress)
+                        }
+                        .accessibilityHint("Show debt details")
+                        .swipeActions(edge: .leading) {
+                            if !progress.isSettled {
+                                Button("Settle", systemImage: "checkmark") { settling = progress }
+                                    .tint(.green)
                             }
-                            .swipeActions {
-                                Button("Delete", role: .destructive) { deleting = progress }
+                        }
+                        .swipeActions {
+                            Button("Delete", role: .destructive) { deleting = progress }
+                        }
+                        .contextMenu {
+                            if !progress.isSettled {
+                                Button("Settle", systemImage: "checkmark") { settling = progress }
                             }
-                        if !progress.isSettled { settleRow(progress) }
+                            Button("Edit", systemImage: "pencil") { editing = progress.debt }
+                            Button("Delete", role: .destructive) { deleting = progress }
+                        }
                     }
                 } header: {
                     header(balance)
@@ -90,16 +98,12 @@ public struct DebtsView: View {
 
     private func row(_ progress: DebtProgress) -> some View {
         HStack(spacing: WalletMetrics.medium) {
-            WalletIconTile(symbol: progress.isSettled ? "checkmark.circle"
-                                : progress.debt.direction == .owedToMe ? "arrow.down.left" : "arrow.up.right",
-                           color: progress.isSettled ? .gray
-                                : progress.isOverdue ? .red
-                                : progress.debt.direction == .owedToMe ? .green : .orange)
+            WalletIconTile(symbol: progress.tileSymbol, color: progress.tileColor)
             VStack(alignment: .leading, spacing: WalletMetrics.hair) {
                 Text(progress.debt.direction.title)
                     .font(.body.weight(.medium))
                     .foregroundStyle(.primary)
-                Text(detail(progress))
+                Text(progress.statusText)
                     .font(.caption)
                     .foregroundStyle(progress.isOverdue ? Color.red : Color.secondary)
                     .lineLimit(1)
@@ -123,44 +127,17 @@ public struct DebtsView: View {
                         .lineLimit(1)
                 }
             }
-            // Tapping opens the debt's editor.
-            WalletDisclosure()
+            // The navigation link draws the chevron.
         }
         .frame(minHeight: WalletMetrics.touchTarget)
         .padding(.vertical, WalletMetrics.tight)
         .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
     }
-
-    /// Settling on its own line under the debt, as goals carry Add Money, so it never depends on
-    /// discovering the swipe and the debt's row keeps its amount clear. Indented under the debt's
-    /// text and tinted like its tile: green, orange, or red once overdue.
-    private func settleRow(_ progress: DebtProgress) -> some View {
-        Button { settling = progress } label: {
-            Label("Settle", systemImage: "checkmark.circle.fill")
-                .font(.body.weight(.medium))
-                .foregroundStyle(progress.isOverdue ? .red : progress.debt.direction == .owedToMe ? .green : .orange)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .padding(.leading, WalletMetrics.Tile.size + WalletMetrics.medium)
-        .listRowSeparator(.hidden, edges: .top)
-        .accessibilityLabel("Settle \(progress.debt.direction.title.lowercased()), \(progress.debt.person)")
-    }
-
-    private func detail(_ progress: DebtProgress) -> String {
-        if progress.isSettled { return "Settled" }
-        guard let due = progress.debt.dueDate else {
-            return progress.paid > 0 ? "\(progress.paid.walletFormatted(progress.debt.currencyCode)) paid" : "No due date"
-        }
-        let when = due.formatted(date: .abbreviated, time: .omitted)
-        return progress.isOverdue ? "Overdue · \(when)" : "Due \(when)"
-    }
 }
 
 /// Create or edit a debt.
-private struct DebtEditorView: View {
+struct DebtEditorView: View {
     @ObservedObject var viewModel: DebtsViewModel
     @State var debt: Debt
     @State private var amount = ""
@@ -172,7 +149,6 @@ private struct DebtEditorView: View {
     @State private var didLoad = false
     @State private var movesMoney = false
     @State private var moneyAccountID: UUID?
-    @State private var editingRecord: WalletRecord?
     @FocusState private var focusedField: Field?
     @Environment(\.dismiss) private var dismiss
 
@@ -211,7 +187,6 @@ private struct DebtEditorView: View {
                         }
                     }
                     moneySection
-                    recordsSection
                     dueDateSection
                     WalletEditorSectionHeader(title: "More Details") { focusedField = nil }
                     RecordFormRow(symbol: "square.and.pencil", showsDivider: false) {
@@ -235,7 +210,6 @@ private struct DebtEditorView: View {
             }
             .scrollDismissesKeyboard(.immediately)
             .walletEditorPage()
-            .sheet(item: $editingRecord) { RecordEditorView(viewModel: viewModel.records, record: $0) }
             .alert("Delete Debt?", isPresented: $confirmingDelete) {
                 Button("Cancel", role: .cancel) {}
                 Button("Delete", role: .destructive) { delete() }
@@ -308,36 +282,6 @@ private struct DebtEditorView: View {
     /// Whether the money changed hands when the debt was made. Recorded as a balance adjustment, so
     /// the balance is right while the loan counts as neither spending nor income; settling records
     /// its return the same way. Both rows lead with a tile, as the record editor's account row does.
-    /// The records this debt wrote: the money lent or borrowed, then each settlement that added one,
-    /// oldest first. Records the person has since deleted are left out.
-    private var linkedRecords: [WalletRecord] {
-        guard let progress = viewModel.debts.first(where: { $0.debt.id == debt.id }) else { return [] }
-        let ids = [progress.debt.openingRecordID].compactMap { $0 } + progress.payments.compactMap(\.recordID)
-        return ids.compactMap { id in viewModel.records.records.first { $0.id == id } }
-    }
-
-    /// The same rows as the Records list, so the debt's money is seen as it appears there; each
-    /// opens its record.
-    @ViewBuilder private var recordsSection: some View {
-        let records = linkedRecords
-        if !records.isEmpty {
-            WalletEditorSectionHeader(title: "Records") { focusedField = nil }
-            ForEach(records) { record in
-                Button {
-                    focusedField = nil
-                    editingRecord = record
-                } label: {
-                    RecordRow(viewModel: viewModel.records, record: record, showsDate: true)
-                        .padding(.horizontal, 20)
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .accessibilityHint("Edit record")
-                if record.id != records.last?.id { Divider().padding(.leading, 68) }
-            }
-        }
-    }
-
     /// The person as typed, or a stand-in while it is still empty.
     private var personName: String {
         let name = debt.person.trimmingCharacters(in: .whitespacesAndNewlines)
