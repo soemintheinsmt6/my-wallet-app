@@ -46,7 +46,7 @@ struct InsightsSection: View {
                 .lineLimit(1)
         }
         .frame(minHeight: WalletMetrics.touchTarget)
-        .padding(.vertical, WalletMetrics.tight)
+        .walletListRowPadding(WalletMetrics.tight)
         .accessibilityElement(children: .combine)
     }
 
@@ -82,7 +82,7 @@ struct InsightsSection: View {
                 .lineLimit(1)
         }
         .frame(minHeight: WalletMetrics.touchTarget)
-        .padding(.vertical, WalletMetrics.tight)
+        .walletListRowPadding(WalletMetrics.tight)
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Unusual spending in \(categoryTitle(anomaly.categoryID))")
     }
@@ -104,7 +104,7 @@ struct InsightsSection: View {
             Spacer(minLength: 0)
         }
         .frame(minHeight: WalletMetrics.touchTarget)
-        .padding(.vertical, WalletMetrics.tight)
+        .walletListRowPadding(WalletMetrics.tight)
         .accessibilityElement(children: .combine)
     }
 }

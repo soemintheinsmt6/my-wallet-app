@@ -37,7 +37,7 @@ public struct SplitsView: View {
                             }
                         }
                         .frame(minHeight: WalletMetrics.touchTarget)
-                        .padding(.vertical, WalletMetrics.tight)
+                        .walletListRowPadding(WalletMetrics.tight)
                         .accessibilityElement(children: .combine)
                     }
                 } header: {
@@ -64,7 +64,7 @@ public struct SplitsView: View {
                                 .lineLimit(1)
                         }
                         .frame(minHeight: WalletMetrics.touchTarget)
-                        .padding(.vertical, WalletMetrics.tight)
+                        .walletListRowPadding(WalletMetrics.tight)
                         .accessibilityElement(children: .combine)
                     }
                 } header: {

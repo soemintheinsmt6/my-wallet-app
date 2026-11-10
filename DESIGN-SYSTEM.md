@@ -67,6 +67,8 @@ Use primary text for names/content, secondary text for supporting information, t
 
 Treat these as existing values, not a mandatory global scale. Reuse them for related account UI; extract shared components when repeated patterns justify it.
 
+List rows set their vertical padding with `walletListRowPadding(_:)` rather than `.padding(.vertical, …)`, so the List Density setting reaches them: Compact adds nothing to the row's own padding, Comfortable adds 6 points above and below. A new list row should do the same; editor rows (`RecordFormRow`) keep one spacing.
+
 ## Components and Navigation
 
 - `AccountsView`: notices above account rows, creation toolbar action, empty-state call to action and tap-to-edit sheets.

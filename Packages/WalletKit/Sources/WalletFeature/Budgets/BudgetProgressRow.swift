@@ -48,7 +48,7 @@ struct BudgetProgressRow: View {
                     .foregroundStyle(.secondary)
             }
         }
-        .padding(.vertical, WalletMetrics.small)
+        .walletListRowPadding(WalletMetrics.small)
         .accessibilityElement(children: .combine)
     }
 

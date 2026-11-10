@@ -33,7 +33,7 @@ public struct CategoriesView: View {
                         .lineLimit(1)
                 }
                 .frame(minHeight: WalletMetrics.touchTarget)
-                .padding(.vertical, WalletMetrics.hair)
+                .walletListRowPadding(WalletMetrics.hair)
             }
             .listRowBackground(dropTarget == category.id ? Color.accentColor.opacity(0.15) : nil)
             .dropDestination(for: RecordTransfer.self) { items, _ in

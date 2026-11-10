@@ -107,7 +107,7 @@ struct BillRemindersView: View {
                                  kind: due == nil ? nil : .expense)
             }
             .frame(minHeight: WalletMetrics.touchTarget)
-            .padding(.vertical, WalletMetrics.tight)
+            .walletListRowPadding(WalletMetrics.tight)
         }
         .accessibilityHint("Show bill details")
         .swipeActions(edge: .leading) {

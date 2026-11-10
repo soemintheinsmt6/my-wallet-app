@@ -23,7 +23,7 @@ public struct TagsView: View {
                     WalletDisclosure()
                 }
                 .frame(minHeight: WalletMetrics.touchTarget)
-                .padding(.vertical, WalletMetrics.hair)
+                .walletListRowPadding(WalletMetrics.hair)
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)

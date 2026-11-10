@@ -46,7 +46,7 @@ struct BudgetsView: View {
                             WalletDisclosure()
                         }
                         .frame(minHeight: WalletMetrics.touchTarget)
-                        .padding(.vertical, WalletMetrics.tight)
+                        .walletListRowPadding(WalletMetrics.tight)
                         .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)

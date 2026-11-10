@@ -1,7 +1,11 @@
 import Foundation
+import SwiftUI
 import Testing
 import WalletDomain
 @testable import WalletFeature
+#if canImport(AppKit)
+import AppKit
+#endif
 
 struct ShortAmountTests {
     @Test func lakhCurrenciesReadInLakhsFromOneLakhUp() {
@@ -291,6 +295,22 @@ struct ThemeTests {
         #expect(WalletDensity.compact.extraRowPadding == 0)
         #expect(WalletDensity.comfortable.extraRowPadding > 0)
     }
+
+    #if canImport(AppKit)
+    /// The setting has to reach the rows, not just be stored: a list row laid out under Comfortable
+    /// is taller than under Compact by the extra padding above and below.
+    @Test func comfortableDensityMakesListRowsTaller() {
+        func height(_ density: WalletDensity) -> CGFloat {
+            let row = Text("Row")
+                .frame(minHeight: WalletMetrics.touchTarget)
+                .walletListRowPadding(WalletMetrics.tight)
+                .environment(\.walletDensity, density)
+            return NSHostingView(rootView: row).fittingSize.height
+        }
+        #expect(height(.compact) == WalletMetrics.touchTarget + 2 * WalletMetrics.tight)
+        #expect(height(.comfortable) == height(.compact) + 2 * WalletDensity.comfortable.extraRowPadding)
+    }
+    #endif
 
     @Test func themeChoicesSurviveARelaunch() {
         let store = defaults()

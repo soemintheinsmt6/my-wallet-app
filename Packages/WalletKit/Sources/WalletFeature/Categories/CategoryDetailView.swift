@@ -78,7 +78,7 @@ struct CategoryDetailView: View {
                         WalletDisclosure()
                     }
                     .frame(minHeight: WalletMetrics.touchTarget)
-                    .padding(.vertical, WalletMetrics.hair)
+                    .walletListRowPadding(WalletMetrics.hair)
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
@@ -94,6 +94,7 @@ struct CategoryDetailView: View {
                     Spacer()
                 }
                 .frame(minHeight: WalletMetrics.touchTarget)
+                .walletListRowPadding(0)
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)

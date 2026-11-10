@@ -173,8 +173,18 @@ public extension EnvironmentValues {
 }
 
 public extension View {
-    /// Adds the density padding to a list row.
-    func walletRowDensity(_ density: WalletDensity) -> some View {
-        padding(.vertical, density.extraRowPadding)
+    /// A list row's vertical padding: the row's own `base`, plus whatever the List Density setting
+    /// adds, read from the environment so every list follows the setting without passing it down.
+    func walletListRowPadding(_ base: CGFloat) -> some View {
+        modifier(WalletListRowPadding(base: base))
+    }
+}
+
+private struct WalletListRowPadding: ViewModifier {
+    let base: CGFloat
+    @Environment(\.walletDensity) private var density
+
+    func body(content: Content) -> some View {
+        content.padding(.vertical, base + density.extraRowPadding)
     }
 }

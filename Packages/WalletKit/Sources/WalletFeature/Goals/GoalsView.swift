@@ -81,7 +81,7 @@ public struct GoalsView: View {
             goalDetails(progress)
             WalletDisclosure()
         }
-        .padding(.vertical, WalletMetrics.tight)
+        .walletListRowPadding(WalletMetrics.tight)
         .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
     }

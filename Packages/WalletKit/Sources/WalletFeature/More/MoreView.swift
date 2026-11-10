@@ -166,7 +166,7 @@ private struct MoreRow: View {
             }
         }
         .frame(minHeight: WalletMetrics.touchTarget)
-        .padding(.vertical, WalletMetrics.hair)
+        .walletListRowPadding(WalletMetrics.hair)
         // `detail` already spells out the alert count, so the badge stays decorative.
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(title), \(detail)")

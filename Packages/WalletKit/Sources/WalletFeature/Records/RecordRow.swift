@@ -74,7 +74,7 @@ struct RecordRow: View {
             WalletDisclosure()
         }
         .frame(minHeight: WalletMetrics.touchTarget)
-        .padding(.vertical, WalletMetrics.tight)
+        .walletListRowPadding(WalletMetrics.tight)
         .accessibilityElement(children: .combine)
     }
 

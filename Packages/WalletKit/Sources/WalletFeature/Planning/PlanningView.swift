@@ -132,7 +132,7 @@ private struct PlanningRow: View {
             }
         }
         .frame(minHeight: WalletMetrics.touchTarget)
-        .padding(.vertical, WalletMetrics.hair)
+        .walletListRowPadding(WalletMetrics.hair)
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(title), \(detail)")
     }

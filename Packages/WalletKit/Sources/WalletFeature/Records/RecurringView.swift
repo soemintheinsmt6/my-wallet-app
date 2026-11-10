@@ -96,7 +96,7 @@ struct RecurringView: View {
                              kind: series.template.kind, font: .subheadline.weight(.semibold))
         }
         .frame(minHeight: WalletMetrics.touchTarget)
-        .padding(.vertical, WalletMetrics.tight)
+        .walletListRowPadding(WalletMetrics.tight)
     }
 
     private func detail(_ series: RecurringSeries) -> String {
@@ -234,7 +234,7 @@ private struct RecurringDetailView: View {
             Spacer(minLength: WalletMetrics.small)
         }
         .frame(minHeight: WalletMetrics.touchTarget)
-        .padding(.vertical, WalletMetrics.tight)
+        .walletListRowPadding(WalletMetrics.tight)
         .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
         .swipeActions(edge: .leading) {

@@ -130,7 +130,7 @@ public struct DebtsView: View {
             // The navigation link draws the chevron.
         }
         .frame(minHeight: WalletMetrics.touchTarget)
-        .padding(.vertical, WalletMetrics.tight)
+        .walletListRowPadding(WalletMetrics.tight)
         .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
     }

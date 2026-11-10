@@ -74,6 +74,7 @@ struct WalletListValueRow<Tile: View>: View {
             Text(value).foregroundStyle(.secondary).lineLimit(1)
         }
         .frame(minHeight: WalletMetrics.touchTarget)
+        .walletListRowPadding(0)
         .accessibilityElement(children: .combine)
     }
 }

@@ -642,7 +642,7 @@ struct BillSummaryRow: View {
             WalletAmountText(amount: bill.amount, currencyCode: bill.currencyCode, tint: .primary)
         }
         .frame(minHeight: WalletMetrics.touchTarget)
-        .padding(.vertical, WalletMetrics.tight)
+        .walletListRowPadding(WalletMetrics.tight)
         .accessibilityElement(children: .combine)
     }
 }
