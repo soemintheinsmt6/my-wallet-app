@@ -121,7 +121,8 @@ struct GoalEditorView: View {
 
     @ViewBuilder private var generalSection: some View {
         WalletEditorSectionHeader(title: "General") { focusedField = nil }
-        RecordFormRow(symbol: "flag") {
+        // A tile like the account row's below it, so the two rows of the section match.
+        RecordFormRow(symbol: "flag.fill", color: .orange, filledIcon: true) {
             WalletEditorNavigationButton(title: "Name", value: goal.name.isEmpty ? nil : goal.name) { open(.name) }
         }
         RecordFormRow(symbol: WalletSymbols.walletFill, color: .blue, filledIcon: true, showsDivider: false) {
