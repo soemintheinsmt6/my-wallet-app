@@ -287,3 +287,79 @@ struct DebtGoalStorageTests {
         #expect(try await repository.fetchGoals().isEmpty)
     }
 }
+
+/// Money that changes hands when a debt is made is recorded as balance adjustments, so a loan moves
+/// the balance out and back without ever counting as income or spending.
+@MainActor
+struct DebtMoneyMovedTests {
+    private func setup() async throws -> (SwiftDataWalletRepository, DebtsViewModel, RecordsViewModel, Account) {
+        let repository = try await SwiftDataWalletRepository.make(configuration: .inMemory)
+        let account = Account(name: "Cash", type: .cash, settings: AccountSettings(currentBalance: 1000))
+        try await repository.createAccount(account)
+        let records = RecordsViewModel(useCases: RecordUseCases(repository: repository),
+                                       accounts: AccountUseCases(repository: repository),
+                                       categories: CategoryUseCases(repository: repository),
+                                       tags: TagUseCases(repository: repository))
+        await records.reload()
+        return (repository, DebtsViewModel(repository: repository, records: records), records, account)
+    }
+
+    private func balance(_ repository: SwiftDataWalletRepository) async throws -> Decimal? {
+        try await repository.fetchAccounts().first?.settings.currentBalance
+    }
+
+    @Test func lendingAndBeingRepaidReturnsTheBalanceWithoutCountingAsIncomeOrSpending() async throws {
+        let (repository, viewModel, records, account) = try await setup()
+        try await viewModel.save(Debt(person: "Ana", direction: .owedToMe, amount: 300), moneyMovedThrough: account)
+
+        #expect(try await balance(repository) == 700)
+        let progress = try #require(viewModel.debts.first)
+        let opening = try #require(records.records.first)
+        #expect(progress.debt.openingRecordID == opening.id)
+        #expect(opening.draft.isAdjustment && opening.draft.kind == .expense && opening.draft.amount == 300)
+
+        try await viewModel.pay(progress, amount: 300, account: account, categoryID: nil)
+        #expect(try await balance(repository) == 1000)
+        #expect(records.records.count == 2)
+        #expect(records.records.allSatisfy { $0.draft.isAdjustment && !$0.draft.countsAsActivity })
+        #expect(viewModel.debts.first?.isSettled == true)
+    }
+
+    @Test func borrowingPutsMoneyInAndEditingKeepsTheAdjustmentInStep() async throws {
+        let (repository, viewModel, records, account) = try await setup()
+        try await viewModel.save(Debt(person: "Ben", direction: .iOwe, amount: 200), moneyMovedThrough: account)
+        #expect(try await balance(repository) == 1200)
+
+        var edited = try #require(viewModel.debts.first).debt
+        edited.amount = 150
+        try await viewModel.save(edited)
+        #expect(try await balance(repository) == 1150)
+        #expect(records.records.count == 1)
+        #expect(records.records.first?.draft.amount == 150)
+    }
+
+    @Test func aDebtWithoutMovedMoneyStillSettlesAsIncomeOrAnExpense() async throws {
+        let (repository, viewModel, records, account) = try await setup()
+        try await viewModel.save(Debt(person: "Cy", direction: .owedToMe, amount: 50))
+        #expect(try await balance(repository) == 1000)
+        #expect(records.records.isEmpty)
+
+        // Income needs a category, so the sheet asks for one for these debts.
+        let progress = try #require(viewModel.debts.first)
+        let category = try #require(records.categories.first)
+        try await viewModel.pay(progress, amount: 50, account: account, categoryID: category.id)
+        let record = try #require(records.records.first)
+        #expect(!record.draft.isAdjustment && record.draft.kind == .income)
+        #expect(try await balance(repository) == 1050)
+    }
+
+    @Test func aDebtThatFailsToSaveLeavesNoAdjustmentBehind() async throws {
+        let (repository, viewModel, records, account) = try await setup()
+        await #expect(throws: DebtError.invalidPerson) {
+            try await viewModel.save(Debt(person: "  ", direction: .owedToMe, amount: 300), moneyMovedThrough: account)
+        }
+        #expect(records.records.isEmpty)
+        #expect(try await balance(repository) == 1000)
+        #expect(viewModel.debts.isEmpty)
+    }
+}

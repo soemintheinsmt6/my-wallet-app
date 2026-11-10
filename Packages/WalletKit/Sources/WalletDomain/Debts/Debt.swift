@@ -23,6 +23,10 @@ public enum DebtDirection: String, CaseIterable, Codable, Sendable, Identifiable
         case .iOwe: .expense
         }
     }
+
+    /// When the money changes hands as the debt is made: borrowing puts it into an account,
+    /// lending takes it out. Settling moves it back the other way.
+    public var openingIncreasesBalance: Bool { self == .iOwe }
 }
 
 /// Money owed to or by another person.
@@ -40,10 +44,21 @@ public struct Debt: Identifiable, Codable, Sendable, Equatable {
     public var note: String
     public var createdAt: Date
     public var notificationsEnabled: Bool
+    /// The balance adjustment written when the money changed hands as the debt was made: lent out
+    /// of an account, or borrowed into one. While it is set, settling records the money's return as
+    /// an adjustment too, so a loan never counts as income or spending; without it, settling records
+    /// income or an expense, for debts whose money was already recorded (a shared bill, say).
+    ///
+    /// Optional in the stored JSON, so debts saved before it existed decode with none.
+    public var openingRecordID: UUID?
+
+    /// Whether the money was recorded moving when the debt was made.
+    public var movedMoney: Bool { openingRecordID != nil }
 
     public init(id: UUID = UUID(), person: String = "", direction: DebtDirection = .owedToMe,
                 amount: Decimal = 0, currencyCode: String = "USD", dueDate: Date? = nil,
-                note: String = "", createdAt: Date = Date(), notificationsEnabled: Bool = false) {
+                note: String = "", createdAt: Date = Date(), notificationsEnabled: Bool = false,
+                openingRecordID: UUID? = nil) {
         self.id = id
         self.person = person
         self.direction = direction
@@ -53,6 +68,7 @@ public struct Debt: Identifiable, Codable, Sendable, Equatable {
         self.note = note
         self.createdAt = createdAt
         self.notificationsEnabled = notificationsEnabled
+        self.openingRecordID = openingRecordID
     }
 
     public func validate() throws {

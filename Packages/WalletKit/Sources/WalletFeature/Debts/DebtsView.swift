@@ -159,13 +159,29 @@ private struct DebtEditorView: View {
     @State private var confirmingDelete = false
     @State private var screen: Screen?
     @State private var didLoad = false
+    @State private var movesMoney = false
+    @State private var moneyAccountID: UUID?
     @FocusState private var focusedField: Field?
     @Environment(\.dismiss) private var dismiss
 
     private enum Field: Hashable { case amount }
-    private enum Screen: Hashable { case currency, person, note }
+    private enum Screen: Hashable { case currency, person, note, moneyAccount }
 
     private var isNew: Bool { !viewModel.debts.contains { $0.debt.id == debt.id } }
+
+    /// Accounts in the debt's currency, so the recorded money matches the debt.
+    private var moneyAccounts: [Account] {
+        viewModel.records.accounts.filter { $0.currencyCode == debt.currencyCode }
+    }
+
+    private var moneyAccount: Account? { moneyAccounts.first { $0.id == moneyAccountID } ?? moneyAccounts.first }
+
+    /// The account the opening adjustment was recorded on, once it exists.
+    private var openingAccount: Account? {
+        guard let id = debt.openingRecordID,
+              let record = viewModel.records.records.first(where: { $0.id == id }) else { return nil }
+        return viewModel.records.account(record.draft.accountID)
+    }
 
     /// Green for money coming to the user, red for money they owe, as income and expenses are.
     private var amountColor: Color { debt.direction == .owedToMe ? .green : .red }
@@ -182,6 +198,7 @@ private struct DebtEditorView: View {
                             open(.person)
                         }
                     }
+                    moneySection
                     dueDateSection
                     WalletEditorSectionHeader(title: "More Details") { focusedField = nil }
                     RecordFormRow(symbol: "square.and.pencil", showsDivider: false) {
@@ -224,6 +241,10 @@ private struct DebtEditorView: View {
                                     suggestions: personSuggestions)
                 case .note:
                     RecordTextEntry(title: "Note", text: $debt.note, caption: "Add note", multiline: true)
+                case .moneyAccount:
+                    RecordAccountSelection(accounts: moneyAccounts,
+                                           selection: Binding(get: { moneyAccount?.id }, set: { moneyAccountID = $0 }),
+                                           title: "Account")
                 }
             }
             .disabled(viewModel.isSaving)
@@ -259,13 +280,59 @@ private struct DebtEditorView: View {
             }
             .pickerStyle(.segmented)
             .labelsHidden()
+            // Once the money is recorded on an account, the currency is that account's: it no
+            // longer opens the picker.
             RecordAmountField(
                 sign: "", color: amountColor, label: "\(debt.direction.title) amount",
-                currency: debt.currencyCode, amount: $amount, focus: $focusedField, field: .amount
-            ) { open(.currency) }
+                currency: debt.currencyCode, amount: $amount, focus: $focusedField, field: .amount,
+                chooseCurrency: debt.movedMoney ? nil : { open(.currency) })
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 12)
+    }
+
+    /// Whether the money changed hands when the debt was made. Recorded as a balance adjustment, so
+    /// the balance is right while the loan counts as neither spending nor income; settling records
+    /// its return the same way. Both rows lead with a tile, as the record editor's account row does.
+    @ViewBuilder private var moneySection: some View {
+        let lending = debt.direction == .owedToMe
+        WalletEditorSectionHeader(title: "Money") { focusedField = nil }
+        if debt.movedMoney {
+            RecordFormRow(symbol: "arrow.left.arrow.right", color: .blue, filledIcon: true, showsDivider: false) {
+                Text(lending ? "Lent from" : "Borrowed into")
+                Spacer()
+                Text(openingAccount?.name ?? "Recorded").foregroundStyle(.secondary).lineLimit(1)
+            }
+            .frame(minHeight: 44)
+            .accessibilityElement(children: .combine)
+            WalletEditorCaption("Recorded as a balance adjustment when the debt was made. Changing the amount "
+                                + "updates it, and settling records the money's return the same way.")
+        } else {
+            RecordFormRow(symbol: "arrow.left.arrow.right", color: .blue, filledIcon: true, showsDivider: movesMoney) {
+                Toggle("Money moved now", isOn: $movesMoney.animation())
+            }
+            if movesMoney {
+                if moneyAccounts.isEmpty {
+                    RecordFormRow(symbol: "exclamationmark.triangle.fill", color: .orange, filledIcon: true,
+                                  showsDivider: false) {
+                        Text("No account uses \(debt.currencyCode).").foregroundStyle(.orange)
+                        Spacer()
+                    }
+                    .frame(minHeight: 44)
+                } else {
+                    RecordFormRow(symbol: WalletSymbols.walletFill, color: .blue, filledIcon: true, showsDivider: false) {
+                        WalletEditorNavigationButton(title: lending ? "From account" : "Into account",
+                                                     value: moneyAccount?.name) { open(.moneyAccount) }
+                    }
+                }
+            }
+            WalletEditorCaption(movesMoney
+                ? (lending ? "Takes the money out of this account" : "Puts the money into this account")
+                    + " as a balance adjustment, so the balance is right without counting it as "
+                    + (lending ? "spending" : "income") + ". Settling records its return the same way."
+                : "Leave off when the money was already recorded, such as a bill you paid that they owe "
+                    + "you part of. Settling then records income or an expense.")
+        }
     }
 
     @ViewBuilder private var dueDateSection: some View {
@@ -324,200 +391,12 @@ private struct DebtEditorView: View {
                 value.amount = try AccountAmountInput.parse(amount)
                 value.dueDate = hasDueDate ? dueDate : nil
                 if !hasDueDate { value.notificationsEnabled = false }
-                try await viewModel.save(value)
-                dismiss()
-            } catch { errorMessage = error.localizedDescription }
-        }
-    }
-}
-
-/// Records a payment against a debt, optionally writing a matching ledger record.
-private struct DebtSettlementView: View {
-    @ObservedObject var viewModel: DebtsViewModel
-    let progress: DebtProgress
-    @State private var amount = ""
-    @State private var createsRecord = true
-    @State private var accountID: UUID?
-    @State private var categoryID: UUID?
-    @State private var errorMessage: String?
-    @State private var screen: Screen?
-    @State private var didLoad = false
-    @FocusState private var focusedField: Field?
-    @Environment(\.dismiss) private var dismiss
-
-    private enum Field: Hashable { case amount }
-    private enum Screen: Hashable { case account, category }
-
-    /// Only accounts in the debt's own currency, so the ledger record cannot misstate the amount.
-    private var accounts: [Account] {
-        viewModel.records.accounts.filter { $0.currencyCode == progress.debt.currencyCode }
-    }
-
-    private var account: Account? { accounts.first { $0.id == accountID } ?? accounts.first }
-
-    private var parsed: Decimal? {
-        guard let value = try? AccountAmountInput.parse(amount), value > 0,
-              value <= progress.outstanding else { return nil }
-        return value
-    }
-
-    private var currency: String { progress.debt.currencyCode }
-    /// Money in for a debt owed to the user, out for one they owe: the record it can create.
-    private var kind: RecordKind { progress.debt.direction.settlementKind }
-    private var canSave: Bool { parsed != nil && !viewModel.isSaving && (!createsRecord || account != nil) }
-
-    var body: some View {
-        NavigationStack {
-            // The record editor's layout: the payment on top, then rows.
-            ScrollView {
-                VStack(spacing: 0) {
-                    amountSection
-                    debtSection
-                    ledgerSection
-                    if let errorMessage {
-                        Label(errorMessage, systemImage: "exclamationmark.triangle")
-                            .foregroundStyle(.red)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(20)
-                    }
+                let movingThrough = movesMoney && !debt.movedMoney ? moneyAccount : nil
+                if movesMoney && !debt.movedMoney && movingThrough == nil {
+                    errorMessage = "Add a \(debt.currencyCode) account to record the money, or turn off Money moved now."
+                    return
                 }
-                .background {
-                    Color.clear.contentShape(Rectangle())
-                        .onTapGesture { focusedField = nil }
-                }
-                .walletEditorRows()
-            }
-            .scrollDismissesKeyboard(.immediately)
-            .walletEditorPage()
-            .navigationTitle("Settle Debt")
-            #if !os(macOS)
-                .navigationBarTitleDisplayMode(.inline)
-            #endif
-            .navigationDestination(item: $screen) { screen in
-                switch screen {
-                case .account:
-                    RecordAccountSelection(accounts: accounts,
-                                           selection: Binding(get: { account?.id }, set: { accountID = $0 }),
-                                           title: "Account")
-                case .category:
-                    RecordCategoryPicker(viewModel: viewModel.records, kind: kind, selection: $categoryID,
-                                         allowsNone: true) { self.screen = nil }
-                }
-            }
-            .disabled(viewModel.isSaving)
-            // Pinned at the bottom like the record editor's Save.
-            .safeAreaInset(edge: .bottom, spacing: 0) {
-                WalletEditorBottomButton(title: "Record Payment", isBusy: viewModel.isSaving, isEnabled: canSave) {
-                    pay()
-                }
-            }
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
-            }
-            .task {
-                // Runs again on returning from a pushed screen; only the first appearance focuses.
-                guard !didLoad else { return }
-                didLoad = true
-                await Task.yield()
-                focusedField = .amount
-            }
-            .interactiveDismissDisabled(viewModel.isSaving)
-        }
-        #if os(macOS)
-        .frame(minWidth: 500, minHeight: 520)
-        #endif
-    }
-
-    /// Green with a plus for money received, red with a minus for money paid, as the income or
-    /// expense it can record is in the record editor. The caption says who it is with.
-    private var amountSection: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(progress.debt.direction == .owedToMe ? "Received from \(progress.debt.person)"
-                                                      : "Paid to \(progress.debt.person)")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
-                .accessibilityHidden(true)
-            RecordAmountField(kind: kind, currency: currency, amount: $amount, focus: $focusedField, field: .amount)
-        }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 12)
-    }
-
-    /// What is still owed, and a shortcut to paying all of it. Both rows lead with a tile: the
-    /// debt's own from the Debts list, and a checkmark for settling it in full.
-    @ViewBuilder private var debtSection: some View {
-        WalletEditorSectionHeader(title: "Debt") { focusedField = nil }
-        RecordFormRow(symbol: progress.debt.direction == .owedToMe ? "arrow.down.left" : "arrow.up.right",
-                      color: progress.debt.direction == .owedToMe ? .green : .orange, filledIcon: true) {
-            Text("Outstanding")
-            Spacer()
-            Text(progress.outstanding.walletFormatted(currency)).foregroundStyle(.secondary).monospacedDigit()
-        }
-        .frame(minHeight: 44)
-        .accessibilityElement(children: .combine)
-        RecordFormRow(symbol: "checkmark", color: .green, filledIcon: true, showsDivider: false) {
-            Button {
-                focusedField = nil
-                amount = AccountAmountInput.text(progress.outstanding)
-            } label: {
-                HStack {
-                    Text("Pay It All").foregroundStyle(.tint)
-                    Spacer()
-                }
-                .frame(maxWidth: .infinity, minHeight: 44)
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-        }
-        WalletEditorCaption("A payment cannot exceed what is still outstanding.")
-    }
-
-    /// The switch and the record it creates. Every row leads with a tile: the switch's own, the
-    /// record editor's wallet, and the chosen category's.
-    @ViewBuilder private var ledgerSection: some View {
-        WalletEditorSectionHeader(title: "Ledger") { focusedField = nil }
-        RecordFormRow(symbol: "doc.text.fill", color: .blue, filledIcon: true, showsDivider: createsRecord) {
-            Toggle("Also add a record", isOn: $createsRecord.animation())
-        }
-        if createsRecord {
-            if accounts.isEmpty {
-                RecordFormRow(symbol: "exclamationmark.triangle.fill", color: .orange, filledIcon: true,
-                              showsDivider: false) {
-                    Text("No account uses \(currency).").foregroundStyle(.orange)
-                    Spacer()
-                }
-                .frame(minHeight: 44)
-            } else {
-                RecordFormRow(symbol: WalletSymbols.walletFill, color: .blue, filledIcon: true) {
-                    WalletEditorNavigationButton(title: "Account", value: account?.name) { open(.account) }
-                }
-                RecordFormRow(symbol: "questionmark", category: viewModel.records.category(categoryID),
-                              categoryTile: true, showsDivider: false) {
-                    WalletEditorNavigationButton(title: "Category",
-                                                 value: categoryID == nil ? "None" : viewModel.records.categoryName(categoryID)) {
-                        open(.category)
-                    }
-                }
-            }
-        }
-        WalletEditorCaption(createsRecord
-                            ? "Creates \(kind == .income ? "an income" : "an expense") in the chosen account so balances and statistics stay right."
-                            : "The payment is tracked against the debt only; no balance changes.")
-    }
-
-    private func open(_ destination: Screen) {
-        focusedField = nil
-        screen = destination
-    }
-
-    private func pay() {
-        guard let value = parsed else { return }
-        Task {
-            do {
-                try await viewModel.pay(progress, amount: value,
-                                        account: createsRecord ? account : nil,
-                                        categoryID: createsRecord ? categoryID : nil)
+                try await viewModel.save(value, moneyMovedThrough: movingThrough)
                 dismiss()
             } catch { errorMessage = error.localizedDescription }
         }

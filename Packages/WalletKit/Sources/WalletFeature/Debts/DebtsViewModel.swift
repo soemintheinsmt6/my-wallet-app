@@ -46,8 +46,61 @@ public final class DebtsViewModel: ObservableObject {
 
     // MARK: - Debts
 
-    public func save(_ debt: Debt) async throws {
-        try await mutate { try await debtUseCases.save(debt) }
+    /// Saves a debt. With `account`, for a debt whose money has not been recorded yet, also records
+    /// the money changing hands as a balance adjustment on that account (out when lending, in when
+    /// borrowing), dated when the debt was made. An adjustment moves the balance without counting as
+    /// income or spending, which a loan is not.
+    ///
+    /// The debt is checked before the adjustment is written, and the adjustment is removed again if
+    /// the debt then fails to save, so neither is left without the other. A debt whose adjustment
+    /// already exists keeps it in step with its person, direction and amount.
+    public func save(_ debt: Debt, moneyMovedThrough account: Account? = nil) async throws {
+        try await mutate {
+            var value = debt
+            var writtenID: UUID?
+            if let id = debt.openingRecordID {
+                try await syncOpeningRecord(id: id, with: debt)
+            } else if let account {
+                var checked = debt
+                checked.person = debt.person.trimmingCharacters(in: .whitespacesAndNewlines)
+                try checked.validate()
+                let id = UUID()
+                try await recordUseCases.create(id: id, draft: openingDraft(for: checked, account: account))
+                writtenID = id
+                value.openingRecordID = id
+            }
+            do {
+                try await debtUseCases.save(value)
+            } catch {
+                if let writtenID { try? await recordUseCases.delete(id: writtenID) }
+                throw error
+            }
+            if value.openingRecordID != nil { await records.reload() }
+        }
+    }
+
+    private func openingDraft(for debt: Debt, account: Account) -> RecordDraft {
+        var draft = RecordDraft.adjustment(accountID: account.id, increase: debt.direction.openingIncreasesBalance,
+                                           amount: debt.amount, date: debt.createdAt)
+        draft.payee = debt.person
+        draft.note = debt.direction == .owedToMe ? "Lent to \(debt.person)" : "Borrowed from \(debt.person)"
+        return draft
+    }
+
+    /// Keeps the opening adjustment matching an edited debt: its amount, which way it moved and who
+    /// it was with. Everything else, including any note or label added to that record since, stays.
+    /// If the person deleted that record themselves, there is nothing to keep in step.
+    private func syncOpeningRecord(id: UUID, with debt: Debt) async throws {
+        guard let record = records.records.first(where: { $0.id == id }) else { return }
+        var draft = record.draft
+        draft.amount = debt.amount
+        draft.kind = debt.direction.openingIncreasesBalance ? .income : .expense
+        draft.payee = debt.person.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard draft != record.draft else { return }
+        // A loaded record leaves its photo out, and an update writes the draft's photo as given, so
+        // a photo attached to this record is read back first rather than erased.
+        if record.hasPhoto { draft.photoData = try await recordUseCases.photo(id: id) }
+        _ = try await recordUseCases.update(id: id, draft: draft)
     }
 
     public func deleteDebt(id: UUID) async throws {
@@ -56,6 +109,10 @@ public final class DebtsViewModel: ObservableObject {
 
     /// Records a payment, optionally writing a matching ledger record.
     ///
+    /// For a debt whose money was recorded moving when it was made, the record is a balance
+    /// adjustment the other way, so lending and being repaid leave the balance where it started and
+    /// count as neither income nor spending. Otherwise it is income or an expense.
+    ///
     /// The record is written first: if it fails the payment is not recorded either, so the two
     /// never disagree about what happened.
     public func pay(_ progress: DebtProgress, amount: Decimal, account: Account?,
@@ -63,14 +120,22 @@ public final class DebtsViewModel: ObservableObject {
         try await mutate {
             var recordID: UUID?
             if let account {
-                var draft = RecordDraft()
-                draft.kind = progress.debt.direction.settlementKind
-                draft.accountID = account.id
-                draft.categoryID = categoryID
-                draft.amount = amount
-                draft.date = Date()
-                draft.payee = progress.debt.person
-                draft.note = "Debt settlement"
+                let debt = progress.debt
+                var draft: RecordDraft
+                if debt.movedMoney {
+                    draft = .adjustment(accountID: account.id, increase: !debt.direction.openingIncreasesBalance,
+                                        amount: amount)
+                    draft.note = debt.direction == .owedToMe ? "Repaid by \(debt.person)" : "Repaid to \(debt.person)"
+                } else {
+                    draft = RecordDraft()
+                    draft.kind = debt.direction.settlementKind
+                    draft.accountID = account.id
+                    draft.categoryID = categoryID
+                    draft.amount = amount
+                    draft.date = Date()
+                    draft.note = "Debt settlement"
+                }
+                draft.payee = debt.person
                 let id = UUID()
                 try await recordUseCases.create(id: id, draft: draft)
                 recordID = id
