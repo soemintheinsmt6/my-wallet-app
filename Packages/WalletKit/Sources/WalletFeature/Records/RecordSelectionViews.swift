@@ -5,14 +5,33 @@ struct RecordAccountSelection: View {
     let accounts: [Account]
     @Binding var selection: UUID?
     let title: String
+    /// When set, offers clearing the selection under this title, for an optional account.
+    var noneTitle: String?
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         List {
+            if let noneTitle {
+                Button {
+                    selection = nil
+                    dismiss()
+                } label: {
+                    HStack {
+                        Text(noneTitle).foregroundStyle(.primary)
+                        Spacer()
+                        if selection == nil { Image(systemName: "checkmark").foregroundStyle(.tint) }
+                    }
+                    .frame(minHeight: 44)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityAddTraits(selection == nil ? .isSelected : [])
+                .walletFirstRow(true)
+            }
             if accounts.isEmpty {
                 Text("No available accounts. Create an account in the Accounts tab.")
                     .foregroundStyle(.secondary)
-                    .walletFirstRow(true)
+                    .walletFirstRow(noneTitle == nil)
             }
             ForEach(accounts) { account in
                 Button {
@@ -37,7 +56,7 @@ struct RecordAccountSelection: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityAddTraits(selection == account.id ? .isSelected : [])
-                .walletFirstRow(account.id == accounts.first?.id)
+                .walletFirstRow(noneTitle == nil && account.id == accounts.first?.id)
             }
         }
         .listStyle(.plain)

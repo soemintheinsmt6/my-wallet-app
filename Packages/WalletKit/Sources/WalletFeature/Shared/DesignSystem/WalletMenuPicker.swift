@@ -13,32 +13,22 @@ struct WalletMenuPicker<Selection: Hashable, Options: View>: View {
     @Binding var selection: Selection
     /// What the row shows for the current selection; a `Picker` keeps its option labels private.
     let value: String
-    /// A colored symbol leading the title, in editors whose rows carry one.
-    let icon: (symbol: String, color: Color)?
     @ViewBuilder var options: () -> Options
 
     init(_ title: String, selection: Binding<Selection>, value: String,
-         icon: (symbol: String, color: Color)? = nil,
          @ViewBuilder options: @escaping () -> Options) {
         self.title = title
         _selection = selection
         self.value = value
-        self.icon = icon
         self.options = options
     }
 
     var body: some View {
         HStack(spacing: WalletMetrics.small) {
-            Group {
-                if let icon {
-                    WalletFormLabel(title, symbol: icon.symbol, color: icon.color)
-                } else {
-                    Text(title)
-                }
-            }
-            .foregroundStyle(.primary)
-            // The menu below carries the title for VoiceOver, so it is read once.
-            .accessibilityHidden(true)
+            Text(title)
+                .foregroundStyle(.primary)
+                // The menu below carries the title for VoiceOver, so it is read once.
+                .accessibilityHidden(true)
             Spacer(minLength: WalletMetrics.small)
             Menu {
                 Picker(title, selection: $selection, content: options)

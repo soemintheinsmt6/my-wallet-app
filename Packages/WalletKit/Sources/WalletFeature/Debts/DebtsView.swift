@@ -147,12 +147,14 @@ private struct DebtEditorView: View {
     @State private var hasDueDate = false
     @State private var dueDate = Date()
     @State private var errorMessage: String?
-    @State private var choosingCurrency = false
     @State private var confirmingDelete = false
+    @State private var screen: Screen?
+    @State private var didLoad = false
     @FocusState private var focusedField: Field?
     @Environment(\.dismiss) private var dismiss
 
     private enum Field: Hashable { case amount }
+    private enum Screen: Hashable { case currency, person, note }
 
     private var isNew: Bool { !viewModel.debts.contains { $0.debt.id == debt.id } }
 
@@ -161,88 +163,37 @@ private struct DebtEditorView: View {
 
     var body: some View {
         NavigationStack {
-            Form {
-                // Laid out like the record editor: who owes whom, then the amount large in its color.
-                Section {
-                    VStack(spacing: 12) {
-                        Picker("Direction", selection: $debt.direction) {
-                            ForEach(DebtDirection.allCases) { Text($0.title).tag($0) }
-                        }
-                        .pickerStyle(.segmented)
-                        .labelsHidden()
-                        RecordAmountField(
-                            sign: "", color: amountColor, label: "\(debt.direction.title) amount",
-                            currency: debt.currencyCode, amount: $amount, focus: $focusedField, field: .amount
-                        ) {
-                            focusedField = nil
-                            choosingCurrency = true
+            // The record editor's layout: who owes whom and the amount on top, then rows.
+            ScrollView {
+                VStack(spacing: 0) {
+                    amountSection
+                    WalletEditorSectionHeader(title: "General") { focusedField = nil }
+                    RecordFormRow(symbol: "person", showsDivider: false) {
+                        WalletEditorNavigationButton(title: "Person", value: debt.person.isEmpty ? nil : debt.person) {
+                            open(.person)
                         }
                     }
-                    .padding(.vertical, 4)
-                }
-
-                Section {
-                    LabeledContent {
-                        TextField("Name", text: $debt.person).multilineTextAlignment(.trailing)
-                    } label: {
-                        WalletFormLabel("Person", symbol: "person.fill", color: .blue)
-                    }
-                }
-
-                Section {
-                    Toggle(isOn: $hasDueDate.animation()) {
-                        WalletFormLabel("Has a due date", symbol: "calendar", color: .red)
-                    }
-                    if hasDueDate {
-                        DatePicker(selection: $dueDate, displayedComponents: .date) {
-                            WalletFormLabel("Due", symbol: "clock.fill", color: .orange)
-                        }
-                        Toggle(isOn: $debt.notificationsEnabled) {
-                            WalletFormLabel("Remind me", symbol: "bell.fill", color: .purple)
-                        }
-                        .refreshesNotificationAuthorization { await viewModel.refreshNotificationAuthorization() }
-                        if debt.notificationsEnabled && !viewModel.notificationsAuthorized {
-                            Button("Enable System Notifications") {
-                                Task { await viewModel.requestNotifications() }
-                            }
+                    dueDateSection
+                    WalletEditorSectionHeader(title: "More Details") { focusedField = nil }
+                    RecordFormRow(symbol: "square.and.pencil", showsDivider: false) {
+                        WalletEditorNavigationButton(title: "Note", value: debt.note.isEmpty ? nil : debt.note) {
+                            open(.note)
                         }
                     }
-                } header: {
-                    Text("Due date")
-                } footer: {
-                    Text("Reminders only fire while the debt is still outstanding.")
-                }
-
-                Section {
-                    Label {
-                        TextField("Note", text: $debt.note, axis: .vertical).lineLimit(1...6)
-                    } icon: {
-                        WalletFormIcon(symbol: "note.text", color: .gray)
-                    }
-                }
-
-                if let errorMessage {
-                    Section {
-                        Label(errorMessage, systemImage: "exclamationmark.triangle").foregroundStyle(.red)
-                    }
-                }
-
-                if !isNew {
-                    Section {
-                        Button(role: .destructive) {
+                    if let errorMessage { Text(errorMessage).foregroundStyle(.red).padding(20) }
+                    if !isNew {
+                        WalletEditorDeleteButton(title: "Delete Debt") {
                             focusedField = nil
                             confirmingDelete = true
-                        } label: {
-                            Label {
-                                Text("Delete Debt").foregroundStyle(.red)
-                            } icon: {
-                                WalletFormIcon(symbol: "trash", color: .red)
-                            }
                         }
                     }
                 }
+                .background {
+                    Color.clear.contentShape(Rectangle())
+                        .onTapGesture { focusedField = nil }
+                }
             }
-            .formStyle(.grouped)
+            .scrollDismissesKeyboard(.immediately)
             .alert("Delete Debt?", isPresented: $confirmingDelete) {
                 Button("Cancel", role: .cancel) {}
                 Button("Delete", role: .destructive) { delete() }
@@ -253,9 +204,16 @@ private struct DebtEditorView: View {
             #if !os(macOS)
                 .navigationBarTitleDisplayMode(.inline)
             #endif
-            .scrollDismissesKeyboard(.immediately)
-            .navigationDestination(isPresented: $choosingCurrency) {
-                CurrencyPickerView(selection: $debt.currencyCode, pushed: true)
+            .navigationDestination(item: $screen) { screen in
+                switch screen {
+                case .currency:
+                    CurrencyPickerView(selection: $debt.currencyCode, pushed: true)
+                case .person:
+                    RecordTextEntry(title: "Person", text: $debt.person, caption: "Who is it with?",
+                                    suggestions: personSuggestions)
+                case .note:
+                    RecordTextEntry(title: "Note", text: $debt.note, caption: "Add note", multiline: true)
+                }
             }
             .disabled(viewModel.isSaving)
             .toolbar {
@@ -265,15 +223,77 @@ private struct DebtEditorView: View {
                 }
             }
             .task {
+                // Runs again on returning from a pushed screen; only the first appearance loads.
+                guard !didLoad else { return }
+                didLoad = true
                 amount = debt.amount == 0 ? "" : AccountAmountInput.text(debt.amount)
                 hasDueDate = debt.dueDate != nil
                 dueDate = debt.dueDate ?? Date()
+                if isNew {
+                    await Task.yield()
+                    focusedField = .amount
+                }
             }
             .interactiveDismissDisabled(viewModel.isSaving)
         }
         #if os(macOS)
         .frame(minWidth: 500, minHeight: 560)
         #endif
+    }
+
+    private var amountSection: some View {
+        VStack(spacing: 12) {
+            Picker("Direction", selection: $debt.direction) {
+                ForEach(DebtDirection.allCases) { Text($0.title).tag($0) }
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            RecordAmountField(
+                sign: "", color: amountColor, label: "\(debt.direction.title) amount",
+                currency: debt.currencyCode, amount: $amount, focus: $focusedField, field: .amount
+            ) { open(.currency) }
+        }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 12)
+    }
+
+    @ViewBuilder private var dueDateSection: some View {
+        WalletEditorSectionHeader(title: "Due Date") { focusedField = nil }
+        RecordFormRow(symbol: "calendar", showsDivider: hasDueDate) {
+            Toggle("Has a due date", isOn: $hasDueDate.animation())
+        }
+        if hasDueDate {
+            RecordFormRow(symbol: "clock") {
+                DatePicker("Due", selection: $dueDate, displayedComponents: .date)
+            }
+            let asksPermission = debt.notificationsEnabled && !viewModel.notificationsAuthorized
+            RecordFormRow(symbol: "bell", showsDivider: asksPermission) {
+                Toggle("Remind me", isOn: $debt.notificationsEnabled)
+            }
+            .refreshesNotificationAuthorization { await viewModel.refreshNotificationAuthorization() }
+            if asksPermission {
+                RecordFormRow(symbol: "bell.badge", color: .accentColor, showsDivider: false) {
+                    Button("Enable System Notifications") { Task { await viewModel.requestNotifications() } }
+                    Spacer()
+                }
+            }
+            WalletEditorCaption("Reminders only fire while the debt is still outstanding.")
+        }
+    }
+
+    private func open(_ destination: Screen) {
+        focusedField = nil
+        screen = destination
+    }
+
+    /// People already in the debt list, so the same person is spelled the same way and nets together.
+    private func personSuggestions(for text: String) -> [TextEntrySuggestion] {
+        var seen = Set<String>()
+        let names = viewModel.debts.map(\.debt.person).filter { name in
+            guard !name.isEmpty, seen.insert(name.lowercased()).inserted else { return false }
+            return text.isEmpty || name.localizedCaseInsensitiveContains(text)
+        }
+        return names.prefix(8).map { TextEntrySuggestion(text: $0) }
     }
 
     /// Keeps the editor open with the error shown if the delete fails.

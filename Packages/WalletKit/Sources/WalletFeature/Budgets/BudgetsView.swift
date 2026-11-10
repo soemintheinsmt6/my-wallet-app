@@ -91,122 +91,40 @@ private struct BudgetEditorView: View {
     @State var budget: Budget
     @State private var amount = ""
     @State private var errorMessage: String?
-    @State private var choosingCurrency = false
     @State private var confirmingDelete = false
+    @State private var screen: Screen?
+    @State private var didLoad = false
     @FocusState private var focusedField: Field?
     @Environment(\.dismiss) private var dismiss
 
     private enum Field: Hashable { case limit }
+    private enum Screen: Hashable { case currency, name, category }
 
     private var isNew: Bool { !viewModel.budgets.contains { $0.id == budget.id } }
 
-    /// The chosen category's own symbol and color, as the record editor shows it; a grid for Overall.
-    private var categoryIcon: (symbol: String, color: Color) {
-        guard let category = viewModel.records.category(budget.categoryID) else { return ("square.grid.2x2.fill", .gray) }
-        return (category.symbol, category.colorToken.color)
-    }
-
     var body: some View {
         NavigationStack {
-            Form {
-                // Laid out like the record, debt and goal editors: the amount first, large, in the
-                // red of the spending it limits.
-                Section {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Limit")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                            .accessibilityHidden(true)
-                        RecordAmountField(
-                            sign: "", color: .red, label: "Limit amount",
-                            currency: budget.currencyCode, amount: $amount, focus: $focusedField, field: .limit
-                        ) {
-                            focusedField = nil
-                            choosingCurrency = true
-                        }
-                    }
-                    .padding(.vertical, 4)
-                }
-
-                Section {
-                    LabeledContent {
-                        TextField("Groceries", text: $budget.name)
-                            .multilineTextAlignment(.trailing)
-                    } label: {
-                        WalletFormLabel("Name", symbol: "chart.bar.fill", color: .green)
-                    }
-                    WalletMenuPicker("Category", selection: $budget.categoryID,
-                                     value: budget.categoryID == nil ? "Overall" : viewModel.records.categoryName(budget.categoryID),
-                                     icon: categoryIcon) {
-                        Text("Overall").tag(nil as UUID?)
-                        ForEach(viewModel.records.categories) { Text(viewModel.records.categoryName($0.id)).tag(Optional($0.id)) }
-                    }
-                }
-
-                Section {
-                    WalletMenuPicker("Period", selection: $budget.period, value: budget.period.rawValue.capitalized,
-                                     icon: ("repeat", .blue)) {
-                        ForEach(BudgetPeriod.allCases, id: \.self) { Text($0.rawValue.capitalized).tag($0) }
-                    }
-                    DatePicker(selection: $budget.startDate, displayedComponents: .date) {
-                        WalletFormLabel("Starts", symbol: "calendar", color: .red)
-                    }
-                    if budget.period == .custom {
-                        DatePicker(selection: $budget.endDate, in: budget.startDate..., displayedComponents: .date) {
-                            WalletFormLabel("Ends (exclusive)", symbol: "flag.checkered", color: .orange)
-                        }
-                    } else {
-                        Toggle(isOn: $budget.rollover) {
-                            WalletFormLabel("Roll over unused amounts", symbol: "arrow.uturn.forward", color: .teal)
-                        }
-                    }
-                } header: {
-                    Text("Period")
-                } footer: {
-                    Text(budget.period == .custom
-                         ? "A custom budget covers one fixed date range."
-                         : "Only unused positive amounts roll over into the next period.")
-                }
-
-                Section {
-                    Toggle(isOn: $budget.notificationsEnabled) {
-                        WalletFormLabel("Notify at 80% and 100%", symbol: "bell.fill", color: .purple)
-                    }
-                    .refreshesNotificationAuthorization { await viewModel.refreshNotificationAuthorization() }
-                    if budget.notificationsEnabled {
-                        if !viewModel.notificationsAuthorized {
-                            Button("Enable System Notifications") { Task { await viewModel.requestNotifications() } }
-                        }
-                        if let message = viewModel.errorMessage {
-                            Label(message, systemImage: "exclamationmark.triangle").foregroundStyle(.red)
-                        }
-                    }
-                } header: {
-                    Text("Notifications")
-                }
-
-                if let errorMessage {
-                    Section {
-                        Label(errorMessage, systemImage: "exclamationmark.triangle").foregroundStyle(.red)
-                    }
-                }
-
-                if !isNew {
-                    Section {
-                        Button(role: .destructive) {
+            // The record editor's layout: the limit on top, then rows.
+            ScrollView {
+                VStack(spacing: 0) {
+                    amountSection
+                    generalSection
+                    periodSection
+                    notificationsSection
+                    if let errorMessage { Text(errorMessage).foregroundStyle(.red).padding(20) }
+                    if !isNew {
+                        WalletEditorDeleteButton(title: "Delete Budget") {
                             focusedField = nil
                             confirmingDelete = true
-                        } label: {
-                            Label {
-                                Text("Delete Budget").foregroundStyle(.red)
-                            } icon: {
-                                WalletFormIcon(symbol: "trash", color: .red)
-                            }
                         }
                     }
                 }
+                .background {
+                    Color.clear.contentShape(Rectangle())
+                        .onTapGesture { focusedField = nil }
+                }
             }
-            .formStyle(.grouped)
+            .scrollDismissesKeyboard(.immediately)
             .alert("Delete Budget?", isPresented: $confirmingDelete) {
                 Button("Cancel", role: .cancel) {}
                 Button("Delete", role: .destructive) { delete() }
@@ -217,9 +135,16 @@ private struct BudgetEditorView: View {
             #if !os(macOS)
                 .navigationBarTitleDisplayMode(.inline)
             #endif
-            .scrollDismissesKeyboard(.immediately)
-            .navigationDestination(isPresented: $choosingCurrency) {
-                CurrencyPickerView(selection: $budget.currencyCode, pushed: true)
+            .navigationDestination(item: $screen) { screen in
+                switch screen {
+                case .currency:
+                    CurrencyPickerView(selection: $budget.currencyCode, pushed: true)
+                case .name:
+                    RecordTextEntry(title: "Name", text: $budget.name, caption: "What is this budget for?")
+                case .category:
+                    RecordCategoryPicker(viewModel: viewModel.records, kind: .expense, selection: $budget.categoryID,
+                                         allowsNone: true, noneTitle: "Overall") { self.screen = nil }
+                }
             }
             .disabled(viewModel.isSaving)
             .toolbar {
@@ -238,12 +163,104 @@ private struct BudgetEditorView: View {
                     }.disabled(viewModel.isSaving)
                 }
             }
-            .task { amount = budget.amount == 0 ? "" : AccountAmountInput.text(budget.amount) }
+            .task {
+                // Runs again on returning from a pushed screen; only the first appearance loads.
+                guard !didLoad else { return }
+                didLoad = true
+                amount = budget.amount == 0 ? "" : AccountAmountInput.text(budget.amount)
+                if isNew {
+                    await Task.yield()
+                    focusedField = .limit
+                }
+            }
             .interactiveDismissDisabled(viewModel.isSaving)
         }
         #if os(macOS)
         .frame(minWidth: 500, minHeight: 520)
         #endif
+    }
+
+    /// Red, the color of the spending it limits; the caption says what the number is.
+    private var amountSection: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text("Limit")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .accessibilityHidden(true)
+            RecordAmountField(
+                sign: "", color: .red, label: "Limit amount",
+                currency: budget.currencyCode, amount: $amount, focus: $focusedField, field: .limit
+            ) { open(.currency) }
+        }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 12)
+    }
+
+    /// The category row shows the chosen category's own tile, as the record editor does; a gray
+    /// grid stands for Overall.
+    @ViewBuilder private var generalSection: some View {
+        WalletEditorSectionHeader(title: "General") { focusedField = nil }
+        RecordFormRow(symbol: "chart.bar") {
+            WalletEditorNavigationButton(title: "Name", value: budget.name.isEmpty ? nil : budget.name) { open(.name) }
+        }
+        RecordFormRow(symbol: "square.grid.2x2.fill", category: viewModel.records.category(budget.categoryID),
+                      categoryTile: true, showsDivider: false) {
+            WalletEditorNavigationButton(
+                title: "Category",
+                value: budget.categoryID == nil ? "Overall" : viewModel.records.categoryName(budget.categoryID)
+            ) { open(.category) }
+        }
+    }
+
+    @ViewBuilder private var periodSection: some View {
+        WalletEditorSectionHeader(title: "Period") { focusedField = nil }
+        RecordFormRow(symbol: "repeat") {
+            WalletMenuPicker("Period", selection: $budget.period, value: budget.period.rawValue.capitalized) {
+                ForEach(BudgetPeriod.allCases, id: \.self) { Text($0.rawValue.capitalized).tag($0) }
+            }
+        }
+        RecordFormRow(symbol: "calendar") {
+            DatePicker("Starts", selection: $budget.startDate, displayedComponents: .date)
+        }
+        if budget.period == .custom {
+            RecordFormRow(symbol: "calendar.badge.checkmark", showsDivider: false) {
+                DatePicker("Ends (exclusive)", selection: $budget.endDate, in: budget.startDate...,
+                           displayedComponents: .date)
+            }
+        } else {
+            RecordFormRow(symbol: "arrow.uturn.forward", showsDivider: false) {
+                Toggle("Roll over unused amounts", isOn: $budget.rollover)
+            }
+        }
+        WalletEditorCaption(budget.period == .custom
+                            ? "A custom budget covers one fixed date range."
+                            : "Only unused positive amounts roll over into the next period.")
+    }
+
+    @ViewBuilder private var notificationsSection: some View {
+        let asksPermission = budget.notificationsEnabled && !viewModel.notificationsAuthorized
+        WalletEditorSectionHeader(title: "Notifications") { focusedField = nil }
+        RecordFormRow(symbol: "bell", showsDivider: asksPermission) {
+            Toggle("Notify at 80% and 100%", isOn: $budget.notificationsEnabled)
+        }
+        .refreshesNotificationAuthorization { await viewModel.refreshNotificationAuthorization() }
+        if asksPermission {
+            RecordFormRow(symbol: "bell.badge", color: .accentColor, showsDivider: false) {
+                Button("Enable System Notifications") { Task { await viewModel.requestNotifications() } }
+                Spacer()
+            }
+        }
+        if budget.notificationsEnabled, let message = viewModel.errorMessage {
+            Label(message, systemImage: "exclamationmark.triangle")
+                .foregroundStyle(.red)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(20)
+        }
+    }
+
+    private func open(_ destination: Screen) {
+        focusedField = nil
+        screen = destination
     }
 
     /// Keeps the editor open with the error shown if the delete fails.

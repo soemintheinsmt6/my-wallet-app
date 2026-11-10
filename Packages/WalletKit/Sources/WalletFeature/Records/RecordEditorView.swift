@@ -101,18 +101,10 @@ struct RecordEditorView: View {
                     if record == nil && allowsRecurrence && !draft.isAdjustment { recurrenceSection }
                     if let errorMessage { Text(errorMessage).foregroundStyle(.red).padding(20) }
                     if canDelete {
-                        // Laid out as a form row so its icon and title line up with the rows above.
-                        Button(role: .destructive) {
+                        WalletEditorDeleteButton(title: "Delete Record") {
                             focusedField = nil
                             confirmingDelete = true
-                        } label: {
-                            recordRow("trash", color: .red, showsDivider: false) {
-                                Text("Delete Record").foregroundStyle(.red)
-                                Spacer()
-                            }
-                            .contentShape(Rectangle())
                         }
-                        .buttonStyle(.plain)
                     }
                 }
                 .background {
@@ -583,38 +575,17 @@ struct RecordEditorView: View {
         }
     }
 
-    private var chevron: some View {
-        Image(systemName: "chevron.right").font(.caption.weight(.semibold)).foregroundStyle(.tertiary)
-    }
+    private var chevron: some View { WalletEditorChevron() }
 
     private func sectionHeader(_ title: String) -> some View {
-        Text(title.uppercased())
-            .font(.subheadline)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 20)
-            .padding(.top, 30)
-            .padding(.bottom, 16)
-            .background(.quaternary.opacity(0.35))
-            .contentShape(Rectangle())
-            .onTapGesture { focusedField = nil }
-            .accessibilityAddTraits(.isHeader)
+        WalletEditorSectionHeader(title: title) { focusedField = nil }
     }
 
     private func selectionButton(_ title: String, value: String?, screen: SelectionScreen) -> some View {
-        Button {
+        WalletEditorNavigationButton(title: title, value: value) {
             focusedField = nil
             selectionScreen = screen
-        } label: {
-            HStack {
-                Text(title).foregroundStyle(.primary)
-                Spacer()
-                if let value { Text(value).foregroundStyle(.secondary).lineLimit(1) }
-                chevron
-            }
-            .frame(maxWidth: .infinity, minHeight: 44)
-            .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
     }
 
     private func recordRow<Content: View>(

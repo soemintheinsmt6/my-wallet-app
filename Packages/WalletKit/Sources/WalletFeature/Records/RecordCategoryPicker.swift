@@ -9,6 +9,8 @@ struct RecordCategoryPicker: View {
     @Binding var selection: UUID?
     /// Offers clearing the selection; transfers always may.
     var allowsNone = false
+    /// What clearing the selection means here, such as "Overall" for a budget over all spending.
+    var noneTitle = "No category"
     /// Called after a choice. The presenter closes the picker by clearing the state that pushed it,
     /// which also removes a subcategory list pushed above it. `dismiss` is avoided here because
     /// inside an editor sheet it can close the whole sheet.
@@ -26,7 +28,7 @@ struct RecordCategoryPicker: View {
         List {
             if search.isEmpty {
                 if kind == .transfer || allowsNone {
-                    Button("No category") { pick(nil) }
+                    Button(noneTitle) { pick(nil) }
                 }
                 let frequent = viewModel.mostUsedCategories(for: kind, limit: Self.pageSize * 2)
                 if !frequent.isEmpty {

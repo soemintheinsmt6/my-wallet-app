@@ -10,12 +10,14 @@ struct GoalEditorView: View {
     @State private var deadline = Date()
     @State private var errorMessage: String?
     @State private var contributing: GoalProgress?
-    @State private var choosingCurrency = false
     @State private var confirmingDelete = false
+    @State private var screen: Screen?
+    @State private var didLoad = false
     @FocusState private var focusedField: Field?
     @Environment(\.dismiss) private var dismiss
 
     private enum Field: Hashable { case target }
+    private enum Screen: Hashable { case currency, name, account, note }
 
     /// The saved goal's live progress; nil while the goal is new.
     private var progress: GoalProgress? { viewModel.goals.first { $0.goal.id == goal.id } }
@@ -23,115 +25,33 @@ struct GoalEditorView: View {
 
     var body: some View {
         NavigationStack {
-            Form {
-                // Laid out like the record and debt editors: the amount first, large, in green
-                // because saving toward a goal is money kept.
-                Section {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Target")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                            .accessibilityHidden(true)
-                        RecordAmountField(
-                            sign: "", color: .green, label: "Target amount",
-                            currency: goal.currencyCode, amount: $target, focus: $focusedField, field: .target
-                        ) {
-                            focusedField = nil
-                            choosingCurrency = true
+            // The record editor's layout: the target on top, then rows.
+            ScrollView {
+                VStack(spacing: 0) {
+                    amountSection
+                    generalSection
+                    if let progress { progressSection(progress) }
+                    deadlineSection
+                    WalletEditorSectionHeader(title: "More Details") { focusedField = nil }
+                    RecordFormRow(symbol: "square.and.pencil", showsDivider: false) {
+                        WalletEditorNavigationButton(title: "Note", value: goal.note.isEmpty ? nil : goal.note) {
+                            open(.note)
                         }
                     }
-                    .padding(.vertical, 4)
-                }
-
-                Section {
-                    LabeledContent {
-                        TextField("New laptop", text: $goal.name).multilineTextAlignment(.trailing)
-                    } label: {
-                        WalletFormLabel("Name", symbol: "flag.fill", color: .orange)
-                    }
-                }
-
-                if let progress {
-                    Section {
-                        LabeledContent {
-                            Text("\(progress.saved.walletFormatted(progress.goal.currencyCode)) of \(progress.goal.targetAmount.walletFormatted(progress.goal.currencyCode))")
-                                .monospacedDigit()
-                        } label: {
-                            WalletFormLabel("Saved", symbol: "banknote.fill", color: .green)
-                        }
-                        Button { contributing = progress } label: {
-                            Label {
-                                Text("Add Money")
-                            } icon: {
-                                WalletFormIcon(symbol: "plus.circle.fill", color: .accentColor)
-                            }
-                        }
-                        .font(.body.weight(.medium))
-                    } header: {
-                        Text("Progress")
-                    }
-                }
-
-                Section {
-                    WalletMenuPicker("Account", selection: $goal.accountID,
-                                     value: viewModel.records.account(goal.accountID)?.name ?? "None",
-                                     icon: (WalletSymbols.walletFill, .blue)) {
-                        Text("None").tag(nil as UUID?)
-                        ForEach(viewModel.records.accounts.filter { $0.currencyCode == goal.currencyCode }) {
-                            Text($0.name).tag(Optional($0.id))
-                        }
-                    }
-                } header: {
-                    Text("Where the money sits")
-                } footer: {
-                    Text("Optional, and for reference only. Progress comes from contributions you record, not from the account balance, so spending from that account does not silently undo it.")
-                }
-
-                Section {
-                    Toggle(isOn: $hasDeadline.animation()) {
-                        WalletFormLabel("Has a deadline", symbol: "calendar", color: .red)
-                    }
-                    if hasDeadline {
-                        DatePicker(selection: $deadline, displayedComponents: .date) {
-                            WalletFormLabel("By", symbol: "clock.fill", color: .orange)
-                        }
-                    }
-                } header: {
-                    Text("Deadline")
-                } footer: {
-                    Text("Used to say whether your current saving rate gets there in time.")
-                }
-
-                Section {
-                    Label {
-                        TextField("Note", text: $goal.note, axis: .vertical).lineLimit(1...6)
-                    } icon: {
-                        WalletFormIcon(symbol: "note.text", color: .gray)
-                    }
-                }
-
-                if let errorMessage {
-                    Section {
-                        Label(errorMessage, systemImage: "exclamationmark.triangle").foregroundStyle(.red)
-                    }
-                }
-
-                if !isNew {
-                    Section {
-                        Button(role: .destructive) {
+                    if let errorMessage { Text(errorMessage).foregroundStyle(.red).padding(20) }
+                    if !isNew {
+                        WalletEditorDeleteButton(title: "Delete Goal") {
                             focusedField = nil
                             confirmingDelete = true
-                        } label: {
-                            Label {
-                                Text("Delete Goal").foregroundStyle(.red)
-                            } icon: {
-                                WalletFormIcon(symbol: "trash", color: .red)
-                            }
                         }
                     }
                 }
+                .background {
+                    Color.clear.contentShape(Rectangle())
+                        .onTapGesture { focusedField = nil }
+                }
             }
-            .formStyle(.grouped)
+            .scrollDismissesKeyboard(.immediately)
             .alert("Delete Goal?", isPresented: $confirmingDelete) {
                 Button("Cancel", role: .cancel) {}
                 Button("Delete", role: .destructive) { delete() }
@@ -142,9 +62,19 @@ struct GoalEditorView: View {
             #if !os(macOS)
                 .navigationBarTitleDisplayMode(.inline)
             #endif
-            .scrollDismissesKeyboard(.immediately)
-            .navigationDestination(isPresented: $choosingCurrency) {
-                CurrencyPickerView(selection: $goal.currencyCode, pushed: true)
+            .navigationDestination(item: $screen) { screen in
+                switch screen {
+                case .currency:
+                    CurrencyPickerView(selection: $goal.currencyCode, pushed: true)
+                case .name:
+                    RecordTextEntry(title: "Name", text: $goal.name, caption: "What are you saving for?")
+                case .account:
+                    RecordAccountSelection(
+                        accounts: viewModel.records.accounts.filter { $0.currencyCode == goal.currencyCode },
+                        selection: $goal.accountID, title: "Account", noneTitle: "None")
+                case .note:
+                    RecordTextEntry(title: "Note", text: $goal.note, caption: "Add note", multiline: true)
+                }
             }
             .disabled(viewModel.isSaving)
             .toolbar {
@@ -154,9 +84,16 @@ struct GoalEditorView: View {
                 }
             }
             .task {
+                // Runs again on returning from a pushed screen; only the first appearance loads.
+                guard !didLoad else { return }
+                didLoad = true
                 target = goal.targetAmount == 0 ? "" : AccountAmountInput.text(goal.targetAmount)
                 hasDeadline = goal.deadline != nil
                 deadline = goal.deadline ?? Date()
+                if isNew {
+                    await Task.yield()
+                    focusedField = .target
+                }
             }
             .interactiveDismissDisabled(viewModel.isSaving)
             .sheet(item: $contributing) { GoalContributionView(viewModel: viewModel, progress: $0) }
@@ -164,6 +101,74 @@ struct GoalEditorView: View {
         #if os(macOS)
         .frame(minWidth: 500, minHeight: 560)
         #endif
+    }
+
+    /// Green because saving toward a goal is money kept; the caption says what the number is.
+    private var amountSection: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text("Target")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .accessibilityHidden(true)
+            RecordAmountField(
+                sign: "", color: .green, label: "Target amount",
+                currency: goal.currencyCode, amount: $target, focus: $focusedField, field: .target
+            ) { open(.currency) }
+        }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 12)
+    }
+
+    @ViewBuilder private var generalSection: some View {
+        WalletEditorSectionHeader(title: "General") { focusedField = nil }
+        RecordFormRow(symbol: "flag") {
+            WalletEditorNavigationButton(title: "Name", value: goal.name.isEmpty ? nil : goal.name) { open(.name) }
+        }
+        RecordFormRow(symbol: WalletSymbols.walletFill, color: .blue, filledIcon: true, showsDivider: false) {
+            WalletEditorNavigationButton(title: "Account",
+                                         value: viewModel.records.account(goal.accountID)?.name ?? "None") {
+                open(.account)
+            }
+        }
+        WalletEditorCaption("Optional, and for reference only. Progress comes from contributions you record, not from the account balance, so spending from that account does not silently undo it.")
+    }
+
+    @ViewBuilder private func progressSection(_ progress: GoalProgress) -> some View {
+        let currency = progress.goal.currencyCode
+        WalletEditorSectionHeader(title: "Progress") { focusedField = nil }
+        RecordFormRow(symbol: "banknote") {
+            Text("Saved")
+            Spacer()
+            Text("\(progress.saved.walletFormatted(currency)) of \(progress.goal.targetAmount.walletFormatted(currency))")
+                .foregroundStyle(.secondary)
+                .monospacedDigit()
+        }
+        RecordFormRow(symbol: "plus.circle.fill", color: .accentColor, showsDivider: false) {
+            Button("Add Money") {
+                focusedField = nil
+                contributing = progress
+            }
+            .font(.body.weight(.medium))
+            Spacer()
+        }
+    }
+
+    @ViewBuilder private var deadlineSection: some View {
+        WalletEditorSectionHeader(title: "Deadline") { focusedField = nil }
+        RecordFormRow(symbol: "calendar", showsDivider: hasDeadline) {
+            Toggle("Has a deadline", isOn: $hasDeadline.animation())
+        }
+        if hasDeadline {
+            RecordFormRow(symbol: "clock", showsDivider: false) {
+                DatePicker("By", selection: $deadline, displayedComponents: .date)
+            }
+        }
+        WalletEditorCaption("Used to say whether your current saving rate gets there in time.")
+    }
+
+    private func open(_ destination: Screen) {
+        focusedField = nil
+        screen = destination
     }
 
     /// Keeps the editor open with the error shown if the delete fails.
