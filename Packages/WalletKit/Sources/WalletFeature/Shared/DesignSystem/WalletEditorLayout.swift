@@ -42,6 +42,39 @@ struct WalletEditorSectionHeader: View {
     }
 }
 
+/// The editor's section heading as a plain `List` section header, for detail screens that need a
+/// list's swipe actions and pull to refresh but should read like the editors. Full width, and
+/// opaque so it stays solid while pinned over the rows scrolling beneath it.
+struct WalletListSectionHeader: View {
+    let title: String
+
+    init(_ title: String) { self.title = title }
+
+    var body: some View {
+        WalletEditorSectionHeader(title: title)
+            .background(.background)
+            .listRowInsets(EdgeInsets())
+    }
+}
+
+/// A list row's leading tile, title and trailing value, as the editors lay out a row.
+struct WalletListValueRow<Tile: View>: View {
+    let title: String
+    let value: String
+    @ViewBuilder let tile: Tile
+
+    var body: some View {
+        HStack(spacing: WalletMetrics.medium) {
+            tile
+            Text(title)
+            Spacer(minLength: WalletMetrics.small)
+            Text(value).foregroundStyle(.secondary).lineLimit(1)
+        }
+        .frame(minHeight: WalletMetrics.touchTarget)
+        .accessibilityElement(children: .combine)
+    }
+}
+
 /// The right chevron of a row that pushes a screen.
 struct WalletEditorChevron: View {
     var body: some View {

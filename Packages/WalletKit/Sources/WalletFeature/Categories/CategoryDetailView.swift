@@ -7,20 +7,23 @@ struct CategoryDetailView: View {
     var planning: PlanningViewModel?
     @State private var editor: CategoryEditorRoute?
     @State private var deleting: WalletCategory?
-    @State private var choosingSymbol = false
 
     private var category: WalletCategory? { viewModel.category(id: categoryID) }
 
     var body: some View {
         Group {
             if let category {
+                // Flat, with the editors' band headings, rather than grouped cards; still a list so
+                // subcategories keep swipe to delete and the screen keeps pull to refresh.
                 List {
                     header(category)
-                    if let planning { BudgetProgressSection(viewModel: planning, categoryID: category.id) }
+                    if let planning {
+                        BudgetProgressSection(viewModel: planning, categoryID: category.id, bandHeader: true)
+                    }
                     subcategories(category)
-                    appearance(category)
                     actions(category)
                 }
+                .listStyle(.plain)
             } else {
                 WalletEmptyState(title: "Category unavailable", symbol: "folder.badge.questionmark",
                                  message: "Return to Categories and refresh.")
@@ -32,11 +35,6 @@ struct CategoryDetailView: View {
         #endif
         .sheet(item: $deleting) { CategoryDeletionView(viewModel: viewModel, category: $0) }
         .sheet(item: $editor) { CategoryEditorView(viewModel: viewModel, route: $0) }
-        .sheet(isPresented: $choosingSymbol) {
-            if let category {
-                CategorySymbolPicker(category: category, viewModel: viewModel)
-            }
-        }
         .refreshable { await viewModel.reload() }
     }
 
@@ -53,7 +51,7 @@ struct CategoryDetailView: View {
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, WalletMetrics.large)
-            .listRowBackground(Color.clear)
+            .listRowSeparator(.hidden)
             .accessibilityElement(children: .combine)
         }
     }
@@ -85,38 +83,34 @@ struct CategoryDetailView: View {
                 .swipeActions { Button("Delete", role: .destructive) { deleting = child } }
                 .contextMenu { Button("Delete Subcategory", role: .destructive) { deleting = child } }
             }
+            // A row like the subcategories above it: a tile in the category's color, then the action.
             Button { editor = CategoryEditorRoute(parent: category) } label: {
-                Label("Create Subcategory", systemImage: "plus")
+                HStack(spacing: WalletMetrics.medium) {
+                    WalletIconTile(symbol: "plus", color: category.colorToken.color)
+                    Text("Create Subcategory").foregroundStyle(.tint)
+                    Spacer()
+                }
+                .frame(minHeight: WalletMetrics.touchTarget)
+                .contentShape(Rectangle())
             }
+            .buttonStyle(.plain)
         } header: {
-            Text("Subcategories")
+            WalletListSectionHeader("Subcategories")
         }
     }
 
-    /// The colour is something the category has, not something to tap, so it is kept out of the
-    /// rows that act.
-    private func appearance(_ category: WalletCategory) -> some View {
-        Section {
-            LabeledContent("Color") {
-                Circle()
-                    .fill(category.colorToken.color)
-                    .frame(width: 20, height: 20)
-                    .accessibilityLabel("Fixed category color \(category.colorToken.hex)")
-            }
-        } footer: {
-            Text("The category color is fixed and stays the same across renames and devices.")
-        }
-    }
-
+    /// Name, icon, color and nature are all in the editor, so editing is one row; the color and
+    /// icon rows that repeated it here are gone.
     private func actions(_ category: WalletCategory) -> some View {
         Section {
             Button { editor = CategoryEditorRoute(category: category) } label: {
                 Label("Edit Category", systemImage: "square.and.pencil")
-            }
-            Button { choosingSymbol = true } label: {
-                Label("Change Icon", systemImage: "square.grid.2x2")
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .contentShape(Rectangle())
             }
             WalletDestructiveRow(title: "Delete Category") { deleting = category }
+        } header: {
+            WalletListSectionHeader("Manage")
         }
     }
 }

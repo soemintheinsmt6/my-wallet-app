@@ -78,11 +78,17 @@ private struct BudgetBar: View {
 struct BudgetProgressSection: View {
     @ObservedObject var viewModel: PlanningViewModel
     var categoryID: UUID?
+    /// The editors' band heading, for flat detail screens; otherwise the list's own header.
+    var bandHeader = false
 
     var body: some View {
         let values = viewModel.progress(categoryID: categoryID)
         if !values.isEmpty {
-            Section("Budget progress") { ForEach(values) { BudgetProgressRow(progress: $0) } }
+            Section {
+                ForEach(values) { BudgetProgressRow(progress: $0) }
+            } header: {
+                if bandHeader { WalletListSectionHeader("Budget progress") } else { Text("Budget progress") }
+            }
         }
     }
 }

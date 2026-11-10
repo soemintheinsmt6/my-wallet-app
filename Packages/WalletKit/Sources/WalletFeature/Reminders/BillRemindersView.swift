@@ -200,11 +200,13 @@ private struct BillDetailView: View {
     var body: some View {
         Group {
             if let bill {
+                // Flat, with the editors' band headings, like the category details.
                 List {
                     header(bill)
                     details(bill)
                     actions(bill)
                 }
+                .listStyle(.plain)
             } else {
                 WalletEmptyState(title: "Bill unavailable", symbol: "calendar.badge.exclamationmark",
                                  message: "Return to Bills and refresh.")
@@ -258,17 +260,32 @@ private struct BillDetailView: View {
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, WalletMetrics.large)
-            .listRowBackground(Color.clear)
+            .listRowSeparator(.hidden)
         }
     }
 
+    /// Every row leads with a tile, so the section's icons match: the account's and category's
+    /// own, and Planning's recurring and reminder colors for the schedule.
     private func details(_ bill: BillReminder) -> some View {
-        Section("Details") {
-            LabeledContent("Account", value: viewModel.records.account(bill.accountID)?.name ?? "None")
-            LabeledContent("Category", value: viewModel.records.category(bill.categoryID)?.name ?? "None")
-            LabeledContent("Repeats", value: bill.recurrence?.frequency.rawValue.capitalized ?? "Never")
-            LabeledContent("Reminder", value: !bill.notificationsEnabled ? "Off"
-                           : bill.reminderDaysBefore == 0 ? "On due date" : "\(bill.reminderDaysBefore) days before")
+        let account = viewModel.records.account(bill.accountID)
+        let category = viewModel.records.category(bill.categoryID)
+        return Section {
+            WalletListValueRow(title: "Account", value: account?.name ?? "None") {
+                WalletIconTile(symbol: account?.symbol ?? WalletSymbols.walletFill,
+                               color: account?.settings.color.tint ?? .gray)
+            }
+            WalletListValueRow(title: "Category", value: category?.name ?? "None") {
+                if let category { CategoryIcon(category: category) } else { WalletIconTile(symbol: "questionmark") }
+            }
+            WalletListValueRow(title: "Repeats", value: bill.recurrence?.frequency.rawValue.capitalized ?? "Never") {
+                WalletIconTile(symbol: "repeat", color: .indigo)
+            }
+            WalletListValueRow(title: "Reminder", value: !bill.notificationsEnabled ? "Off"
+                               : bill.reminderDaysBefore == 0 ? "On due date" : "\(bill.reminderDaysBefore) days before") {
+                WalletIconTile(symbol: "bell.fill", color: .purple)
+            }
+        } header: {
+            WalletListSectionHeader("Details")
         }
     }
 
@@ -276,8 +293,12 @@ private struct BillDetailView: View {
         Section {
             Button { editing = bill } label: {
                 Label("Edit Bill", systemImage: "square.and.pencil")
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .contentShape(Rectangle())
             }
             WalletDestructiveRow(title: "Delete Bill") { confirmingDelete = true }
+        } header: {
+            WalletListSectionHeader("Manage")
         }
     }
 }
