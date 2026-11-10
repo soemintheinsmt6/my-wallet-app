@@ -12,7 +12,7 @@ Use system controls and text styles for new screens. Keep account-specific color
 
 | Type | Purpose |
 | --- | --- |
-| `WalletMetrics` | 4-point spacing scale (`hair` 2 … `xxLarge` 28), `touchTarget` 44, `Tile` sizes, `Chart` heights |
+| `WalletMetrics` | 4-point spacing scale (`hair` 2 … `xxLarge` 28), `touchTarget` 44, `cardRadius` (the system's grouped-section radius: 30 from iOS 26, 10 before), `Tile` sizes, `Chart` heights |
 | `WalletIconTile` | The one leading-icon treatment: white medium-weight symbol on a gradient color tile, 36 pt standard / 44 pt `large`; category, account, record-kind and menu icons all draw through it |
 | `WalletDisclosure` | Trailing right chevron matching the system's `NavigationLink` weight, for any row that opens something, by push or by sheet |
 | `WalletMenuIndicator` | Trailing up-and-down chevrons at the same weight, for rows that open a menu in place |
@@ -39,7 +39,7 @@ Five tabs: Dashboard, Records, Statistics, Planning and More. iOS collapses anyt
 
 Dashboard, Records, Statistics and Planning each own a `NavigationStack`. Screens reached through More do not; they are pushed into the More stack and only declare their title, toolbar and destinations.
 
-`HomeView` (the Dashboard tab, `square.grid.2x2`) is derived entirely from the other view models; its only persistence is the card arrangement. It always covers the current month across every account included in statistics, with no period or account scope of its own. Cards: total balance for the dominant currency (account count and currency trailing the label, a currency menu only when several are in use, and a tinted chip with this month's net), a two-column grid of compact account cards (icon beside "Name · currency" and the balance) with an Add tile, quick actions, this month's income and expenses, Balance Trend, Expenses by category or label, Top Expenses, budgets, goals, bills and recent records. Tiles placed on cleared rows use `Color.walletCard` so they match the cards around them in dark mode. Tapping an account card opens `AccountDetailView`, which owns the per-account and per-period view.
+`HomeView` (the Dashboard tab, `square.grid.2x2`) is derived entirely from the other view models; its only persistence is the card arrangement. It always covers the current month across every account included in statistics, with no period or account scope of its own. Cards: total balance for the dominant currency (account count and currency trailing the label, a currency menu only when several are in use, and a tinted chip with this month's net), a two-column grid of compact account cards (icon beside "Name · currency" and the balance) with an Add tile, quick actions, this month's income and expenses, Balance Trend, Expenses by category or label, Top Expenses, budgets, goals, bills and recent records. Tiles placed on cleared rows use `Color.walletCard` so they match the cards around them in dark mode, and round their corners to `WalletMetrics.cardRadius`, the list's own section radius. The list clips the outer corners of a row of cards placed edge to edge to that radius, so any other radius left each card rounded one way at the section's edge and another way inside it; measured on iOS 27 the section radius is 30 points. Tapping an account card opens `AccountDetailView`, which owns the per-account and per-period view.
 
 ## Color and Typography
 

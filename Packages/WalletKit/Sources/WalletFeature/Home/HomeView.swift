@@ -358,7 +358,7 @@ public struct HomeView: View {
                     .frame(maxWidth: .infinity)
                     .frame(height: AccountCard.height)
                     .background(Color.walletCard,
-                                in: RoundedRectangle(cornerRadius: WalletMetrics.large, style: .continuous))
+                                in: RoundedRectangle(cornerRadius: WalletMetrics.cardRadius, style: .continuous))
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
@@ -388,7 +388,7 @@ public struct HomeView: View {
                         }
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, WalletMetrics.medium)
-                        .background(Color.walletCard, in: RoundedRectangle(cornerRadius: WalletMetrics.medium,
+                        .background(Color.walletCard, in: RoundedRectangle(cornerRadius: WalletMetrics.cardRadius,
                                                                            style: .continuous))
                     }
                     .buttonStyle(.plain)
@@ -606,7 +606,7 @@ struct AccountCard: View {
         .padding(.horizontal, WalletMetrics.medium)
         .frame(maxWidth: .infinity, alignment: .leading)
         .frame(height: Self.height)
-        .background(Color.walletCard, in: RoundedRectangle(cornerRadius: WalletMetrics.large, style: .continuous))
+        .background(Color.walletCard, in: RoundedRectangle(cornerRadius: WalletMetrics.cardRadius, style: .continuous))
         .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
     }
