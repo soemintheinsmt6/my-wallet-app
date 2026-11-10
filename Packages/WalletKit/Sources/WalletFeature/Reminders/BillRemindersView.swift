@@ -346,75 +346,52 @@ private struct BillEditorView: View {
     @State var bill: BillReminder
     @State private var amount = ""
     @State private var error: String?
+    @State private var screen: Screen?
+    @State private var didLoad = false
+    @FocusState private var focusedField: Field?
     @Environment(\.dismiss) private var dismiss
+
+    private enum Field: Hashable { case amount }
+    private enum Screen: Hashable { case currency, name, account, category }
 
     private var isNew: Bool { !viewModel.bills.contains { $0.id == bill.id } }
     private var accounts: [Account] { viewModel.records.accounts.filter { $0.currencyCode == bill.currencyCode } }
 
     var body: some View {
         NavigationStack {
-            Form {
-                Section("Bill") {
-                    LabeledContent("Name") {
-                        TextField("Electricity", text: $bill.name)
-                            .multilineTextAlignment(.trailing)
-                    }
-                    LabeledContent("Amount") {
-                        WalletAmountField(amount: amount) {
-                            TextField("", text: $amount.groupedAmount())
-                                #if os(iOS)
-                                    .keyboardType(.decimalPad)
-                                #endif
-                        }
-                        .monospacedDigit()
-                    }
-                    NavigationLink {
-                        CurrencyPickerView(selection: $bill.currencyCode, pushed: true)
-                    } label: {
-                        LabeledContent("Currency", value: bill.currencyCode)
-                    }
+            // The record editor's layout: the amount on top, then rows. Deleting stays on the bill's
+            // own screen, which this editor is opened from.
+            ScrollView {
+                VStack(spacing: 0) {
+                    amountSection
+                    generalSection
+                    scheduleSection
+                    notificationsSection
+                    if let error { Text(error).foregroundStyle(.red).padding(20) }
                 }
-
-                Section {
-                    BillSelectionRows(records: viewModel.records, accounts: accounts, bill: $bill)
-                } header: {
-                    Text("Payment")
-                } footer: {
-                    Text(accounts.isEmpty ? "Add a \(bill.currencyCode) account to save this bill."
-                                          : "Both are required. Accounts in the bill's currency are listed.")
-                }
-
-                Section("Schedule") {
-                    DatePicker("First due date", selection: $bill.dueDate).disabled(bill.nextIndex > 0)
-                    RecurrenceFields(rule: $bill.recurrence, start: bill.dueDate)
-                }
-
-                Section("Notifications") {
-                    Toggle("Remind me", isOn: $bill.notificationsEnabled)
-                        .refreshesNotificationAuthorization { await viewModel.refreshNotificationAuthorization() }
-                    if bill.notificationsEnabled {
-                        Stepper(bill.reminderDaysBefore == 0 ? "On due date" : "\(bill.reminderDaysBefore) days before",
-                                value: $bill.reminderDaysBefore, in: 0...30)
-                        if !viewModel.notificationsAuthorized {
-                            Button("Enable System Notifications") { Task { await viewModel.requestNotifications() } }
-                        }
-                        if let message = viewModel.errorMessage {
-                            Label(message, systemImage: "exclamationmark.triangle").foregroundStyle(.red)
-                        }
-                    }
-                }
-
-                if let error {
-                    Section {
-                        Label(error, systemImage: "exclamationmark.triangle").foregroundStyle(.red)
-                    }
+                .background {
+                    Color.clear.contentShape(Rectangle())
+                        .onTapGesture { focusedField = nil }
                 }
             }
-            .formStyle(.grouped)
+            .scrollDismissesKeyboard(.immediately)
             .navigationTitle(isNew ? "New Bill" : "Edit Bill")
             #if !os(macOS)
                 .navigationBarTitleDisplayMode(.inline)
             #endif
+            .navigationDestination(item: $screen) { screen in
+                switch screen {
+                case .currency:
+                    CurrencyPickerView(selection: $bill.currencyCode, pushed: true)
+                case .name:
+                    RecordTextEntry(title: "Name", text: $bill.name, caption: "What is this bill for?")
+                case .account:
+                    RecordAccountSelection(accounts: accounts, selection: $bill.accountID, title: "Account")
+                case .category:
+                    RecordCategoryPicker(viewModel: viewModel.records, kind: .expense,
+                                         selection: $bill.categoryID) { self.screen = nil }
+                }
+            }
             .disabled(viewModel.isSaving)
             .onChange(of: bill.accountID) { _, id in if let account = viewModel.records.account(id) { bill.currencyCode = account.currencyCode } }
             // A different currency invalidates the linked account; pick one in the new currency.
@@ -432,11 +409,96 @@ private struct BillEditorView: View {
                     }.disabled(viewModel.isSaving || bill.accountID == nil || bill.categoryID == nil)
                 }
             }
-            .task { amount = bill.amount == 0 ? "" : AccountAmountInput.text(bill.amount) }
+            .task {
+                // Runs again on returning from a pushed screen; only the first appearance loads.
+                guard !didLoad else { return }
+                didLoad = true
+                amount = bill.amount == 0 ? "" : AccountAmountInput.text(bill.amount)
+                if isNew {
+                    await Task.yield()
+                    focusedField = .amount
+                }
+            }
             .interactiveDismissDisabled(viewModel.isSaving)
         }
         #if os(macOS)
         .frame(minWidth: 500, minHeight: 600)
         #endif
+    }
+
+    /// Red with a minus, as an expense is in the record editor, since paying it records one.
+    private var amountSection: some View {
+        RecordAmountField(
+            sign: "−", color: .red, label: "Bill amount",
+            currency: bill.currencyCode, amount: $amount, focus: $focusedField, field: .amount
+        ) { open(.currency) }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 12)
+    }
+
+    /// Name, account and category all lead with a tile, so the section's icons match: the bill's
+    /// own orange calendar from Planning, the record editor's wallet, and the chosen category.
+    @ViewBuilder private var generalSection: some View {
+        WalletEditorSectionHeader(title: "General") { focusedField = nil }
+        RecordFormRow(symbol: "calendar.badge.clock", color: .orange, filledIcon: true) {
+            WalletEditorNavigationButton(title: "Name", value: bill.name.isEmpty ? nil : bill.name) { open(.name) }
+        }
+        RecordFormRow(symbol: WalletSymbols.walletFill, color: .blue, filledIcon: true) {
+            WalletEditorNavigationButton(title: "Account",
+                                         value: viewModel.records.account(bill.accountID)?.name ?? "Choose") {
+                open(.account)
+            }
+        }
+        RecordFormRow(symbol: "questionmark", category: viewModel.records.category(bill.categoryID),
+                      categoryTile: true, showsDivider: false) {
+            // The chosen category or subcategory by its own name, without its parent.
+            WalletEditorNavigationButton(title: "Category",
+                                         value: viewModel.records.category(bill.categoryID)?.name ?? "Choose") {
+                open(.category)
+            }
+        }
+        WalletEditorCaption(accounts.isEmpty ? "Add a \(bill.currencyCode) account to save this bill."
+                                             : "Account and category are required. Accounts in the bill's currency are listed.")
+    }
+
+    @ViewBuilder private var scheduleSection: some View {
+        WalletEditorSectionHeader(title: "Schedule") { focusedField = nil }
+        RecordFormRow(symbol: "calendar") {
+            DatePicker("First due date", selection: $bill.dueDate).disabled(bill.nextIndex > 0)
+        }
+        RecurrenceFields(rule: $bill.recurrence, start: bill.dueDate, style: .rows)
+    }
+
+    @ViewBuilder private var notificationsSection: some View {
+        let asksPermission = bill.notificationsEnabled && !viewModel.notificationsAuthorized
+        WalletEditorSectionHeader(title: "Notifications") { focusedField = nil }
+        RecordFormRow(symbol: "bell", showsDivider: bill.notificationsEnabled) {
+            Toggle("Remind me", isOn: $bill.notificationsEnabled)
+        }
+        .refreshesNotificationAuthorization { await viewModel.refreshNotificationAuthorization() }
+        if bill.notificationsEnabled {
+            RecordFormRow(symbol: "clock", showsDivider: asksPermission) {
+                Text(bill.reminderDaysBefore == 0 ? "On due date" : "\(bill.reminderDaysBefore) days before")
+                Spacer()
+                Stepper("Days before", value: $bill.reminderDaysBefore, in: 0...30).labelsHidden()
+            }
+            if asksPermission {
+                RecordFormRow(symbol: "bell.badge", color: .accentColor, showsDivider: false) {
+                    Button("Enable System Notifications") { Task { await viewModel.requestNotifications() } }
+                    Spacer()
+                }
+            }
+            if let message = viewModel.errorMessage {
+                Label(message, systemImage: "exclamationmark.triangle")
+                    .foregroundStyle(.red)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(20)
+            }
+        }
+    }
+
+    private func open(_ destination: Screen) {
+        focusedField = nil
+        screen = destination
     }
 }
