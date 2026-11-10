@@ -266,23 +266,44 @@ private struct SeriesScheduleEditor: View {
     @State var series: RecurringSeries
     @Environment(\.dismiss) private var dismiss
     @State private var error: String?
+
+    /// The rule is never cleared here: a series without one is cancelled, not edited.
+    private var rule: Binding<RecurrenceRule?> {
+        Binding(get: { series.rule }, set: { if let rule = $0 { series.rule = rule } })
+    }
+
     var body: some View {
         NavigationStack {
-            Form {
-                Text("Original start: \(series.startDate.formatted())")
-                RecurrenceFields(rule: Binding(get: { series.rule }, set: { if let rule = $0 { series.rule = rule } }), start: series.startDate, allowDisabling: false)
-                Text("Changes apply to unprocessed occurrences. Counts include the original record. Resuming catches up missed dates.")
-                    .font(.caption).foregroundStyle(.secondary)
-                if let error { Text(error).foregroundStyle(.red) }
+            // The record editor's layout, with the same repeat rows as its Repeat section.
+            ScrollView {
+                VStack(spacing: 0) {
+                    WalletEditorSectionHeader(title: "Schedule")
+                    RecordFormRow(symbol: "calendar") {
+                        Text("Original start")
+                        Spacer()
+                        Text(series.startDate.formatted(date: .abbreviated, time: .shortened))
+                            .foregroundStyle(.secondary)
+                    }
+                    .frame(minHeight: 44)
+                    RecurrenceFields(rule: rule, start: series.startDate, allowDisabling: false, style: .rows)
+                    WalletEditorCaption("Changes apply to unprocessed occurrences. Counts include the original record. Resuming catches up missed dates.")
+                    if let error { Text(error).foregroundStyle(.red).padding(20) }
+                }
             }
-            .formStyle(.grouped)
             .navigationTitle("Edit Schedule")
+            #if !os(macOS)
+                .navigationBarTitleDisplayMode(.inline)
+            #endif
             .disabled(viewModel.isSaving)
             .toolbar {
-                Button("Cancel") { dismiss() }.disabled(viewModel.isSaving)
-                Button("Save") {
-                    Task { do { try await viewModel.save(series); dismiss() } catch { self.error = error.localizedDescription } }
-                }.disabled(viewModel.isSaving)
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }.disabled(viewModel.isSaving)
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") {
+                        Task { do { try await viewModel.save(series); dismiss() } catch { self.error = error.localizedDescription } }
+                    }.disabled(viewModel.isSaving)
+                }
             }
             .interactiveDismissDisabled(viewModel.isSaving)
         }

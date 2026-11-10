@@ -31,7 +31,7 @@ Prefer these over literals so unrelated screens line up. The trailing glyph says
 
 ### List styles
 
-Long lists of like items use the flat (plain) style, rows edge to edge: Records, Accounts, Categories, Labels, Splits, Recurring, Bills, Debts, Drinking Days and the account, currency, payment type and label pickers. The record, debt, goal, budget and bill editors use the record editor's own scrolling layout (described under Planning, Budgets and Reports). Other editors, Settings, filters, More and dashboards keep the inset grouped style, where cards group related controls. In a flat list, footers use `WalletListFooter` (plain lists otherwise draw them at body size), controls above the rows (segmented pickers, date pickers) hide their separators, and a list that starts without a header hides its first row's top rule.
+Long lists of like items use the flat (plain) style, rows edge to edge: Records, Accounts, Categories, Labels, Splits, Recurring, Bills, Debts, Drinking Days and the account, currency, payment type and label pickers. The record, debt, goal, budget and bill editors and a series' Edit Schedule use the record editor's own scrolling layout (described under Planning, Budgets and Reports). Other editors, Settings, filters, More and dashboards keep the inset grouped style, where cards group related controls. In a flat list, footers use `WalletListFooter` (plain lists otherwise draw them at body size), controls above the rows (segmented pickers, date pickers) hide their separators, and a list that starts without a header hides its first row's top rule.
 
 ## Navigation
 
