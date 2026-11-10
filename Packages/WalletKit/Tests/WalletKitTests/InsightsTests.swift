@@ -49,6 +49,33 @@ struct InsightsTests {
         #expect(insights.month?.isHigher == false)
     }
 
+    /// Early in a week, this week so far is compared with the same stretch of last week, not all of
+    /// it; the whole previous period is kept for notices that report a finished one.
+    @Test func aPeriodInProgressIsComparedWithTheSamePointOfThePreviousOne() {
+        let cash = account()
+        // Monday noon: this week so far runs from Sunday 00:00.
+        let records = [
+            record(30, account: cash),                  // this week so far
+            record(20, account: cash, daysAgo: 7.5),    // last Sunday 00:00, within the same stretch
+            record(100, account: cash, daysAgo: 4),     // last Thursday, after that point
+            record(40, account: cash, daysAgo: 40),     // 6 Dec, within the same stretch of last month
+            record(60, account: cash, daysAgo: 20),     // 26 Dec, after it
+        ]
+        let insights = WalletInsightsCalculator.calculate(records: records, accounts: [cash],
+                                                          now: now, calendar: calendar)
+        let week = try? #require(insights.week)
+        #expect(week?.previous == 120)
+        #expect(week?.previousSoFar == 20)
+        #expect(week?.isHigher == false)
+        #expect(week?.isHigherSoFar == true)
+        #expect(week?.changeSoFar == 0.5)
+
+        let month = try? #require(insights.month)
+        #expect(month?.current == 150)
+        #expect(month?.previous == 100)
+        #expect(month?.previousSoFar == 40)
+    }
+
     /// "Up 100% from nothing" is misleading, so a percentage is withheld instead.
     @Test func percentageChangeIsWithheldWithoutAPriorPeriod() {
         let none = WalletInsights.Comparison(currencyCode: "USD", current: 40, previous: 0)

@@ -22,10 +22,25 @@ public struct WalletInsights: Sendable, Equatable {
 
         public var isHigher: Bool { current > previous }
 
-        public init(currencyCode: String, current: Decimal, previous: Decimal) {
+        /// Spending in the previous period up to the same point: the same days of last week, or
+        /// the same stretch of last month. A period in progress is compared against this rather than
+        /// the whole previous period, which early in a week would almost always read as "less".
+        /// `previous` stays the whole period, for notices that report a finished one.
+        public let previousSoFar: Decimal
+
+        /// The change against the same point of the previous period; `nil` without spending there.
+        public var changeSoFar: Double? {
+            guard previousSoFar > 0 else { return nil }
+            return NSDecimalNumber(decimal: (current - previousSoFar) / previousSoFar).doubleValue
+        }
+
+        public var isHigherSoFar: Bool { current > previousSoFar }
+
+        public init(currencyCode: String, current: Decimal, previous: Decimal, previousSoFar: Decimal? = nil) {
             self.currencyCode = currencyCode
             self.current = current
             self.previous = previous
+            self.previousSoFar = previousSoFar ?? previous
         }
     }
 
@@ -114,9 +129,12 @@ public enum WalletInsightsCalculator {
         guard let current = calendar.dateInterval(of: unit, for: now),
               let previousDate = calendar.date(byAdding: unit, value: -1, to: now),
               let previous = calendar.dateInterval(of: unit, for: previousDate) else { return nil }
+        // The same stretch of the previous period, as Statistics compares a period in progress.
+        let soFar = PeriodComparison(interval: current, component: unit, now: now, calendar: calendar)
         return WalletInsights.Comparison(currencyCode: currency,
                                          current: total(expenses, in: current),
-                                         previous: total(expenses, in: previous))
+                                         previous: total(expenses, in: previous),
+                                         previousSoFar: total(expenses, in: soFar.previous))
     }
 
     private static func total(_ expenses: [WalletRecord], in interval: DateInterval) -> Decimal {

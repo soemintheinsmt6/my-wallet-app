@@ -13,10 +13,10 @@ struct InsightsSection: View {
         if !insights.isEmpty {
             Section("Insights") {
                 if let week = insights.week, week.current > 0 || week.previous > 0 {
-                    comparisonRow("This week", week)
+                    comparisonRow("Spent this week", period: "last week", week)
                 }
                 if let month = insights.month, month.current > 0 || month.previous > 0 {
-                    comparisonRow("This month", month)
+                    comparisonRow("Spent this month", period: "last month", month)
                 }
                 ForEach(insights.anomalies.prefix(2)) { anomaly in
                     anomalyRow(anomaly)
@@ -28,38 +28,38 @@ struct InsightsSection: View {
         }
     }
 
-    private func comparisonRow(_ title: String, _ comparison: WalletInsights.Comparison) -> some View {
-        HStack(spacing: WalletMetrics.medium) {
-            WalletIconTile(symbol: comparison.isHigher ? "arrow.up.right" : "arrow.down.right",
-                           color: comparison.isHigher ? .orange : .green)
+    /// Spending so far in the period, said as spending, against the same point of the period
+    /// before: the amount in red as an expense is, the arrow orange when spending rose.
+    private func comparisonRow(_ title: String, period: String, _ comparison: WalletInsights.Comparison) -> some View {
+        let higher = comparison.isHigherSoFar
+        return HStack(spacing: WalletMetrics.medium) {
+            WalletIconTile(symbol: higher ? "arrow.up.right" : "arrow.down.right", color: higher ? .orange : .green)
             VStack(alignment: .leading, spacing: WalletMetrics.hair) {
                 Text(title).font(.body.weight(.medium))
-                Text(detail(comparison))
+                Text(detail(comparison, period: period))
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(2)
             }
             Spacer(minLength: WalletMetrics.small)
-            Text(comparison.current.walletFormatted(comparison.currencyCode))
-                .font(.subheadline.weight(.semibold))
-                .monospacedDigit()
-                .lineLimit(1)
+            WalletAmountText(amount: comparison.current, currencyCode: comparison.currencyCode, kind: .expense,
+                             font: .subheadline.weight(.semibold))
         }
         .frame(minHeight: WalletMetrics.touchTarget)
         .walletListRowPadding(WalletMetrics.tight)
         .accessibilityElement(children: .combine)
     }
 
-    /// States the direction in words; the arrow and color only reinforce it.
-    private func detail(_ comparison: WalletInsights.Comparison) -> String {
-        guard let change = comparison.change else {
-            return comparison.previous == 0 && comparison.current > 0
-                ? "Nothing spent in the period before"
-                : "No comparison available yet"
+    /// States the direction and what it is compared with in words; the arrow and color only
+    /// reinforce it. "12% more than last week at this point (46,400)".
+    private func detail(_ comparison: WalletInsights.Comparison, period: String) -> String {
+        guard let change = comparison.changeSoFar else {
+            return comparison.current > 0 ? "Nothing spent by this point \(period)" : "Nothing spent yet"
         }
+        let previous = comparison.previousSoFar.walletFormatted(comparison.currencyCode)
+        if comparison.current == comparison.previousSoFar { return "Same as \(period) at this point (\(previous))" }
         let percent = abs(change).formatted(.percent.precision(.fractionLength(0)))
-        let previous = comparison.previous.walletFormatted(comparison.currencyCode)
-        return comparison.isHigher ? "\(percent) more than \(previous)" : "\(percent) less than \(previous)"
+        return "\(percent) \(comparison.isHigherSoFar ? "more" : "less") than \(period) at this point (\(previous))"
     }
 
     private func anomalyRow(_ anomaly: WalletInsights.Anomaly) -> some View {
