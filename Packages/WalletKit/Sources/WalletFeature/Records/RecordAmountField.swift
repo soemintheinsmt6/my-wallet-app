@@ -38,12 +38,9 @@ struct RecordAmountField<Field: Hashable>: View {
         HStack(spacing: 16) {
             if !currency.isEmpty {
                 if let chooseCurrency {
+                    // The same chip as the record editor's, without a chevron; it is a button here.
                     Button(action: chooseCurrency) {
-                        HStack(spacing: 4) {
-                            Text(currency)
-                            Image(systemName: "chevron.down").font(.caption2.weight(.semibold))
-                        }
-                        .currencyChip()
+                        Text(currency).currencyChip()
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel("Currency \(currency)")
