@@ -148,6 +148,7 @@ private struct DebtEditorView: View {
     @State private var dueDate = Date()
     @State private var errorMessage: String?
     @State private var choosingCurrency = false
+    @State private var confirmingDelete = false
     @FocusState private var focusedField: Field?
     @Environment(\.dismiss) private var dismiss
 
@@ -225,8 +226,29 @@ private struct DebtEditorView: View {
                         Label(errorMessage, systemImage: "exclamationmark.triangle").foregroundStyle(.red)
                     }
                 }
+
+                if !isNew {
+                    Section {
+                        Button(role: .destructive) {
+                            focusedField = nil
+                            confirmingDelete = true
+                        } label: {
+                            Label {
+                                Text("Delete Debt").foregroundStyle(.red)
+                            } icon: {
+                                rowIcon("trash", color: .red)
+                            }
+                        }
+                    }
+                }
             }
             .formStyle(.grouped)
+            .alert("Delete Debt?", isPresented: $confirmingDelete) {
+                Button("Cancel", role: .cancel) {}
+                Button("Delete", role: .destructive) { delete() }
+            } message: {
+                Text("Its payment history is removed too. Any records created when settling are kept.")
+            }
             .navigationTitle(isNew ? "New Debt" : "Edit Debt")
             #if !os(macOS)
                 .navigationBarTitleDisplayMode(.inline)
@@ -261,6 +283,16 @@ private struct DebtEditorView: View {
 
     private func rowIcon(_ symbol: String, color: Color) -> some View {
         Image(systemName: symbol).foregroundStyle(color).accessibilityHidden(true)
+    }
+
+    /// Keeps the editor open with the error shown if the delete fails.
+    private func delete() {
+        Task {
+            do {
+                try await viewModel.deleteDebt(id: debt.id)
+                dismiss()
+            } catch { errorMessage = error.localizedDescription }
+        }
     }
 
     private func save() {
