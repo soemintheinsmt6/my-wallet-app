@@ -91,48 +91,74 @@ private struct BudgetEditorView: View {
     @State var budget: Budget
     @State private var amount = ""
     @State private var errorMessage: String?
+    @State private var choosingCurrency = false
+    @State private var confirmingDelete = false
+    @FocusState private var focusedField: Field?
     @Environment(\.dismiss) private var dismiss
 
+    private enum Field: Hashable { case limit }
+
     private var isNew: Bool { !viewModel.budgets.contains { $0.id == budget.id } }
+
+    /// The chosen category's own symbol and color, as the record editor shows it; a grid for Overall.
+    private var categoryIcon: (symbol: String, color: Color) {
+        guard let category = viewModel.records.category(budget.categoryID) else { return ("square.grid.2x2.fill", .gray) }
+        return (category.symbol, category.colorToken.color)
+    }
 
     var body: some View {
         NavigationStack {
             Form {
-                Section("Budget") {
-                    LabeledContent("Name") {
+                // Laid out like the record, debt and goal editors: the amount first, large, in the
+                // red of the spending it limits.
+                Section {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Limit")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .accessibilityHidden(true)
+                        RecordAmountField(
+                            sign: "", color: .red, label: "Limit amount",
+                            currency: budget.currencyCode, amount: $amount, focus: $focusedField, field: .limit
+                        ) {
+                            focusedField = nil
+                            choosingCurrency = true
+                        }
+                    }
+                    .padding(.vertical, 4)
+                }
+
+                Section {
+                    LabeledContent {
                         TextField("Groceries", text: $budget.name)
                             .multilineTextAlignment(.trailing)
-                    }
-                    LabeledContent("Limit") {
-                        WalletAmountField(amount: amount) {
-                            TextField("", text: $amount.groupedAmount())
-                                #if os(iOS)
-                                    .keyboardType(.decimalPad)
-                                #endif
-                        }
-                        .monospacedDigit()
-                    }
-                    NavigationLink {
-                        CurrencyPickerView(selection: $budget.currencyCode, pushed: true)
                     } label: {
-                        LabeledContent("Currency", value: budget.currencyCode)
+                        WalletFormLabel("Name", symbol: "chart.bar.fill", color: .green)
                     }
                     WalletMenuPicker("Category", selection: $budget.categoryID,
-                                     value: budget.categoryID == nil ? "Overall" : viewModel.records.categoryName(budget.categoryID)) {
+                                     value: budget.categoryID == nil ? "Overall" : viewModel.records.categoryName(budget.categoryID),
+                                     icon: categoryIcon) {
                         Text("Overall").tag(nil as UUID?)
                         ForEach(viewModel.records.categories) { Text(viewModel.records.categoryName($0.id)).tag(Optional($0.id)) }
                     }
                 }
 
                 Section {
-                    WalletMenuPicker("Period", selection: $budget.period, value: budget.period.rawValue.capitalized) {
+                    WalletMenuPicker("Period", selection: $budget.period, value: budget.period.rawValue.capitalized,
+                                     icon: ("repeat", .blue)) {
                         ForEach(BudgetPeriod.allCases, id: \.self) { Text($0.rawValue.capitalized).tag($0) }
                     }
-                    DatePicker("Starts", selection: $budget.startDate, displayedComponents: .date)
+                    DatePicker(selection: $budget.startDate, displayedComponents: .date) {
+                        WalletFormLabel("Starts", symbol: "calendar", color: .red)
+                    }
                     if budget.period == .custom {
-                        DatePicker("Ends (exclusive)", selection: $budget.endDate, in: budget.startDate..., displayedComponents: .date)
+                        DatePicker(selection: $budget.endDate, in: budget.startDate..., displayedComponents: .date) {
+                            WalletFormLabel("Ends (exclusive)", symbol: "flag.checkered", color: .orange)
+                        }
                     } else {
-                        Toggle("Roll over unused amounts", isOn: $budget.rollover)
+                        Toggle(isOn: $budget.rollover) {
+                            WalletFormLabel("Roll over unused amounts", symbol: "arrow.uturn.forward", color: .teal)
+                        }
                     }
                 } header: {
                     Text("Period")
@@ -143,8 +169,10 @@ private struct BudgetEditorView: View {
                 }
 
                 Section {
-                    Toggle("Notify at 80% and 100%", isOn: $budget.notificationsEnabled)
-                        .refreshesNotificationAuthorization { await viewModel.refreshNotificationAuthorization() }
+                    Toggle(isOn: $budget.notificationsEnabled) {
+                        WalletFormLabel("Notify at 80% and 100%", symbol: "bell.fill", color: .purple)
+                    }
+                    .refreshesNotificationAuthorization { await viewModel.refreshNotificationAuthorization() }
                     if budget.notificationsEnabled {
                         if !viewModel.notificationsAuthorized {
                             Button("Enable System Notifications") { Task { await viewModel.requestNotifications() } }
@@ -162,12 +190,37 @@ private struct BudgetEditorView: View {
                         Label(errorMessage, systemImage: "exclamationmark.triangle").foregroundStyle(.red)
                     }
                 }
+
+                if !isNew {
+                    Section {
+                        Button(role: .destructive) {
+                            focusedField = nil
+                            confirmingDelete = true
+                        } label: {
+                            Label {
+                                Text("Delete Budget").foregroundStyle(.red)
+                            } icon: {
+                                WalletFormIcon(symbol: "trash", color: .red)
+                            }
+                        }
+                    }
+                }
             }
             .formStyle(.grouped)
+            .alert("Delete Budget?", isPresented: $confirmingDelete) {
+                Button("Cancel", role: .cancel) {}
+                Button("Delete", role: .destructive) { delete() }
+            } message: {
+                Text("Records are kept. The budget and its notifications are removed.")
+            }
             .navigationTitle(isNew ? "New Budget" : "Edit Budget")
             #if !os(macOS)
                 .navigationBarTitleDisplayMode(.inline)
             #endif
+            .scrollDismissesKeyboard(.immediately)
+            .navigationDestination(isPresented: $choosingCurrency) {
+                CurrencyPickerView(selection: $budget.currencyCode, pushed: true)
+            }
             .disabled(viewModel.isSaving)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() }.disabled(viewModel.isSaving) }
@@ -191,5 +244,15 @@ private struct BudgetEditorView: View {
         #if os(macOS)
         .frame(minWidth: 500, minHeight: 520)
         #endif
+    }
+
+    /// Keeps the editor open with the error shown if the delete fails.
+    private func delete() {
+        Task {
+            do {
+                try await viewModel.deleteBudget(id: budget.id)
+                dismiss()
+            } catch { errorMessage = error.localizedDescription }
+        }
     }
 }
