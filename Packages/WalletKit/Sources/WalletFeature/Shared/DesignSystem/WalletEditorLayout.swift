@@ -52,7 +52,9 @@ struct WalletEditorNavigationButton: View {
     }
 }
 
-/// Explanation under a group of rows, standing in for a form section's footer.
+/// Explanation under a group of rows, standing in for a form section's footer. It sits on the
+/// section headers' tinted band, outside the white rows, so it reads as a note about them rather
+/// than as another row; followed by a header, the two make one band.
 struct WalletEditorCaption: View {
     let text: String
 
@@ -65,6 +67,8 @@ struct WalletEditorCaption: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, WalletMetrics.xLarge)
             .padding(.vertical, WalletMetrics.medium)
+            // The same band as `WalletEditorSectionHeader`.
+            .background(.quaternary.opacity(0.35))
     }
 }
 

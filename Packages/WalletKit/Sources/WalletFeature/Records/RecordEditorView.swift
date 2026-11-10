@@ -547,12 +547,8 @@ struct RecordEditorView: View {
         sectionHeader("Repeat")
         RecurrenceFields(rule: $draft.recurrence, start: draft.date, style: .rows)
         if draft.recurrence != nil {
-            Text("This record is saved now. Later occurrences are created when the app opens or becomes active. Manage them under Planning → Recurring.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, WalletMetrics.xLarge)
-                .padding(.vertical, WalletMetrics.medium)
+            WalletEditorCaption("This record is saved now. Later occurrences are created when the app opens "
+                                + "or becomes active. Manage them under Planning → Recurring.")
         }
     }
 

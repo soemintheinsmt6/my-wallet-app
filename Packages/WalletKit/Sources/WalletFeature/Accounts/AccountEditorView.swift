@@ -130,7 +130,7 @@ struct AccountEditorView: View {
 
     /// The balance is the number people check before saving, so it leads, large. The currency is
     /// chosen once, when the account is created: only then is its chip a button.
-    private var balanceSection: some View {
+    @ViewBuilder private var balanceSection: some View {
         VStack(alignment: .leading, spacing: 4) {
             Text("Balance")
                 .font(.subheadline)
@@ -140,12 +140,10 @@ struct AccountEditorView: View {
                 sign: "", color: .primary, label: "Balance in \(currencyCode)",
                 currency: currencyCode, amount: $balanceText, focus: $focusedField, field: .balance,
                 chooseCurrency: account == nil ? { open(.currency) } : nil)
-            Text(account == nil ? Self.newBalanceCaption : Self.editBalanceCaption)
-                .font(.caption)
-                .foregroundStyle(.secondary)
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 12)
+        WalletEditorCaption(account == nil ? Self.newBalanceCaption : Self.editBalanceCaption)
     }
 
     private static let newBalanceCaption = "Currency is chosen once, when you create the account. "
