@@ -40,8 +40,32 @@ public final class DebtsViewModel: ObservableObject {
         do {
             debts = try await debtUseCases.load()
             goals = try await goalUseCases.load()
+            publishLoanTitles()
             try await synchronizeNotifications()
         } catch { errorMessage = error.localizedDescription }
+    }
+
+    /// The record title for each balance adjustment a debt's money recorded: lending or borrowing it,
+    /// and each repayment. Only for debts whose money moved; the income and expenses other debts
+    /// settle with keep their category, as any income or expense does.
+    nonisolated static func loanTitles(_ debts: [DebtProgress]) -> [UUID: String] {
+        var titles: [UUID: String] = [:]
+        for progress in debts where progress.debt.movedMoney {
+            let person = progress.debt.person
+            let lent = progress.debt.direction == .owedToMe
+            if let id = progress.debt.openingRecordID {
+                titles[id] = lent ? "Lent to \(person)" : "Borrowed from \(person)"
+            }
+            for payment in progress.payments {
+                if let id = payment.recordID { titles[id] = lent ? "Repaid by \(person)" : "Repaid to \(person)" }
+            }
+        }
+        return titles
+    }
+
+    private func publishLoanTitles() {
+        let titles = Self.loanTitles(debts)
+        if records.loanTitles != titles { records.loanTitles = titles }
     }
 
     // MARK: - Debts

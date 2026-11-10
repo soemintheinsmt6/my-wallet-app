@@ -186,8 +186,9 @@ struct DebtSettlementView: View {
     private var ledgerCaption: String {
         guard createsRecord else { return "The payment is tracked against the debt only; no balance changes." }
         if progress.debt.movedMoney {
-            return "Records the money " + (kind == .income ? "coming back into" : "going back out of")
-                + " the chosen account as a balance adjustment, as the loan was, so it is not counted as "
+            let person = progress.debt.person
+            return "Records \"" + (kind == .income ? "Repaid by \(person)" : "Repaid to \(person)")
+                + "\" on the chosen account, as the loan was recorded, so it is not counted as "
                 + (kind == .income ? "income." : "spending.")
         }
         return "Creates \(kind == .income ? "an income" : "an expense") in the chosen account so balances "

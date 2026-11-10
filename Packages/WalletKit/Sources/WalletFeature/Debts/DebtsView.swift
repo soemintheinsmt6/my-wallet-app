@@ -161,6 +161,7 @@ private struct DebtEditorView: View {
     @State private var didLoad = false
     @State private var movesMoney = false
     @State private var moneyAccountID: UUID?
+    @State private var editingRecord: WalletRecord?
     @FocusState private var focusedField: Field?
     @Environment(\.dismiss) private var dismiss
 
@@ -199,6 +200,7 @@ private struct DebtEditorView: View {
                         }
                     }
                     moneySection
+                    recordsSection
                     dueDateSection
                     WalletEditorSectionHeader(title: "More Details") { focusedField = nil }
                     RecordFormRow(symbol: "square.and.pencil", showsDivider: false) {
@@ -222,6 +224,7 @@ private struct DebtEditorView: View {
             }
             .scrollDismissesKeyboard(.immediately)
             .walletEditorPage()
+            .sheet(item: $editingRecord) { RecordEditorView(viewModel: viewModel.records, record: $0) }
             .alert("Delete Debt?", isPresented: $confirmingDelete) {
                 Button("Cancel", role: .cancel) {}
                 Button("Delete", role: .destructive) { delete() }
@@ -294,6 +297,42 @@ private struct DebtEditorView: View {
     /// Whether the money changed hands when the debt was made. Recorded as a balance adjustment, so
     /// the balance is right while the loan counts as neither spending nor income; settling records
     /// its return the same way. Both rows lead with a tile, as the record editor's account row does.
+    /// The records this debt wrote: the money lent or borrowed, then each settlement that added one,
+    /// oldest first. Records the person has since deleted are left out.
+    private var linkedRecords: [WalletRecord] {
+        guard let progress = viewModel.debts.first(where: { $0.debt.id == debt.id }) else { return [] }
+        let ids = [progress.debt.openingRecordID].compactMap { $0 } + progress.payments.compactMap(\.recordID)
+        return ids.compactMap { id in viewModel.records.records.first { $0.id == id } }
+    }
+
+    /// The same rows as the Records list, so the debt's money is seen as it appears there; each
+    /// opens its record.
+    @ViewBuilder private var recordsSection: some View {
+        let records = linkedRecords
+        if !records.isEmpty {
+            WalletEditorSectionHeader(title: "Records") { focusedField = nil }
+            ForEach(records) { record in
+                Button {
+                    focusedField = nil
+                    editingRecord = record
+                } label: {
+                    RecordRow(viewModel: viewModel.records, record: record, showsDate: true)
+                        .padding(.horizontal, 20)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityHint("Edit record")
+                if record.id != records.last?.id { Divider().padding(.leading, 68) }
+            }
+        }
+    }
+
+    /// The person as typed, or a stand-in while it is still empty.
+    private var personName: String {
+        let name = debt.person.trimmingCharacters(in: .whitespacesAndNewlines)
+        return name.isEmpty ? "them" : name
+    }
+
     @ViewBuilder private var moneySection: some View {
         let lending = debt.direction == .owedToMe
         WalletEditorSectionHeader(title: "Money") { focusedField = nil }
@@ -309,7 +348,7 @@ private struct DebtEditorView: View {
                                 + "updates it, and settling records the money's return the same way.")
         } else {
             RecordFormRow(symbol: "arrow.left.arrow.right", color: .blue, filledIcon: true, showsDivider: movesMoney) {
-                Toggle("Money moved now", isOn: $movesMoney.animation())
+                Toggle(lending ? "Take from my balance now" : "Add to my balance now", isOn: $movesMoney.animation())
             }
             if movesMoney {
                 if moneyAccounts.isEmpty {
@@ -327,11 +366,12 @@ private struct DebtEditorView: View {
                 }
             }
             WalletEditorCaption(movesMoney
-                ? (lending ? "Takes the money out of this account" : "Puts the money into this account")
-                    + " as a balance adjustment, so the balance is right without counting it as "
-                    + (lending ? "spending" : "income") + ". Settling records its return the same way."
-                : "Leave off when the money was already recorded, such as a bill you paid that they owe "
-                    + "you part of. Settling then records income or an expense.")
+                ? "Records \"" + (lending ? "Lent to" : "Borrowed from") + " \(personName)\" on this account, "
+                    + (lending ? "taking the money out" : "adding the money") + " without counting it as "
+                    + (lending ? "spending" : "income") + ". Settling records \"Repaid "
+                    + (lending ? "by" : "to") + " \(personName)\" the same way."
+                : "Leave off if this money is already in your balance, or if no cash changed hands, "
+                    + "such as a bill you paid that they owe you part of. Settling then records income or an expense.")
         }
     }
 

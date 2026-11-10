@@ -353,6 +353,26 @@ struct DebtMoneyMovedTests {
         #expect(try await balance(repository) == 1050)
     }
 
+    @Test func loanRecordsAreTitledForTheirDebtAndOtherSettlementsAreNot() async throws {
+        let (_, viewModel, records, account) = try await setup()
+        try await viewModel.save(Debt(person: "Ana", direction: .owedToMe, amount: 300), moneyMovedThrough: account)
+        try await viewModel.pay(try #require(viewModel.debts.first), amount: 100, account: account, categoryID: nil)
+        try await viewModel.save(Debt(person: "Ben", direction: .owedToMe, amount: 40))
+        let shared = try #require(viewModel.debts.first { $0.debt.person == "Ben" })
+        try await viewModel.pay(shared, amount: 40, account: account, categoryID: try #require(records.categories.first).id)
+
+        let loan = try #require(viewModel.debts.first { $0.debt.person == "Ana" })
+        let opening = try #require(loan.debt.openingRecordID)
+        let repayment = try #require(loan.payments.first?.recordID)
+        #expect(records.loanTitles[opening] == "Lent to Ana")
+        #expect(records.loanTitles[repayment] == "Repaid by Ana")
+        // Ben's settlement is real income, so it keeps its category's title.
+        #expect(records.loanTitles.count == 2)
+        #expect(DebtsViewModel.loanTitles([
+            DebtProgress(debt: Debt(person: "Cy", direction: .iOwe, amount: 5, openingRecordID: opening), payments: []),
+        ])[opening] == "Borrowed from Cy")
+    }
+
     @Test func aDebtThatFailsToSaveLeavesNoAdjustmentBehind() async throws {
         let (repository, viewModel, records, account) = try await setup()
         await #expect(throws: DebtError.invalidPerson) {

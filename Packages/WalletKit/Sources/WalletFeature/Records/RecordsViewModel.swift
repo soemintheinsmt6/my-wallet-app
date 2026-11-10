@@ -29,6 +29,10 @@ public final class RecordsViewModel: ObservableObject {
     @Published public private(set) var isLoading = true
     @Published public private(set) var isSaving = false
     @Published public var errorMessage: String?
+    /// Titles for the balance adjustments a lent or borrowed debt records ("Borrowed from Ana",
+    /// "Repaid to Ana"), by record ID, so record rows say what they are rather than "Balance
+    /// adjustment". Kept by `DebtsViewModel`, which knows which records belong to which debt.
+    @Published var loanTitles: [UUID: String] = [:]
     private let useCases: RecordUseCases
     private let accountUseCases: AccountUseCases
     private let categoryUseCases: CategoryUseCases

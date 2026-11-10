@@ -14,7 +14,15 @@ struct RecordRow: View {
 
     private var draft: RecordDraft { record.draft }
 
+    /// Two people joined by a dotted line: money between the user and someone else.
+    static let loanSymbol = "person.line.dotted.person.fill"
+
+    /// Set for the balance adjustments a lent or borrowed debt records, which say so instead of
+    /// "Balance adjustment".
+    private var loanTitle: String? { viewModel.loanTitles[record.id] }
+
     private var title: String {
+        if let loanTitle { return loanTitle }
         if draft.isAdjustment, draft.categoryID == nil { return RecordDraft.adjustmentTitle }
         if draft.kind == .transfer, draft.categoryID == nil { return draft.kind.title }
         return viewModel.categoryName(draft.categoryID)
@@ -26,6 +34,8 @@ struct RecordRow: View {
             let destination = viewModel.account(draft.destinationAccountID)?.name ?? "Unlinked account"
             return "\(account) → \(destination)"
         }
+        // A loan's title already names the person.
+        if loanTitle != nil { return account }
         if !draft.payee.isEmpty { return "\(account) · \(draft.payee)" }
         // An adjustment's note, such as "Interest", is usually the only thing saying what it was.
         if draft.isAdjustment, !draft.note.isEmpty { return "\(account) · \(draft.note)" }
@@ -69,7 +79,9 @@ struct RecordRow: View {
     }
 
     @ViewBuilder private var tile: some View {
-        if let category = viewModel.category(draft.categoryID) {
+        if loanTitle != nil {
+            WalletIconTile(symbol: Self.loanSymbol, color: .teal)
+        } else if let category = viewModel.category(draft.categoryID) {
             CategoryIcon(category: category)
         } else if draft.isAdjustment {
             WalletIconTile(symbol: RecordDraft.adjustmentSymbol, color: RecordDraft.adjustmentTint)
