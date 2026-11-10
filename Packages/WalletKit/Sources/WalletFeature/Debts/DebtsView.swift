@@ -185,20 +185,20 @@ private struct DebtEditorView: View {
                     LabeledContent {
                         TextField("Name", text: $debt.person).multilineTextAlignment(.trailing)
                     } label: {
-                        rowLabel("Person", symbol: "person.fill", color: .blue)
+                        WalletFormLabel("Person", symbol: "person.fill", color: .blue)
                     }
                 }
 
                 Section {
                     Toggle(isOn: $hasDueDate.animation()) {
-                        rowLabel("Has a due date", symbol: "calendar", color: .red)
+                        WalletFormLabel("Has a due date", symbol: "calendar", color: .red)
                     }
                     if hasDueDate {
                         DatePicker(selection: $dueDate, displayedComponents: .date) {
-                            rowLabel("Due", symbol: "clock.fill", color: .orange)
+                            WalletFormLabel("Due", symbol: "clock.fill", color: .orange)
                         }
                         Toggle(isOn: $debt.notificationsEnabled) {
-                            rowLabel("Remind me", symbol: "bell.fill", color: .purple)
+                            WalletFormLabel("Remind me", symbol: "bell.fill", color: .purple)
                         }
                         .refreshesNotificationAuthorization { await viewModel.refreshNotificationAuthorization() }
                         if debt.notificationsEnabled && !viewModel.notificationsAuthorized {
@@ -217,7 +217,7 @@ private struct DebtEditorView: View {
                     Label {
                         TextField("Note", text: $debt.note, axis: .vertical).lineLimit(1...6)
                     } icon: {
-                        rowIcon("note.text", color: .gray)
+                        WalletFormIcon(symbol: "note.text", color: .gray)
                     }
                 }
 
@@ -236,7 +236,7 @@ private struct DebtEditorView: View {
                             Label {
                                 Text("Delete Debt").foregroundStyle(.red)
                             } icon: {
-                                rowIcon("trash", color: .red)
+                                WalletFormIcon(symbol: "trash", color: .red)
                             }
                         }
                     }
@@ -274,15 +274,6 @@ private struct DebtEditorView: View {
         #if os(macOS)
         .frame(minWidth: 500, minHeight: 560)
         #endif
-    }
-
-    /// A row title with the same colored symbol the record editor puts beside its rows.
-    private func rowLabel(_ title: String, symbol: String, color: Color) -> some View {
-        Label { Text(title) } icon: { rowIcon(symbol, color: color) }
-    }
-
-    private func rowIcon(_ symbol: String, color: Color) -> some View {
-        Image(systemName: symbol).foregroundStyle(color).accessibilityHidden(true)
     }
 
     /// Keeps the editor open with the error shown if the delete fails.

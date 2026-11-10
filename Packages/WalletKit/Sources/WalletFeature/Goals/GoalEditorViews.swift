@@ -10,7 +10,12 @@ struct GoalEditorView: View {
     @State private var deadline = Date()
     @State private var errorMessage: String?
     @State private var contributing: GoalProgress?
+    @State private var choosingCurrency = false
+    @State private var confirmingDelete = false
+    @FocusState private var focusedField: Field?
     @Environment(\.dismiss) private var dismiss
+
+    private enum Field: Hashable { case target }
 
     /// The saved goal's live progress; nil while the goal is new.
     private var progress: GoalProgress? { viewModel.goals.first { $0.goal.id == goal.id } }
@@ -19,34 +24,49 @@ struct GoalEditorView: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Goal") {
-                    LabeledContent("Name") {
-                        TextField("New laptop", text: $goal.name).multilineTextAlignment(.trailing)
-                    }
-                    LabeledContent("Target") {
-                        WalletAmountField(amount: target) {
-                            TextField("", text: $target.groupedAmount())
-                                #if os(iOS)
-                                    .keyboardType(.decimalPad)
-                                #endif
+                // Laid out like the record and debt editors: the amount first, large, in green
+                // because saving toward a goal is money kept.
+                Section {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Target")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .accessibilityHidden(true)
+                        RecordAmountField(
+                            sign: "", color: .green, label: "Target amount",
+                            currency: goal.currencyCode, amount: $target, focus: $focusedField, field: .target
+                        ) {
+                            focusedField = nil
+                            choosingCurrency = true
                         }
-                        .monospacedDigit()
                     }
-                    NavigationLink {
-                        CurrencyPickerView(selection: $goal.currencyCode, pushed: true)
+                    .padding(.vertical, 4)
+                }
+
+                Section {
+                    LabeledContent {
+                        TextField("New laptop", text: $goal.name).multilineTextAlignment(.trailing)
                     } label: {
-                        LabeledContent("Currency", value: goal.currencyCode)
+                        WalletFormLabel("Name", symbol: "flag.fill", color: .orange)
                     }
                 }
 
                 if let progress {
                     Section {
-                        LabeledContent("Saved") {
+                        LabeledContent {
                             Text("\(progress.saved.walletFormatted(progress.goal.currencyCode)) of \(progress.goal.targetAmount.walletFormatted(progress.goal.currencyCode))")
                                 .monospacedDigit()
+                        } label: {
+                            WalletFormLabel("Saved", symbol: "banknote.fill", color: .green)
                         }
-                        Button("Add Money", systemImage: "plus.circle.fill") { contributing = progress }
-                            .font(.body.weight(.medium))
+                        Button { contributing = progress } label: {
+                            Label {
+                                Text("Add Money")
+                            } icon: {
+                                WalletFormIcon(symbol: "plus.circle.fill", color: .accentColor)
+                            }
+                        }
+                        .font(.body.weight(.medium))
                     } header: {
                         Text("Progress")
                     }
@@ -54,7 +74,8 @@ struct GoalEditorView: View {
 
                 Section {
                     WalletMenuPicker("Account", selection: $goal.accountID,
-                                     value: viewModel.records.account(goal.accountID)?.name ?? "None") {
+                                     value: viewModel.records.account(goal.accountID)?.name ?? "None",
+                                     icon: (WalletSymbols.walletFill, .blue)) {
                         Text("None").tag(nil as UUID?)
                         ForEach(viewModel.records.accounts.filter { $0.currencyCode == goal.currencyCode }) {
                             Text($0.name).tag(Optional($0.id))
@@ -67,9 +88,13 @@ struct GoalEditorView: View {
                 }
 
                 Section {
-                    Toggle("Has a deadline", isOn: $hasDeadline.animation())
+                    Toggle(isOn: $hasDeadline.animation()) {
+                        WalletFormLabel("Has a deadline", symbol: "calendar", color: .red)
+                    }
                     if hasDeadline {
-                        DatePicker("By", selection: $deadline, displayedComponents: .date)
+                        DatePicker(selection: $deadline, displayedComponents: .date) {
+                            WalletFormLabel("By", symbol: "clock.fill", color: .orange)
+                        }
                     }
                 } header: {
                     Text("Deadline")
@@ -77,8 +102,12 @@ struct GoalEditorView: View {
                     Text("Used to say whether your current saving rate gets there in time.")
                 }
 
-                Section("Note") {
-                    TextField("Optional", text: $goal.note, axis: .vertical).lineLimit(1...6)
+                Section {
+                    Label {
+                        TextField("Note", text: $goal.note, axis: .vertical).lineLimit(1...6)
+                    } icon: {
+                        WalletFormIcon(symbol: "note.text", color: .gray)
+                    }
                 }
 
                 if let errorMessage {
@@ -86,12 +115,37 @@ struct GoalEditorView: View {
                         Label(errorMessage, systemImage: "exclamationmark.triangle").foregroundStyle(.red)
                     }
                 }
+
+                if !isNew {
+                    Section {
+                        Button(role: .destructive) {
+                            focusedField = nil
+                            confirmingDelete = true
+                        } label: {
+                            Label {
+                                Text("Delete Goal").foregroundStyle(.red)
+                            } icon: {
+                                WalletFormIcon(symbol: "trash", color: .red)
+                            }
+                        }
+                    }
+                }
             }
             .formStyle(.grouped)
+            .alert("Delete Goal?", isPresented: $confirmingDelete) {
+                Button("Cancel", role: .cancel) {}
+                Button("Delete", role: .destructive) { delete() }
+            } message: {
+                Text("Its contribution history is removed too. Any transfers created are kept.")
+            }
             .navigationTitle(isNew ? "New Goal" : "Edit Goal")
             #if !os(macOS)
                 .navigationBarTitleDisplayMode(.inline)
             #endif
+            .scrollDismissesKeyboard(.immediately)
+            .navigationDestination(isPresented: $choosingCurrency) {
+                CurrencyPickerView(selection: $goal.currencyCode, pushed: true)
+            }
             .disabled(viewModel.isSaving)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
@@ -110,6 +164,16 @@ struct GoalEditorView: View {
         #if os(macOS)
         .frame(minWidth: 500, minHeight: 560)
         #endif
+    }
+
+    /// Keeps the editor open with the error shown if the delete fails.
+    private func delete() {
+        Task {
+            do {
+                try await viewModel.deleteGoal(id: goal.id)
+                dismiss()
+            } catch { errorMessage = error.localizedDescription }
+        }
     }
 
     private func save() {
