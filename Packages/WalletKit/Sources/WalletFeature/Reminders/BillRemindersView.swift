@@ -82,9 +82,16 @@ struct BillRemindersView: View {
         let due = bill.nextDueDate
         let isOverdue = due.map { $0 < Date() } ?? false
         return NavigationLink { BillDetailView(viewModel: viewModel, billID: bill.id) } label: {
+            // Laid out like a record row: the category's tile, name over due date, and the amount
+            // trailing as the expense paying it records. The Pay button sits under the amount so
+            // a long amount keeps its room.
             HStack(spacing: WalletMetrics.medium) {
-                WalletIconTile(symbol: BillStatus.symbol(due: due, isOverdue: isOverdue),
-                               color: BillStatus.color(due: due, isOverdue: isOverdue))
+                if let category = viewModel.records.category(bill.categoryID) {
+                    CategoryIcon(category: category)
+                } else {
+                    WalletIconTile(symbol: BillStatus.symbol(due: due, isOverdue: isOverdue),
+                                   color: BillStatus.color(due: due, isOverdue: isOverdue))
+                }
                 VStack(alignment: .leading, spacing: WalletMetrics.hair) {
                     Text(bill.name)
                         .font(.body.weight(.medium))
@@ -94,20 +101,20 @@ struct BillRemindersView: View {
                         .font(.caption)
                         .foregroundStyle(isOverdue ? Color.red : Color.secondary)
                         .lineLimit(1)
-                    Text(bill.amount.walletFormatted(bill.currencyCode))
-                        .font(.caption.weight(.semibold))
-                        .monospacedDigit()
-                        .foregroundStyle(.primary)
-                        .lineLimit(1)
                 }
                 Spacer(minLength: WalletMetrics.small)
-                if due != nil {
-                    Button("Pay") { paying = bill }
-                        .buttonStyle(.borderedProminent)
-                        .buttonBorderShape(.capsule)
-                        .controlSize(.small)
-                        .tint(isOverdue ? .red : .green)
-                        .accessibilityLabel("Mark \(bill.name) as paid")
+                VStack(alignment: .trailing, spacing: WalletMetrics.small) {
+                    // A finished bill owes nothing more, so it drops the expense sign and color.
+                    WalletAmountText(amount: bill.amount, currencyCode: bill.currencyCode,
+                                     kind: due == nil ? nil : .expense)
+                    if due != nil {
+                        Button("Pay") { paying = bill }
+                            .buttonStyle(.borderedProminent)
+                            .buttonBorderShape(.capsule)
+                            .controlSize(.small)
+                            .tint(isOverdue ? .red : .green)
+                            .accessibilityLabel("Mark \(bill.name) as paid")
+                    }
                 }
             }
             .frame(minHeight: WalletMetrics.touchTarget)
