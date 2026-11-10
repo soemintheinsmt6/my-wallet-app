@@ -284,6 +284,8 @@ private struct BillDetailView: View {
                                : bill.reminderDaysBefore == 0 ? "On due date" : "\(bill.reminderDaysBefore) days before") {
                 WalletIconTile(symbol: "bell.fill", color: .purple)
             }
+            // The band below separates sections, so the last row draws no rule of its own.
+            .listRowSeparator(.hidden, edges: .bottom)
         } header: {
             WalletListSectionHeader("Details")
         }
@@ -297,6 +299,7 @@ private struct BillDetailView: View {
                     .contentShape(Rectangle())
             }
             WalletDestructiveRow(title: "Delete Bill") { confirmingDelete = true }
+                .listRowSeparator(.hidden, edges: .bottom)
         } header: {
             WalletListSectionHeader("Manage")
         }

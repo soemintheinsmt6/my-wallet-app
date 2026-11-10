@@ -94,6 +94,8 @@ struct CategoryDetailView: View {
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+            // The band below separates sections, so the last row draws no rule of its own.
+            .listRowSeparator(.hidden, edges: .bottom)
         } header: {
             WalletListSectionHeader("Subcategories")
         }
@@ -109,6 +111,7 @@ struct CategoryDetailView: View {
                     .contentShape(Rectangle())
             }
             WalletDestructiveRow(title: "Delete Category") { deleting = category }
+                .listRowSeparator(.hidden, edges: .bottom)
         } header: {
             WalletListSectionHeader("Manage")
         }

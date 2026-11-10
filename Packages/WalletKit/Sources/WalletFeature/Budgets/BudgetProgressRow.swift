@@ -85,7 +85,13 @@ struct BudgetProgressSection: View {
         let values = viewModel.progress(categoryID: categoryID)
         if !values.isEmpty {
             Section {
-                ForEach(values) { BudgetProgressRow(progress: $0) }
+                ForEach(values) { progress in
+                    BudgetProgressRow(progress: progress)
+                        // Under a band heading the next band separates sections, so the last
+                        // row draws no rule of its own.
+                        .listRowSeparator(bandHeader && progress.id == values.last?.id ? .hidden : .automatic,
+                                          edges: .bottom)
+                }
             } header: {
                 if bandHeader { WalletListSectionHeader("Budget progress") } else { Text("Budget progress") }
             }
