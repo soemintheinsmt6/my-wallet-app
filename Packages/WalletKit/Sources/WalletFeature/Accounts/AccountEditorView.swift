@@ -24,7 +24,7 @@ struct AccountEditorView: View {
     private let onDeleted: () -> Void
 
     private enum Field: Hashable { case balance, accountNumber, minimum, maximum }
-    private enum Screen: Hashable { case currency, name }
+    private enum Screen: Hashable { case currency, name, color }
 
     init(viewModel: AccountsViewModel, account: Account? = nil, onDeleted: @escaping () -> Void = {}) {
         self.viewModel = viewModel
@@ -94,6 +94,8 @@ struct AccountEditorView: View {
                     CurrencyPickerView(selection: $currencyCode, pushed: true)
                 case .name:
                     RecordTextEntry(title: "Name", text: $name, caption: "Name this account")
+                case .color:
+                    AccountColorSelection(symbol: symbol, selection: $settings.color)
                 }
             }
             // Pinned at the bottom like the record editor's Save, rather than in the toolbar.
@@ -201,38 +203,11 @@ struct AccountEditorView: View {
                 choosingSymbol = true
             }
         }
+        // A choice like Category in the record editor: the row names it, its own screen lists them.
         RecordFormRow(symbol: "paintpalette.fill", color: settings.color.tint, filledIcon: true,
                       showsDivider: false) {
-            Text("Color")
-            Spacer()
-            Text(settings.color.title).foregroundStyle(.secondary)
+            WalletEditorNavigationButton(title: "Color", value: settings.color.title) { open(.color) }
         }
-        // Compact swatches under the row's title, unlabelled since the row names the chosen color;
-        // VoiceOver still reads each name. The chosen one carries a ring as well as a checkmark.
-        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 5), spacing: 8) {
-            ForEach(AccountColor.allCases) { color in
-                let isSelected = settings.color == color
-                Button { settings.color = color } label: {
-                    Circle().fill(color.tint.gradient)
-                        .frame(width: 32, height: 32)
-                        .overlay {
-                            if isSelected {
-                                Image(systemName: "checkmark").font(.caption.weight(.bold)).foregroundStyle(.white)
-                            }
-                        }
-                        .padding(4)
-                        .overlay { if isSelected { Circle().strokeBorder(color.tint, lineWidth: 2) } }
-                        .frame(minWidth: 44, minHeight: 44)
-                        .contentShape(Circle())
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel(color.title)
-                .accessibilityAddTraits(isSelected ? .isSelected : [])
-            }
-        }
-        .padding(.leading, 66)
-        .padding(.trailing, 20)
-        .padding(.bottom, 12)
     }
 
     /// Each limit's amount sits on its switch's row, as the repeat rows keep their values.
@@ -313,5 +288,39 @@ struct AccountEditorView: View {
         } catch {
             errorMessage = error.localizedDescription
         }
+    }
+}
+
+/// The account colors as a list, like the record editor's account and category pickers. Each row
+/// shows the account's own icon in that color, so the choice is seen as it will look.
+private struct AccountColorSelection: View {
+    let symbol: String
+    @Binding var selection: AccountColor
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        List(AccountColor.allCases) { color in
+            Button {
+                selection = color
+                dismiss()
+            } label: {
+                HStack(spacing: 12) {
+                    WalletIconTile(symbol: symbol, color: color.tint)
+                    Text(color.title).foregroundStyle(.primary)
+                    Spacer()
+                    if selection == color { Image(systemName: "checkmark").foregroundStyle(.tint) }
+                }
+                .frame(minHeight: 44)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityAddTraits(selection == color ? .isSelected : [])
+            .walletFirstRow(color == AccountColor.allCases.first)
+        }
+        .listStyle(.plain)
+        .navigationTitle("Color")
+        #if !os(macOS)
+            .navigationBarTitleDisplayMode(.inline)
+        #endif
     }
 }
