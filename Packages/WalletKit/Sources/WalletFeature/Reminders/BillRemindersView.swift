@@ -76,15 +76,14 @@ struct BillRemindersView: View {
         .disabled(viewModel.isSaving)
     }
 
-    /// Tapping opens the bill; unpaid bills also carry a visible Pay button so settling one never
-    /// depends on discovering a swipe.
+    /// Tapping opens the bill, whose screen leads with Mark as Paid.
     private func row(_ bill: BillReminder) -> some View {
         let due = bill.nextDueDate
         let isOverdue = due.map { $0 < Date() } ?? false
         return NavigationLink { BillDetailView(viewModel: viewModel, billID: bill.id) } label: {
             // Laid out like a record row: the category's tile, name over due date, and the amount
-            // trailing as the expense paying it records. The Pay button sits under the amount so
-            // a long amount keeps its room.
+            // trailing as the expense paying it records. Paying leads the bill's own screen, as
+            // Settle leads a debt's; the swipe and the menu stay as shortcuts.
             HStack(spacing: WalletMetrics.medium) {
                 if let category = viewModel.records.category(bill.categoryID) {
                     CategoryIcon(category: category)
@@ -103,19 +102,9 @@ struct BillRemindersView: View {
                         .lineLimit(1)
                 }
                 Spacer(minLength: WalletMetrics.small)
-                VStack(alignment: .trailing, spacing: WalletMetrics.small) {
-                    // A finished bill owes nothing more, so it drops the expense sign and color.
-                    WalletAmountText(amount: bill.amount, currencyCode: bill.currencyCode,
-                                     kind: due == nil ? nil : .expense)
-                    if due != nil {
-                        Button("Pay") { paying = bill }
-                            .buttonStyle(.borderedProminent)
-                            .buttonBorderShape(.capsule)
-                            .controlSize(.small)
-                            .tint(isOverdue ? .red : .green)
-                            .accessibilityLabel("Mark \(bill.name) as paid")
-                    }
-                }
+                // A finished bill owes nothing more, so it drops the expense sign and color.
+                WalletAmountText(amount: bill.amount, currencyCode: bill.currencyCode,
+                                 kind: due == nil ? nil : .expense)
             }
             .frame(minHeight: WalletMetrics.touchTarget)
             .padding(.vertical, WalletMetrics.tight)
@@ -136,36 +125,6 @@ struct BillRemindersView: View {
         }
     }
 
-}
-
-/// Account and category rows that push a full list instead of popping up a menu. Both are required.
-private struct BillSelectionRows: View {
-    @ObservedObject var records: RecordsViewModel
-    let accounts: [Account]
-    @Binding var bill: BillReminder
-    @State private var choosingCategory = false
-
-    var body: some View {
-        NavigationLink {
-            RecordAccountSelection(accounts: accounts, selection: $bill.accountID, title: "Account")
-        } label: {
-            LabeledContent("Account", value: records.account(bill.accountID)?.name ?? "Choose")
-        }
-        Button { choosingCategory = true } label: {
-            LabeledContent("Category") {
-                HStack {
-                    // The chosen category or subcategory by its own name, without its parent.
-                    Text(records.category(bill.categoryID)?.name ?? "Choose")
-                    WalletDisclosure()
-                }
-            }
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .navigationDestination(isPresented: $choosingCategory) {
-            RecordCategoryPicker(viewModel: records, kind: .expense, selection: $bill.categoryID) { choosingCategory = false }
-        }
-    }
 }
 
 /// Shared wording and colour for a bill's next occurrence.
@@ -312,7 +271,10 @@ private struct BillPaymentView: View {
     @State var bill: BillReminder
     @State private var paidAt = Date()
     @State private var error: String?
+    @State private var screen: Screen?
     @Environment(\.dismiss) private var dismiss
+
+    private enum Screen: Hashable { case account, category }
 
     /// Only accounts in the bill's currency can carry the expense.
     private var accounts: [Account] { viewModel.records.accounts.filter { $0.currencyCode == bill.currencyCode } }
@@ -320,55 +282,98 @@ private struct BillPaymentView: View {
 
     var body: some View {
         NavigationStack {
-            Form {
-                Section {
-                    LabeledContent("Bill", value: bill.name)
-                    LabeledContent("Amount") {
-                        Text(bill.amount.walletFormatted(bill.currencyCode)).monospacedDigit()
-                    }
-                    if let due = bill.nextDueDate {
-                        LabeledContent("Due", value: due.formatted(date: .abbreviated, time: .omitted))
-                    }
-                }
-
-                Section {
-                    DatePicker("Paid date", selection: $paidAt, in: ...Date(), displayedComponents: .date)
-                    BillSelectionRows(records: viewModel.records, accounts: accounts, bill: $bill)
-                } header: {
-                    Text("Expense")
-                } footer: {
-                    Text(accounts.isEmpty ? "Add a \(bill.currencyCode) account to record this payment."
-                                          : "An expense is added on the paid date. The account and category are saved to this bill.")
-                }
-
-                if let error {
-                    Section {
-                        Label(error, systemImage: "exclamationmark.triangle").foregroundStyle(.red)
+            // The record editor's layout: the expense it adds on top, then rows.
+            ScrollView {
+                VStack(spacing: 0) {
+                    amountSection
+                    expenseSection
+                    if let error {
+                        Label(error, systemImage: "exclamationmark.triangle")
+                            .foregroundStyle(.red)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(20)
                     }
                 }
+                .walletEditorRows()
             }
-            .formStyle(.grouped)
+            .walletEditorPage()
             .navigationTitle("Mark as Paid")
             #if !os(macOS)
                 .navigationBarTitleDisplayMode(.inline)
             #endif
+            .navigationDestination(item: $screen) { screen in
+                switch screen {
+                case .account:
+                    RecordAccountSelection(accounts: accounts, selection: $bill.accountID, title: "Account")
+                case .category:
+                    RecordCategoryPicker(viewModel: viewModel.records, kind: .expense, selection: $bill.categoryID) {
+                        self.screen = nil
+                    }
+                }
+            }
             .disabled(viewModel.isSaving)
+            // Pinned at the bottom like the record editor's Save.
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                WalletEditorBottomButton(title: "Mark as Paid", isBusy: viewModel.isSaving, isEnabled: canPay) {
+                    Task {
+                        do { try await viewModel.pay(bill, paidAt: paidAt); dismiss() }
+                        catch { self.error = error.localizedDescription }
+                    }
+                }
+            }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() }.disabled(viewModel.isSaving) }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Mark Paid") {
-                        Task {
-                            do { try await viewModel.pay(bill, paidAt: paidAt); dismiss() }
-                            catch { self.error = error.localizedDescription }
-                        }
-                    }.disabled(!canPay)
-                }
             }
             .interactiveDismissDisabled(viewModel.isSaving)
         }
         #if os(macOS)
         .frame(minWidth: 420, minHeight: 420)
         #endif
+    }
+
+    /// The bill and when it was due, over the expense paying it adds: the bill's full amount, red
+    /// with a minus as an expense is in the record editor, shown rather than typed.
+    private var amountSection: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(caption)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+            RecordAmountLabel(sign: "−", color: .red, currency: bill.currencyCode, amount: bill.amount)
+        }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 12)
+    }
+
+    private var caption: String {
+        guard let due = bill.nextDueDate else { return bill.name }
+        return "\(bill.name) · due \(due.formatted(date: .abbreviated, time: .omitted))"
+    }
+
+    /// Every row leads with a tile, so the section's icons match: the paid date's, the record
+    /// editor's wallet, and the chosen category's.
+    @ViewBuilder private var expenseSection: some View {
+        WalletEditorSectionHeader(title: "Expense")
+        RecordFormRow(symbol: "calendar", color: .red, filledIcon: true) {
+            DatePicker("Paid date", selection: $paidAt, in: ...Date(), displayedComponents: .date)
+        }
+        RecordFormRow(symbol: WalletSymbols.walletFill, color: .blue, filledIcon: true) {
+            WalletEditorNavigationButton(title: "Account",
+                                         value: viewModel.records.account(bill.accountID)?.name ?? "Choose") {
+                screen = .account
+            }
+        }
+        RecordFormRow(symbol: "questionmark", category: viewModel.records.category(bill.categoryID),
+                      categoryTile: true, showsDivider: false) {
+            // The chosen category or subcategory by its own name, without its parent.
+            WalletEditorNavigationButton(title: "Category",
+                                         value: viewModel.records.category(bill.categoryID)?.name ?? "Choose") {
+                screen = .category
+            }
+        }
+        WalletEditorCaption(accounts.isEmpty
+            ? "Add a \(bill.currencyCode) account to record this payment."
+            : "An expense is added on the paid date. The account and category are saved to this bill.")
     }
 }
 

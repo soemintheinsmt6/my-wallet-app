@@ -79,6 +79,34 @@ struct RecordAmountField<Field: Hashable>: View {
     }
 }
 
+/// The same large amount and currency chip as `RecordAmountField`, for an amount that is shown
+/// rather than typed, such as a bill being paid in full.
+struct RecordAmountLabel: View {
+    let sign: String
+    let color: Color
+    let currency: String
+    let amount: Decimal
+    @ScaledMetric(relativeTo: .largeTitle) private var amountFontSize = 60
+
+    var body: some View {
+        HStack(spacing: 16) {
+            if !currency.isEmpty {
+                Text(currency).currencyChip()
+            }
+            Text(sign + RecordAmountDisplay.grouped(amount))
+                .font(.system(size: amountFontSize, weight: .regular))
+                .monospacedDigit()
+                .foregroundStyle(color)
+                .lineLimit(1)
+                .minimumScaleFactor(0.35)
+                .frame(maxWidth: .infinity, minHeight: 76, alignment: .trailing)
+        }
+        .padding(.vertical, 4)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(amount.walletFormatted(currency))
+    }
+}
+
 private extension View {
     func currencyChip(color: Color = .primary) -> some View {
         font(.subheadline.weight(.medium))
