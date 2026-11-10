@@ -93,7 +93,12 @@ struct DebtDetailView: View {
             }
             if !progress.isSettled {
                 Button { settling = progress } label: {
+                    // One color for the check and the word, and semibold, so the button reads as a
+                    // single label rather than an icon tinted apart from its text.
                     Label("Settle", systemImage: "checkmark.circle.fill")
+                        .font(.body.weight(.semibold))
+                        .symbolRenderingMode(.monochrome)
+                        .foregroundStyle(.white)
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.borderedProminent)
