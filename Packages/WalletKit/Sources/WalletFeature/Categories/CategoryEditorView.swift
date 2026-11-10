@@ -16,6 +16,7 @@ struct CategoryEditorView: View {
     @State private var errorMessage: String?
     @State private var confirmingDelete = false
     @State private var choosingSymbol = false
+    @State private var editingName = false
 
     /// The saved category being edited, read live so a new icon shows as soon as it is chosen.
     private var editedCategory: WalletCategory? {
@@ -43,77 +44,61 @@ struct CategoryEditorView: View {
         route.parent == nil ? nil : route.category
     }
 
+    private var trimmedName: String { name.trimmingCharacters(in: .whitespacesAndNewlines) }
+
+    /// Fixed by the category, or by its parent for a subcategory; gray until a new category has one.
+    private var categoryColor: Color { (route.category ?? route.parent)?.colorToken.color ?? .gray }
+
+    private static let nameCaption = "Use a name with 1 to 80 characters. Names must be distinct within the same category level."
+    private static let natureCaption = "Choose None, Must, Need, or Want. Nature changes its badge color, not the fixed "
+        + "category color. Subcategories share their parent's category color but keep their own nature."
+
     var body: some View {
         NavigationStack {
-            Form {
-                Section {
-                    if let parent = route.parent { LabeledContent("Category", value: parent.name) }
-                    HStack(spacing: 16) {
-                        Text("Name")
-                        TextField("Name", text: $name)
-                            .multilineTextAlignment(.trailing)
-                            .accessibilityLabel("Name")
-                    }
-                    // The icon is saved on the category straight away, so only a saved one can have it.
-                    if let category = editedCategory {
-                        Button { choosingSymbol = true } label: {
-                            LabeledContent("Icon") {
-                                HStack(spacing: WalletMetrics.small) {
-                                    CategoryIcon(category: category)
-                                    WalletDisclosure()
-                                }
+            // The record editor's layout: section headings over rows, text on its own screen.
+            ScrollView {
+                VStack(spacing: 0) {
+                    generalSection
+                    WalletEditorSectionHeader(title: "Nature")
+                    RecordFormRow(symbol: "tag", showsDivider: false) {
+                        WalletMenuPicker("Nature", selection: $nature, value: nature.title) {
+                            ForEach(CategoryNature.allCases) { nature in
+                                Text(nature.title).tag(nature)
                             }
-                            .contentShape(Rectangle())
-                        }
-                        .buttonStyle(.plain)
-                    }
-                    if let color = (route.category ?? route.parent)?.colorToken {
-                        LabeledContent("Color") {
-                            Circle().fill(color.color).frame(width: 20, height: 20)
-                                .accessibilityLabel("Fixed category color \(color.hex)")
                         }
                     }
-                } footer: { Text("Use a name with 1 to 80 characters. Names must be distinct within the same category level.") }
-                Section {
-                    WalletMenuPicker("Nature", selection: $nature, value: nature.title) {
-                        ForEach(CategoryNature.allCases) { nature in
-                            Text(nature.title).tag(nature)
-                        }
+                    WalletEditorCaption(Self.natureCaption)
+                    if let errorMessage {
+                        Text(errorMessage)
+                            .foregroundStyle(.red)
+                            .padding(20)
+                            .accessibilityLabel("Error: \(errorMessage)")
                     }
-                } footer: {
-                    Text("Choose None, Must, Need, or Want. Nature changes its badge color, not the fixed category color. Subcategories share their parent's category color but keep their own nature.")
-                }
-                if let errorMessage {
-                    Section { Text(errorMessage).foregroundStyle(.red).accessibilityLabel("Error: \(errorMessage)") }
-                }
-                if deletable != nil {
-                    Section {
-                        WalletDestructiveRow(title: "Delete Subcategory") { confirmingDelete = true }
-                    } footer: {
-                        Text("Records using it become Uncategorized. No financial records or balances are removed.")
+                    if deletable != nil {
+                        WalletEditorDeleteButton(title: "Delete Subcategory") { confirmingDelete = true }
+                        WalletEditorCaption("Records using it become Uncategorized. No financial records or balances are removed.")
                     }
                 }
             }
-            .formStyle(.grouped)
             .disabled(viewModel.isSaving)
             .navigationTitle(title)
+            #if !os(macOS)
+                .navigationBarTitleDisplayMode(.inline)
+            #endif
+            .navigationDestination(isPresented: $editingName) {
+                RecordTextEntry(title: "Name", text: $name,
+                                caption: route.parent == nil ? "Name this category" : "Name this subcategory")
+            }
+            // Pinned at the bottom like the record and account editors' Save.
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                WalletEditorBottomButton(
+                    title: route.category == nil ? "Create" : "Save", isBusy: viewModel.isSaving,
+                    isEnabled: !viewModel.isSaving && !trimmedName.isEmpty && trimmedName.count <= 80
+                ) { save() }
+            }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }.disabled(viewModel.isSaving)
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button {
-                        Task {
-                            errorMessage = nil
-                            do {
-                                try await viewModel.save(id: route.category?.id, parentID: route.parent?.id, name: name, nature: nature)
-                                dismiss()
-                            } catch { errorMessage = error.localizedDescription }
-                        }
-                    } label: {
-                        if viewModel.isSaving { ProgressView() } else { Text(route.category == nil ? "Create" : "Save") }
-                    }
-                    .disabled(viewModel.isSaving || name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || name.trimmingCharacters(in: .whitespacesAndNewlines).count > 80)
                 }
             }
             .alert("Delete Subcategory?", isPresented: $confirmingDelete) {
@@ -143,5 +128,51 @@ struct CategoryEditorView: View {
         #if os(macOS)
         .frame(minWidth: 440, minHeight: 360)
         #endif
+    }
+
+    /// Every row leads with a tile, so the section's icons match: the parent's own tile, the name
+    /// and color in the category's color, and the icon itself.
+    @ViewBuilder private var generalSection: some View {
+        WalletEditorSectionHeader(title: "General")
+        if let parent = route.parent {
+            RecordFormRow(symbol: "folder", category: parent, categoryTile: true) {
+                Text("Category")
+                Spacer()
+                Text(parent.name).foregroundStyle(.secondary).lineLimit(1)
+            }
+            .frame(minHeight: 44)
+        }
+        RecordFormRow(symbol: "textformat", color: categoryColor, filledIcon: true) {
+            WalletEditorNavigationButton(title: "Name", value: trimmedName.isEmpty ? nil : trimmedName) {
+                editingName = true
+            }
+        }
+        // The icon is saved on the category straight away, so only a saved one can have it.
+        if let category = editedCategory {
+            RecordFormRow(symbol: category.symbol, category: category, categoryTile: true) {
+                WalletEditorNavigationButton(title: "Icon", value: nil) { choosingSymbol = true }
+            }
+        }
+        // Fixed, so a value rather than a choice: no chevron.
+        RecordFormRow(symbol: "paintpalette.fill", color: categoryColor, filledIcon: true, showsDivider: false) {
+            Text("Color")
+            Spacer()
+            Text(route.parent == nil ? "Fixed" : "Same as \(route.parent?.name ?? "parent")")
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+        }
+        .frame(minHeight: 44)
+        .accessibilityElement(children: .combine)
+        WalletEditorCaption(Self.nameCaption)
+    }
+
+    private func save() {
+        Task {
+            errorMessage = nil
+            do {
+                try await viewModel.save(id: route.category?.id, parentID: route.parent?.id, name: name, nature: nature)
+                dismiss()
+            } catch { errorMessage = error.localizedDescription }
+        }
     }
 }

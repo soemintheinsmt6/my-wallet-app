@@ -31,7 +31,7 @@ Prefer these over literals so unrelated screens line up. The trailing glyph says
 
 ### List styles
 
-Long lists of like items use the flat (plain) style, rows edge to edge: Records, Accounts, Categories, Labels, Splits, Recurring, Bills, Debts, Drinking Days and the account, currency, payment type and label pickers. The record, debt, goal, budget, bill and account editors and a series' Edit Schedule use the record editor's own scrolling layout (described under Planning, Budgets and Reports). Other editors, Settings, filters, More and dashboards keep the inset grouped style, where cards group related controls. In a flat list, footers use `WalletListFooter` (plain lists otherwise draw them at body size), controls above the rows (segmented pickers, date pickers) hide their separators, and a list that starts without a header hides its first row's top rule.
+Long lists of like items use the flat (plain) style, rows edge to edge: Records, Accounts, Categories, Labels, Splits, Recurring, Bills, Debts, Drinking Days and the account, currency, payment type and label pickers. The record, debt, goal, budget, bill, account and category editors and a series' Edit Schedule use the record editor's own scrolling layout (described under Planning, Budgets and Reports). Other editors, Settings, filters, More and dashboards keep the inset grouped style, where cards group related controls. In a flat list, footers use `WalletListFooter` (plain lists otherwise draw them at body size), controls above the rows (segmented pickers, date pickers) hide their separators, and a list that starts without a header hides its first row's top rule.
 
 ## Navigation
 
@@ -43,7 +43,7 @@ Dashboard, Records, Statistics and Planning each own a `NavigationStack`. Screen
 
 ## Color and Typography
 
-`AccountColor+Presentation.swift` maps ten stored choices to SwiftUI colors: blue, teal, green, yellow, orange, red, pink, purple, indigo and gray. Account icons use white symbols on gradient tiles in the chosen color, matching category icons. Color choices include a name and selection checkmark. The read-only category editor swatch is labeled Color.
+`AccountColor+Presentation.swift` maps ten stored choices to SwiftUI colors: blue, teal, green, yellow, orange, red, pink, purple, indigo and gray. Account icons use white symbols on gradient tiles in the chosen color, matching category icons. Color choices include a name and selection checkmark. The category editor's fixed color is a Color row led by a palette tile in that color, reading Fixed, or Same as its parent for a subcategory.
 
 Use primary text for names/content, secondary text for supporting information, tint for actions and red text for form errors. Do not communicate selection, errors or account type using color alone.
 
@@ -111,7 +111,7 @@ The records list uses the native search field with a prompt naming the searched 
 
 `RecordFilterView` is a grouped form that edits a private copy of the query and applies on Apply, so Cancel leaves visible results unchanged. It reuses record-row checkmark selection with 44-point minimum rows, pushes long lists (categories, payment types) instead of inlining them, states its selection counts in trailing values, and disables Apply while an amount bound is invalid. Footers explain transfer, subcategory and currency behavior; Clear All Filters is destructive and disabled when nothing is set.
 
-`CategoryEditorView` shares a grouped form for create/edit at both levels. Edit sheets use the title Edit; create sheets retain Create Category/Create Subcategory. The editor has no icon/name preview. Name uses a leading label and a trailing-aligned text field. The parent is read-only for subcategories. A native picker offers None, Must, Need and Want without a separate badge below it. Seeds have suggested natures listed in README; custom items start at None. Use the established saving state and inline-error patterns, preserving the draft after validation/storage failures. The macOS editor minimum is 440 × 360 points.
+`CategoryEditorView` serves create/edit at both levels in the record editor's layout. Edit sheets use the title Edit; create sheets retain Create Category/Create Subcategory. General lists the parent (subcategories only, read-only, with its tile), Name (its own `RecordTextEntry` screen), Icon (saved categories only) and the fixed Color, every row led by a tile; Nature is a menu offering None, Must, Need and Want, without a separate badge below it. Captions sit on the section band, Delete Subcategory comes last for subcategories, and Create or Save is the bottom `WalletEditorBottomButton`, with Cancel in the toolbar. Seeds have suggested natures listed in README; custom items start at None. Use the established saving state and inline-error patterns, preserving the draft after validation/storage failures. The macOS editor minimum is 440 × 360 points.
 
 ## Category Color Tokens
 
