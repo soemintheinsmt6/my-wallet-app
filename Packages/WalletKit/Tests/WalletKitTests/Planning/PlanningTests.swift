@@ -245,6 +245,28 @@ struct PlanningTests {
         #expect(!viewModel.isSaving)
     }
 
+    @Test func notificationButtonStateFollowsSystemPermission() async throws {
+        let (repository, _, _) = try await setup()
+        let records = RecordsViewModel(useCases: RecordUseCases(repository: repository), accounts: AccountUseCases(repository: repository),
+                                       categories: CategoryUseCases(repository: repository), tags: TagUseCases(repository: repository))
+        let notifications = TestNotifications()
+        let viewModel = PlanningViewModel(repository: repository, records: records, notifications: notifications)
+        notifications.authorized = false
+        await viewModel.refreshNotificationAuthorization()
+        #expect(!viewModel.notificationsAuthorized)
+        await viewModel.requestNotifications()
+        #expect(!viewModel.notificationsAuthorized)
+        // Granted in Settings, then the app returns to the foreground.
+        notifications.authorized = true
+        await viewModel.refreshNotificationAuthorization()
+        #expect(viewModel.notificationsAuthorized)
+        notifications.authorized = false
+        await viewModel.refreshNotificationAuthorization()
+        notifications.authorized = true
+        await viewModel.requestNotifications()
+        #expect(viewModel.notificationsAuthorized)
+    }
+
     @Test func payingABillAddsAnExpenseOnThePaidDateAndKeepsTheChosenLinks() async throws {
         let (repository, account, category) = try await setup()
         let records = RecordsViewModel(useCases: RecordUseCases(repository: repository), accounts: AccountUseCases(repository: repository),
@@ -294,6 +316,7 @@ private final class TestNotifications: WalletNotificationClient {
     var managedPrefixes: [String] = []
     var authorized = true
     func requestAuthorization() async throws -> Bool { authorized }
+    func isAuthorized() async -> Bool { authorized }
     func synchronize(_ notifications: [WalletNotification], managing prefixes: [String]) async throws {
         notices = notifications
         managedPrefixes = prefixes

@@ -118,6 +118,7 @@ struct InsightSettingsSection: View {
     var body: some View {
         Section {
             Toggle("Weekly Summary", isOn: $viewModel.preferences.weeklySummary)
+                .refreshesNotificationAuthorization { await viewModel.refreshNotificationAuthorization() }
             if viewModel.preferences.weeklySummary {
                 WalletMenuPicker("Send On", selection: $viewModel.preferences.weeklyWeekday,
                                  value: weekdayNames[viewModel.preferences.weeklyWeekday - 1]) {
@@ -136,8 +137,10 @@ struct InsightSettingsSection: View {
                         Text(hourLabel(hour)).tag(hour)
                     }
                 }
-                Button("Enable System Notifications") {
-                    Task { await viewModel.requestAuthorization() }
+                if !viewModel.notificationsAuthorized {
+                    Button("Enable System Notifications") {
+                        Task { await viewModel.requestAuthorization() }
+                    }
                 }
                 if let message = viewModel.errorMessage {
                     Label(message, systemImage: "exclamationmark.triangle")

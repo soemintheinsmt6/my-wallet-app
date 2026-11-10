@@ -187,5 +187,6 @@ struct InsightPreferencesTests {
 /// Only used to reach the protocol's default prefixes from a test.
 private final class LocalNotificationDouble: WalletNotificationClient {
     func requestAuthorization() async throws -> Bool { true }
+    func isAuthorized() async -> Bool { true }
     func synchronize(_ notifications: [WalletNotification], managing prefixes: [String]) async throws {}
 }

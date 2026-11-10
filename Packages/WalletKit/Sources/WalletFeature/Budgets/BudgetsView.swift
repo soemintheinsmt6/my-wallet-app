@@ -144,8 +144,11 @@ private struct BudgetEditorView: View {
 
                 Section {
                     Toggle("Notify at 80% and 100%", isOn: $budget.notificationsEnabled)
+                        .refreshesNotificationAuthorization { await viewModel.refreshNotificationAuthorization() }
                     if budget.notificationsEnabled {
-                        Button("Enable System Notifications") { Task { await viewModel.requestNotifications() } }
+                        if !viewModel.notificationsAuthorized {
+                            Button("Enable System Notifications") { Task { await viewModel.requestNotifications() } }
+                        }
                         if let message = viewModel.errorMessage {
                             Label(message, systemImage: "exclamationmark.triangle").foregroundStyle(.red)
                         }

@@ -183,7 +183,8 @@ private struct DebtEditorView: View {
                     if hasDueDate {
                         DatePicker("Due", selection: $dueDate, displayedComponents: .date)
                         Toggle("Remind me", isOn: $debt.notificationsEnabled)
-                        if debt.notificationsEnabled {
+                            .refreshesNotificationAuthorization { await viewModel.refreshNotificationAuthorization() }
+                        if debt.notificationsEnabled && !viewModel.notificationsAuthorized {
                             Button("Enable System Notifications") {
                                 Task { await viewModel.requestNotifications() }
                             }

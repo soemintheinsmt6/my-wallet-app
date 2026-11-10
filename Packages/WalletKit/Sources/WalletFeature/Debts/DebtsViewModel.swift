@@ -13,6 +13,9 @@ public final class DebtsViewModel: ObservableObject {
     @Published public private(set) var isLoading = false
     @Published public private(set) var isSaving = false
     @Published public var errorMessage: String?
+    /// Whether system notifications are already allowed, so the request button can be hidden.
+    /// Starts true so the button does not flash before the first check in the usual case.
+    @Published public private(set) var notificationsAuthorized = true
 
     public let records: RecordsViewModel
     private let debtUseCases: DebtUseCases
@@ -131,11 +134,18 @@ public final class DebtsViewModel: ObservableObject {
     public func requestNotifications() async {
         do {
             guard let notifications, try await notifications.requestAuthorization() else {
+                notificationsAuthorized = false
                 errorMessage = "Notifications are disabled. Enable them for My Wallet in system settings."
                 return
             }
+            notificationsAuthorized = true
             try await synchronizeNotifications()
         } catch { errorMessage = error.localizedDescription }
+    }
+
+    public func refreshNotificationAuthorization() async {
+        guard let notifications else { return }
+        notificationsAuthorized = await notifications.isAuthorized()
     }
 
     /// Reminders for debts that are still outstanding and have a due date.

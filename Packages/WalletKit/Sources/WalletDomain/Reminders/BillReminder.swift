@@ -65,6 +65,8 @@ public struct WalletNotification: Sendable {
 /// cannot cancel each other.
 public protocol WalletNotificationClient: AnyObject {
     func requestAuthorization() async throws -> Bool
+    /// Whether notices can already be delivered, so the app need not ask again.
+    func isAuthorized() async -> Bool
     func synchronize(_ notifications: [WalletNotification], managing prefixes: [String]) async throws
 }
 

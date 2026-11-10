@@ -22,6 +22,9 @@ public struct InsightPreferences: Equatable, Sendable {
 public final class InsightsViewModel: ObservableObject {
     @Published public private(set) var insights = WalletInsights()
     @Published public var errorMessage: String?
+    /// Whether system notifications are already allowed, so the request button can be hidden.
+    /// Starts true so the button does not flash before the first check in the usual case.
+    @Published public private(set) var notificationsAuthorized = true
     @Published public var preferences: InsightPreferences {
         didSet {
             guard preferences != oldValue else { return }
@@ -69,11 +72,18 @@ public final class InsightsViewModel: ObservableObject {
     public func requestAuthorization() async {
         do {
             guard let notifications, try await notifications.requestAuthorization() else {
+                notificationsAuthorized = false
                 errorMessage = "Notifications are disabled. Enable them for My Wallet in system settings."
                 return
             }
+            notificationsAuthorized = true
             await synchronizeNotifications()
         } catch { errorMessage = error.localizedDescription }
+    }
+
+    public func refreshNotificationAuthorization() async {
+        guard let notifications else { return }
+        notificationsAuthorized = await notifications.isAuthorized()
     }
 
     /// Builds the notices for whatever is switched on and hands them to the client.

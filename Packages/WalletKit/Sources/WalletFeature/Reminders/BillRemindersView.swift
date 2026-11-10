@@ -391,10 +391,13 @@ private struct BillEditorView: View {
 
                 Section("Notifications") {
                     Toggle("Remind me", isOn: $bill.notificationsEnabled)
+                        .refreshesNotificationAuthorization { await viewModel.refreshNotificationAuthorization() }
                     if bill.notificationsEnabled {
                         Stepper(bill.reminderDaysBefore == 0 ? "On due date" : "\(bill.reminderDaysBefore) days before",
                                 value: $bill.reminderDaysBefore, in: 0...30)
-                        Button("Enable System Notifications") { Task { await viewModel.requestNotifications() } }
+                        if !viewModel.notificationsAuthorized {
+                            Button("Enable System Notifications") { Task { await viewModel.requestNotifications() } }
+                        }
                         if let message = viewModel.errorMessage {
                             Label(message, systemImage: "exclamationmark.triangle").foregroundStyle(.red)
                         }

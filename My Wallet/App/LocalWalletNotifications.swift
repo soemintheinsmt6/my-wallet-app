@@ -23,9 +23,13 @@ final class LocalWalletNotifications: NSObject, WalletNotificationClient, UNUser
         try await center.requestAuthorization(options: [.alert, .sound, .badge])
     }
 
+    func isAuthorized() async -> Bool {
+        let status = await center.notificationSettings().authorizationStatus
+        return status == .authorized || status == .provisional
+    }
+
     func synchronize(_ notifications: [WalletNotification], managing prefixes: [String]) async throws {
-        let settings = await center.notificationSettings()
-        guard settings.authorizationStatus == .authorized || settings.authorizationStatus == .provisional else { return }
+        guard await isAuthorized() else { return }
         let pending = await center.pendingNotificationRequests()
         let pendingIDs = Set(pending.map(\.identifier))
         let delivered = await center.deliveredNotifications()
