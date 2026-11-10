@@ -67,6 +67,21 @@ struct PlanningTests {
         #expect(try await repository.fetchAccounts().first?.settings.currentBalance == 70)
     }
 
+    @Test func generateNowReportsHowManyRecordsItAdded() async throws {
+        let (repository, account, category) = try await setup()
+        let records = RecordsViewModel(useCases: RecordUseCases(repository: repository), accounts: AccountUseCases(repository: repository),
+                                       categories: CategoryUseCases(repository: repository), tags: TagUseCases(repository: repository))
+        let viewModel = PlanningViewModel(repository: repository, records: records)
+        // Four monthly occurrences from January 2024: the first is the saved record, three are due.
+        try await repository.createRecord(id: UUID(), draft: draft(account: account, category: category))
+        #expect(await viewModel.generateDueRecordsNow() == 3)
+        #expect(records.records.count == 4)
+        #expect(await viewModel.generateDueRecordsNow() == 0)
+        #expect(RecurringView.generatedMessage(0) == "Nothing was due.")
+        #expect(RecurringView.generatedMessage(1) == "Added 1 record.")
+        #expect(RecurringView.generatedMessage(3) == "Added 3 records.")
+    }
+
     @Test func pauseResumeSkipAndModifiedOccurrencesApplyExactlyOnce() async throws {
         let (repository, account, category) = try await setup()
         let id = UUID()

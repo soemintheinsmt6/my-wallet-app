@@ -3,6 +3,29 @@ import WalletDomain
 
 struct RecurringView: View {
     @ObservedObject var viewModel: PlanningViewModel
+    @State private var isGenerating = false
+    @State private var generatedMessage: String?
+
+    private func generate() {
+        generatedMessage = nil
+        isGenerating = true
+        Task {
+            defer { isGenerating = false }
+            guard let count = await viewModel.generateDueRecordsNow() else { return }
+            let message = Self.generatedMessage(count)
+            generatedMessage = message
+            AccessibilityNotification.Announcement(message).post()
+        }
+    }
+
+    /// What the button reports for the records one tap added.
+    static func generatedMessage(_ count: Int) -> String {
+        switch count {
+        case 0: "Nothing was due."
+        case 1: "Added 1 record."
+        default: "Added \(count) records."
+        }
+    }
 
     var body: some View {
         List {
@@ -20,12 +43,15 @@ struct RecurringView: View {
                 .listSectionSeparator(.hidden, edges: .top)
                 // Only with a series to generate from; otherwise it sat above the empty state.
                 Section {
-                    Button {
-                        Task { await viewModel.refresh(generate: true) }
-                    } label: {
+                    Button { generate() } label: {
                         Label("Generate Due Records Now", systemImage: "arrow.clockwise")
                     }
-                    .disabled(viewModel.isLoading)
+                    .disabled(viewModel.isLoading || isGenerating)
+                    // What the last tap did, so a tap with nothing due does not look like it failed.
+                    if let generatedMessage {
+                        Label(generatedMessage, systemImage: "checkmark.circle")
+                            .foregroundStyle(.secondary)
+                    }
                 } footer: {
                     WalletListFooter("Catch-up processes up to 500 occurrences per series at a time. Saved occurrences can be changed or deleted in Records without being regenerated.")
                 }

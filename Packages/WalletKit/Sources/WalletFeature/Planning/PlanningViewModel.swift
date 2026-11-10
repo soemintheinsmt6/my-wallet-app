@@ -39,12 +39,7 @@ public final class PlanningViewModel: ObservableObject {
     }
 
     public func refresh(generate: Bool = false) async {
-        if generate && !isGenerating {
-            isGenerating = true
-            do { _ = try await repository.generateDueRecords(through: Date()) }
-            catch { errorMessage = "Recurring records: \(error.localizedDescription)" }
-            isGenerating = false
-        }
+        if generate { await generateDue() }
         generation += 1
         let version = generation
         isLoading = true
@@ -60,6 +55,26 @@ public final class PlanningViewModel: ObservableObject {
             try await synchronizeNotifications()
         } catch is CancellationError {
         } catch { if version == generation { errorMessage = error.localizedDescription } }
+    }
+
+    /// Generates due records now, for the Recurring screen's button, then reloads. Returns how many
+    /// records were added, so the button can say so; nil if generating failed (the error is
+    /// reported) or a catch-up was already running and this tap added nothing of its own.
+    public func generateDueRecordsNow() async -> Int? {
+        let count = await generateDue()
+        await refresh()
+        return count
+    }
+
+    @discardableResult
+    private func generateDue() async -> Int? {
+        guard !isGenerating else { return nil }
+        isGenerating = true
+        defer { isGenerating = false }
+        do { return try await repository.generateDueRecords(through: Date()) } catch {
+            errorMessage = "Recurring records: \(error.localizedDescription)"
+            return nil
+        }
     }
 
     public func progress(on date: Date = Date(), categoryID: UUID? = nil) -> [BudgetProgress] {
