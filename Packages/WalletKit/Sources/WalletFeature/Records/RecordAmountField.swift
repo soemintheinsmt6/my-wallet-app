@@ -38,9 +38,10 @@ struct RecordAmountField<Field: Hashable>: View {
         HStack(spacing: 16) {
             if !currency.isEmpty {
                 if let chooseCurrency {
-                    // The same chip as the record editor's, without a chevron; it is a button here.
+                    // The record editor's chip with its text in the accent color, as tappable text
+                    // is in iOS, so it reads as a button without a chevron.
                     Button(action: chooseCurrency) {
-                        Text(currency).currencyChip()
+                        Text(currency).currencyChip(color: .accentColor)
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel("Currency \(currency)")
@@ -79,9 +80,9 @@ struct RecordAmountField<Field: Hashable>: View {
 }
 
 private extension View {
-    func currencyChip() -> some View {
+    func currencyChip(color: Color = .primary) -> some View {
         font(.subheadline.weight(.medium))
-            .foregroundStyle(.primary)
+            .foregroundStyle(color)
             .padding(.horizontal, 12)
             .padding(.vertical, 6)
             .background(.quaternary.opacity(0.4), in: Capsule())
