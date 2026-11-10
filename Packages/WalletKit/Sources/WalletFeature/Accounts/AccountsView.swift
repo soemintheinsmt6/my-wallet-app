@@ -157,6 +157,9 @@ public struct AccountsView: View {
                             .lineLimit(1)
                     }
                 }
+                // Every row's separator starts under the name. Without this, the "Excluded from
+                // stats" Label pulls it in to its own text, past the eye icon.
+                .alignmentGuide(.listRowSeparatorLeading) { $0[.leading] }
                 Spacer(minLength: WalletMetrics.small)
                 Text(account.settings.currentBalance.walletFormatted(account.currencyCode))
                     .font(.body.weight(.semibold))
