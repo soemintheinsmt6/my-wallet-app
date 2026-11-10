@@ -352,7 +352,7 @@ public struct StatisticsView: View {
                         .accessibilityValue(money(point.amount))
                 }
                 .chartYAxis { compactYAxis }
-                .chartXAxis { AxisMarks(values: .automatic(desiredCount: 4)) }
+                .chartXAxis { WalletChartGrid.dottedDateAxis(desiredCount: 4) }
                 .frame(height: WalletMetrics.Chart.height)
                 .padding(.vertical, WalletMetrics.small)
             }
@@ -377,7 +377,7 @@ public struct StatisticsView: View {
                     .accessibilityValue(money(point.amount))
             }
             .chartYAxis { compactYAxis }
-            .chartXAxis { AxisMarks(values: .automatic(desiredCount: 4)) }
+            .chartXAxis { WalletChartGrid.dottedDateAxis(desiredCount: 4) }
             // The whole period stays on the axis, so a period in progress reads as "so far".
             .chartXScale(domain: interval.start...interval.end)
             .frame(height: WalletMetrics.Chart.height)
@@ -421,7 +421,7 @@ public struct StatisticsView: View {
 
     private var compactYAxis: some AxisContent {
         AxisMarks(position: .leading) { value in
-            AxisGridLine()
+            AxisGridLine(stroke: WalletChartGrid.stroke)
             AxisValueLabel {
                 if let amount = value.as(Double.self) {
                     Text(amount.walletAxisLabel(selectedCurrency,

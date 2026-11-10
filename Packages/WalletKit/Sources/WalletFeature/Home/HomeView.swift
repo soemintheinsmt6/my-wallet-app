@@ -472,7 +472,7 @@ public struct HomeView: View {
                 }
                 .chartYAxis {
                     AxisMarks(position: .leading) { value in
-                        AxisGridLine()
+                        AxisGridLine(stroke: WalletChartGrid.stroke)
                         AxisValueLabel {
                             if let amount = value.as(Double.self) {
                                 Text(amount.walletAxisLabel(selectedCurrency,
@@ -481,7 +481,7 @@ public struct HomeView: View {
                         }
                     }
                 }
-                .chartXAxis { AxisMarks(values: .automatic(desiredCount: 4)) }
+                .chartXAxis { WalletChartGrid.dottedDateAxis(desiredCount: 4) }
                 .frame(height: WalletMetrics.Chart.compactHeight)
                 .padding(.vertical, WalletMetrics.small)
             }

@@ -122,8 +122,8 @@ struct BalanceTrendChart: View {
         .chartXSelection(value: $selected)
         .chartYAxis {
             AxisMarks(position: .leading, values: .automatic(desiredCount: 4)) { value in
-                // Solid hairlines: a dashed grid reads as a projection or a threshold.
-                AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
+                // Dotted, like every chart's grid, so the lines recede behind the balance.
+                AxisGridLine(stroke: WalletChartGrid.stroke)
                 AxisValueLabel {
                     if let amount = value.as(Double.self) {
                         Text(amount.walletAxisLabel(currencyCode,
@@ -134,6 +134,7 @@ struct BalanceTrendChart: View {
         }
         .chartXAxis {
             AxisMarks(values: .automatic(desiredCount: 5)) { _ in
+                AxisGridLine(stroke: WalletChartGrid.stroke)
                 AxisValueLabel(format: .dateTime.day().month(.defaultDigits))
             }
         }
