@@ -40,8 +40,11 @@ struct AccountEditorView: View {
         // than as a zero the person has to clear before typing.
         _balanceText = State(initialValue: settings.currentBalance == 0 ? ""
             : AccountAmountInput.text(settings.currentBalance))
-        _minimumText = State(initialValue: AccountAmountInput.text(settings.minimumBalance))
-        _maximumText = State(initialValue: AccountAmountInput.text(settings.maximumBalance))
+        // Likewise for the limits: an unset limit shows "0" as a placeholder, not as typed text.
+        _minimumText = State(initialValue: settings.minimumBalance == 0 ? ""
+            : AccountAmountInput.text(settings.minimumBalance))
+        _maximumText = State(initialValue: settings.maximumBalance == 0 ? ""
+            : AccountAmountInput.text(settings.maximumBalance))
         _accountNumberText = State(initialValue: settings.accountNumber ?? "")
     }
 
@@ -93,17 +96,16 @@ struct AccountEditorView: View {
                     RecordTextEntry(title: "Name", text: $name, caption: "Name this account")
                 }
             }
+            // Pinned at the bottom like the record editor's Save, rather than in the toolbar.
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                WalletEditorBottomButton(
+                    title: account == nil ? "Create" : "Save", isBusy: viewModel.isSaving,
+                    isEnabled: !viewModel.isSaving && !trimmedName.isEmpty && trimmedName.count <= 80
+                ) { Task { await save() } }
+            }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }.disabled(viewModel.isSaving)
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button {
-                        Task { await save() }
-                    } label: {
-                        if viewModel.isSaving { ProgressView() } else { Text(account == nil ? "Create" : "Save") }
-                    }
-                    .disabled(viewModel.isSaving || trimmedName.isEmpty || trimmedName.count > 80)
                 }
             }
             .task { if currencyCode.isEmpty { currencyCode = mainCurrency } }
@@ -205,27 +207,31 @@ struct AccountEditorView: View {
             Spacer()
             Text(settings.color.title).foregroundStyle(.secondary)
         }
-        LazyVGrid(columns: [GridItem(.adaptive(minimum: 60))], spacing: 12) {
+        // Compact swatches under the row's title, unlabelled since the row names the chosen color;
+        // VoiceOver still reads each name. The chosen one carries a ring as well as a checkmark.
+        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 5), spacing: 8) {
             ForEach(AccountColor.allCases) { color in
+                let isSelected = settings.color == color
                 Button { settings.color = color } label: {
-                    VStack(spacing: 6) {
-                        Circle().fill(color.tint)
-                            .frame(width: 36, height: 36)
-                            .overlay {
-                                if settings.color == color {
-                                    Image(systemName: "checkmark").font(.headline).foregroundStyle(.white)
-                                }
+                    Circle().fill(color.tint.gradient)
+                        .frame(width: 32, height: 32)
+                        .overlay {
+                            if isSelected {
+                                Image(systemName: "checkmark").font(.caption.weight(.bold)).foregroundStyle(.white)
                             }
-                        Text(color.title).font(.caption).foregroundStyle(.primary)
-                    }
-                    .frame(minWidth: 44, minHeight: 60)
+                        }
+                        .padding(4)
+                        .overlay { if isSelected { Circle().strokeBorder(color.tint, lineWidth: 2) } }
+                        .frame(minWidth: 44, minHeight: 44)
+                        .contentShape(Circle())
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(color.title)
-                .accessibilityAddTraits(settings.color == color ? .isSelected : [])
+                .accessibilityAddTraits(isSelected ? .isSelected : [])
             }
         }
-        .padding(.horizontal, 20)
+        .padding(.leading, 66)
+        .padding(.trailing, 20)
         .padding(.bottom, 12)
     }
 

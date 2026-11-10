@@ -68,6 +68,38 @@ struct WalletEditorCaption: View {
     }
 }
 
+/// The full-width Save pinned under an editor's rows, above the keyboard. Attach with
+/// `.safeAreaInset(edge: .bottom, spacing: 0)`.
+struct WalletEditorBottomButton: View {
+    let title: String
+    let isBusy: Bool
+    let isEnabled: Bool
+    let action: () -> Void
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Divider()
+            Button(action: action) {
+                HStack {
+                    Spacer()
+                    if isBusy { ProgressView() } else { Text(title).font(.headline) }
+                    Spacer()
+                }
+                .frame(minHeight: 28)
+            }
+            .buttonStyle(.borderedProminent)
+            // A pill matches the segmented type control and currency chip above it, and the
+            // capsule controls of current iOS.
+            .buttonBorderShape(.capsule)
+            .controlSize(.large)
+            .disabled(!isEnabled)
+            .padding(.horizontal, 20)
+            .padding(.vertical, 10)
+        }
+        .background(.background)
+    }
+}
+
 /// The last row of an editor for something already saved, laid out as a row so its icon and
 /// title line up with the rows above.
 struct WalletEditorDeleteButton: View {

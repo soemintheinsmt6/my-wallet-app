@@ -70,7 +70,7 @@ Treat these as existing values, not a mandatory global scale. Reuse them for rel
 ## Components and Navigation
 
 - `AccountsView`: notices above account rows, creation toolbar action, empty-state call to action and tap-to-edit sheets.
-- `AccountEditorView`: shared create/edit editor in the record editor's layout. The balance leads, large, with the currency chip, which is a button only when creating, since currency is chosen once. General holds Name (its own text screen), Type and the account number (typed in place for its card or plain keyboard); Appearance holds Icon and Color, both led by a tile in the account's color, with the color swatches below; then Balance Alerts, Statistics, and Delete Account when editing.
+- `AccountEditorView`: shared create/edit editor in the record editor's layout. The balance leads, large, with the currency chip, which is a button only when creating, since currency is chosen once. General holds Name (its own text screen), Type and the account number (typed in place for its card or plain keyboard); Appearance holds Icon and Color, both led by a tile in the account's color, with compact unlabelled swatches in two rows of five under the Color row's title (the row names the chosen color, which also carries a ring and checkmark); then Balance Alerts, whose unset limits show 0 as a placeholder, Statistics, and Delete Account when editing. Create or Save is the full-width `WalletEditorBottomButton` pinned at the bottom, shared with the record editor, and Cancel stays in the toolbar.
 - `CurrencyPickerView`: searchable currency names/codes with a selected checkmark.
 - `ContentUnavailableView`: empty accounts and startup failures.
 - `ProgressView`: loading and saving feedback.

@@ -121,28 +121,9 @@ struct RecordEditorView: View {
             }
             .disabled(isBusy)
             .safeAreaInset(edge: .bottom, spacing: 0) {
-                VStack(spacing: 0) {
-                    Divider()
-                    Button {
-                        Task { await save() }
-                    } label: {
-                        HStack {
-                            Spacer()
-                            if isBusy { ProgressView() } else { Text("Save").font(.headline) }
-                            Spacer()
-                        }
-                        .frame(minHeight: 28)
-                    }
-                    .buttonStyle(.borderedProminent)
-                    // A pill matches the segmented type control and currency chip above it, and
-                    // the capsule controls of current iOS.
-                    .buttonBorderShape(.capsule)
-                    .controlSize(.large)
-                    .disabled(!canSave)
-                    .padding(.horizontal, 20)
-                    .padding(.vertical, 10)
+                WalletEditorBottomButton(title: "Save", isBusy: isBusy, isEnabled: canSave) {
+                    Task { await save() }
                 }
-                .background(.background)
             }
             .navigationTitle(editorTitle ?? defaultTitle)
             #if !os(macOS)
