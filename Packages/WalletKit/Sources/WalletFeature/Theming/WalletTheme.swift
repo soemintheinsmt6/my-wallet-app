@@ -32,8 +32,18 @@ public enum WalletAccent: String, CaseIterable, Codable, Sendable, Identifiable 
         }
     }
 
-    /// Always shows something, so the picker has a swatch for Default too.
-    public var swatch: Color { color ?? .accentColor }
+    /// Always shows something, so the picker has a swatch for Default too. Default draws the
+    /// system's own accent as a concrete color, never `.accentColor`: the app tints everything
+    /// with the chosen accent, so `.accentColor` would turn Default's swatch into the selection.
+    public var swatch: Color { color ?? Self.systemAccent }
+
+    private static var systemAccent: Color {
+        #if os(macOS)
+        Color(nsColor: .controlAccentColor)
+        #else
+        Color(uiColor: .systemBlue)
+        #endif
+    }
 }
 
 /// How much breathing room list rows get.
