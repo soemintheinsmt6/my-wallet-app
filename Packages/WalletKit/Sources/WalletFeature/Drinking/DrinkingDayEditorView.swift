@@ -25,6 +25,13 @@ struct DrinkingDayEditorView: View {
 
     private var date: Date { day.date(in: viewModel.calendar) }
 
+    /// "Wed, 11 Nov", with the year only when the day is not in the current one.
+    private var dayFormat: Date.FormatStyle {
+        let short = Date.FormatStyle.dateTime.weekday(.abbreviated).month(.abbreviated).day()
+        let calendar = viewModel.calendar
+        return calendar.isDate(date, equalTo: .now, toGranularity: .year) ? short : short.year()
+    }
+
     var body: some View {
         NavigationStack {
             ScrollView {
@@ -34,7 +41,7 @@ struct DrinkingDayEditorView: View {
                     RecordFormRow(symbol: "calendar") {
                         Text("Day")
                         Spacer()
-                        Text(date, format: .dateTime.weekday(.wide).month(.wide).day().year())
+                        Text(date, format: dayFormat)
                             .foregroundStyle(.secondary)
                             .lineLimit(1)
                     }
