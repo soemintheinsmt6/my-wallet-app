@@ -144,9 +144,11 @@ struct DrinkingDayEditorView: View {
     }
 
     /// The last row, where a saved item's delete sits in the other editors: clearing the mark.
+    /// The leaf takes the alcohol-free green the summary tiles use; the title stays red, since it
+    /// removes the mark.
     private var alcoholFreeButton: some View {
         Button(role: .destructive) { Task { await unmark() } } label: {
-            RecordFormRow(symbol: "leaf", color: .red, showsDivider: false) {
+            RecordFormRow(symbol: "leaf", color: .green, showsDivider: false) {
                 Text("Mark as Alcohol-free").foregroundStyle(.red)
                 Spacer()
             }
