@@ -166,6 +166,7 @@ public struct HomeView: View {
                         Label("Arrange Dashboard", systemImage: "slider.horizontal.3")
                     }
                 }
+                WalletToolbarSeparator()
                 ToolbarItem {
                     Button { creating = true } label: { Label("Add Record", systemImage: "plus") }
                         .disabled(records.accounts.isEmpty || records.isLoading)

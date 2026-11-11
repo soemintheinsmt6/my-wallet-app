@@ -87,6 +87,7 @@ public struct RecordsView: View {
                     }
                     .accessibilityValue(query.activeFilterCount == 0 ? "No filters" : "\(query.activeFilterCount) filters applied")
                 }
+                WalletToolbarSeparator()
                 ToolbarItem {
                     Button { creating = true } label: { Label("Add Record", systemImage: "plus") }
                         .disabled(viewModel.accounts.isEmpty || viewModel.isLoading)
