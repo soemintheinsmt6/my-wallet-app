@@ -2,9 +2,10 @@ import Combine
 import SwiftUI
 
 /// Accent colors the user can choose. Fixed sRGB values, so a theme looks the same on every device.
+/// There is no blue: Default is the system blue on iOS, so a fixed blue would repeat it. A stored
+/// "blue" from before it was removed no longer matches a case and loads as Default.
 public enum WalletAccent: String, CaseIterable, Codable, Sendable, Identifiable {
     case system
-    case blue
     case indigo
     case purple
     case pink
@@ -21,7 +22,6 @@ public enum WalletAccent: String, CaseIterable, Codable, Sendable, Identifiable 
     public var color: Color? {
         switch self {
         case .system: nil
-        case .blue: Color(.sRGB, red: 0.00, green: 0.48, blue: 1.00)
         case .indigo: Color(.sRGB, red: 0.35, green: 0.34, blue: 0.84)
         case .purple: Color(.sRGB, red: 0.69, green: 0.32, blue: 0.87)
         case .pink: Color(.sRGB, red: 1.00, green: 0.18, blue: 0.33)

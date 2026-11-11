@@ -325,6 +325,15 @@ struct ThemeTests {
         #expect(second.textSize == .large)
     }
 
+    /// Blue was removed because Default is already the system blue; anyone who had chosen it
+    /// gets Default rather than an unknown value.
+    @Test func aStoredBlueAccentLoadsAsDefault() {
+        let store = defaults()
+        store.set("blue", forKey: "theme.accent")
+        #expect(ThemeViewModel(defaults: store).accent == .system)
+        #expect(WalletAccent(rawValue: "blue") == nil)
+    }
+
     @Test func aFailedIconChangeIsReportedAndLeavesTheIconAlone() async {
         struct Failure: Error {}
         let theme = ThemeViewModel(defaults: defaults(),
