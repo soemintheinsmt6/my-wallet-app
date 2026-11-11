@@ -169,6 +169,7 @@ public struct HomeView: View {
                 WalletToolbarSeparator()
                 ToolbarItem {
                     Button { creating = true } label: { Label("Add Record", systemImage: "plus") }
+                        .walletPrimaryToolbarAction()
                         .disabled(records.accounts.isEmpty || records.isLoading)
                 }
             }

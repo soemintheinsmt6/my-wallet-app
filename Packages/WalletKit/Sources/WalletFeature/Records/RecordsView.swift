@@ -90,6 +90,7 @@ public struct RecordsView: View {
                 WalletToolbarSeparator()
                 ToolbarItem {
                     Button { creating = true } label: { Label("Add Record", systemImage: "plus") }
+                        .walletPrimaryToolbarAction()
                         .disabled(viewModel.accounts.isEmpty || viewModel.isLoading)
                 }
             }

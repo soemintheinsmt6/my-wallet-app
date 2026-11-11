@@ -10,3 +10,16 @@ struct WalletToolbarSeparator: ToolbarContent {
         }
     }
 }
+
+extension View {
+    /// Marks a toolbar button as the screen's main action: a tinted, filled glass circle on
+    /// iOS 26 and later. Earlier systems keep the plain toolbar button.
+    @ViewBuilder
+    func walletPrimaryToolbarAction() -> some View {
+        if #available(iOS 26, macOS 26, visionOS 26, watchOS 26, *) {
+            buttonStyle(.glassProminent)
+        } else {
+            self
+        }
+    }
+}
