@@ -158,6 +158,9 @@ public struct HomeView: View {
                 .padding(.horizontal, WalletMetrics.large)
                 .padding(.vertical, WalletMetrics.small)
             }
+            // On the scroll view itself, not the navigation stack around it: attached higher up,
+            // the release could leave the content pulled down after the refresh had finished.
+            .refreshable { await planning.refresh(generate: true) }
             .background(Color.walletGroupedBackground)
             .navigationTitle("Dashboard")
             .toolbar {
@@ -185,7 +188,6 @@ public struct HomeView: View {
             .navigationDestination(item: $openAccountID) { id in
                 AccountDetailView(accounts: accounts, records: records, accountID: id)
             }
-            .refreshable { await planning.refresh(generate: true) }
         }
         // Over the whole navigation stack, title and toolbar included, so it continues the launch
         // screen shown while storage opened rather than swapping to a second, different spinner.

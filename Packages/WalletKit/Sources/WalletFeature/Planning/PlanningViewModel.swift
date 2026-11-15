@@ -42,8 +42,11 @@ public final class PlanningViewModel: ObservableObject {
         if generate { await generateDue() }
         generation += 1
         let version = generation
-        isLoading = true
-        defer { if version == generation { isLoading = false } }
+        // Every publish redraws each screen observing this model, the dashboard among them, so
+        // nothing is assigned that has not changed: a redraw while pull-to-refresh was settling
+        // could leave the dashboard stuck pulled down.
+        if !isLoading { isLoading = true }
+        defer { if version == generation, isLoading { isLoading = false } }
         do {
             let budgets = try await repository.fetchBudgets()
             let series = try await repository.fetchRecurringSeries()
@@ -51,10 +54,19 @@ public final class PlanningViewModel: ObservableObject {
             let bills = try await repository.fetchBillReminders()
             await records.reload()
             guard version == generation else { return }
-            self.budgets = budgets; self.series = series; self.occurrences = occurrences; self.bills = bills
+            publish(budgets: budgets, series: series, occurrences: occurrences, bills: bills)
             try await synchronizeNotifications()
         } catch is CancellationError {
         } catch { if version == generation { errorMessage = error.localizedDescription } }
+    }
+
+    /// Assigns only what changed, so a refresh that reads the same rows back redraws nothing.
+    private func publish(budgets: [Budget], series: [RecurringSeries], occurrences: [ScheduledOccurrence],
+                         bills: [BillReminder]) {
+        if self.budgets != budgets { self.budgets = budgets }
+        if self.series != series { self.series = series }
+        if self.occurrences != occurrences { self.occurrences = occurrences }
+        if self.bills != bills { self.bills = bills }
     }
 
     /// Generates due records now, for the Recurring screen's button, then reloads. Returns how many
