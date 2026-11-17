@@ -1,5 +1,6 @@
 import Combine
 import Foundation
+import os
 import WalletDomain
 
 @MainActor
@@ -21,6 +22,9 @@ public final class PlanningViewModel: ObservableObject {
     private let notifications: (any WalletNotificationClient)?
     private var generation = 0
     private var isGenerating = false
+    /// What a refresh is waiting on, for `startRefreshWatchdog`.
+    private var refreshStep: String?
+    private static let log = Logger(subsystem: "com.app.My-Wallet", category: "Planning")
 
     public init(repository: any BudgetRepository & RecurringRepository & BillReminderRepository,
                 records: RecordsViewModel, notifications: (any WalletNotificationClient)? = nil) {
@@ -39,6 +43,9 @@ public final class PlanningViewModel: ObservableObject {
     }
 
     public func refresh(generate: Bool = false) async {
+        let watchdog = startRefreshWatchdog()
+        defer { watchdog.cancel(); refreshStep = nil }
+        refreshStep = "generating due records"
         if generate { await generateDue() }
         generation += 1
         let version = generation
@@ -48,16 +55,30 @@ public final class PlanningViewModel: ObservableObject {
         if !isLoading { isLoading = true }
         defer { if version == generation, isLoading { isLoading = false } }
         do {
+            refreshStep = "reading budgets, recurring and bills"
             let budgets = try await repository.fetchBudgets()
             let series = try await repository.fetchRecurringSeries()
             let occurrences = try await repository.fetchOccurrences()
             let bills = try await repository.fetchBillReminders()
+            refreshStep = "reloading records"
             await records.reload()
             guard version == generation else { return }
             publish(budgets: budgets, series: series, occurrences: occurrences, bills: bills)
+            refreshStep = "scheduling notifications"
             try await synchronizeNotifications()
         } catch is CancellationError {
         } catch { if version == generation { errorMessage = error.localizedDescription } }
+    }
+
+    /// Logs the step a refresh is still waiting on after five seconds. A refresh normally takes well
+    /// under one, and pull to refresh has been seen waiting with no end while iCloud sync was busy;
+    /// the log names the step to look at. Refreshes can overlap, so it names the latest step set.
+    private func startRefreshWatchdog() -> Task<Void, Never> {
+        Task { [weak self] in
+            try? await Task.sleep(for: .seconds(5))
+            guard !Task.isCancelled, let step = self?.refreshStep else { return }
+            Self.log.warning("Planning refresh still waiting on \(step, privacy: .public) after 5 seconds")
+        }
     }
 
     /// Assigns only what changed, so a refresh that reads the same rows back redraws nothing.

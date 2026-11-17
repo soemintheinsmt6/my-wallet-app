@@ -82,9 +82,9 @@ struct CoreLifecycleTests {
         // Three screens appearing at once.
         let screens = (0..<3).map { _ in Task { await viewModel.observe() } }
         for screen in screens { await screen.value }
-        // One load for the first caller, and one more pass covering the two that arrived while it
-        // ran, rather than three loads racing each other.
-        #expect(counting.loads == 2)
+        // One load when all three ask before it begins, or one more pass covering those that
+        // arrived while it ran: never three loads racing each other.
+        #expect((1...2).contains(counting.loads))
         #expect(!viewModel.isLoading)
 
         // And one change reaches one loop, not three.
@@ -95,6 +95,31 @@ struct CoreLifecycleTests {
         for _ in 0..<1000 where counting.loads == before { try await Task.sleep(for: .milliseconds(2)) }
         try await Task.sleep(for: .milliseconds(50))
         #expect(counting.loads == before + 1)
+    }
+
+    /// Pull to refresh waits on a reload. A reload used to keep loading for as long as change
+    /// notices arrived while it ran, and iCloud sync can post them without pause, so the dashboard's
+    /// refresh indicator never stopped.
+    @Test(.timeLimit(.minutes(1)))
+    func reloadReturnsWhileStoreChangesKeepArriving() async throws {
+        let (repository, _, _, _) = try await setup()
+        let counting = CountingRecords(wrapping: repository)
+        let viewModel = RecordsViewModel(useCases: RecordUseCases(repository: counting),
+                                         accounts: AccountUseCases(repository: repository),
+                                         categories: CategoryUseCases(repository: repository),
+                                         tags: TagUseCases(repository: repository))
+        await viewModel.observe()
+
+        counting.announcesDuringLoad = true
+        defer { counting.announcesDuringLoad = false }
+        let before = counting.loads
+        await viewModel.reload()
+        let waitedThrough = counting.loads - before
+
+        // At most the load running when it asked and the one after: not every load the notices
+        // arriving meanwhile go on to ask for.
+        #expect((1...2).contains(waitedThrough))
+        #expect(!viewModel.isLoading)
     }
 
     /// A launch still loads more than once — the dashboard appears, the recurring generator writes,
@@ -333,10 +358,14 @@ private final class CountingRecords: RecordRepository {
         (stream, continuation) = AsyncStream<Void>.makeStream()
     }
 
+    /// Announces a change during every load, as iCloud sync can for as long as it runs.
+    var announcesDuringLoad = false
+
     func announceChange() { continuation.yield() }
 
     func fetchRecords() async throws -> [WalletRecord] {
         loads += 1
+        if announcesDuringLoad { announceChange() }
         return try await wrapped.fetchRecords()
     }
 

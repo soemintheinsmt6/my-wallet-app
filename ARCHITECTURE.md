@@ -53,7 +53,7 @@ Record writes are cheaper than a reload. `changes()` only says that something ch
 
 `NSPersistentStoreRemoteChange` is posted for every save to the store, the app's own included, not just iCloud imports, so reacting to it directly made each save reload everything. `StoreHistoryFilter` reads persistent history since its last check and passes the notice on only if some transaction is not the app's own: written by another process, or with an author, as CloudKit's mirroring delegate signs its imports. Unreadable history of a live store counts as foreign. The app's own writes already announce themselves through the repository.
 
-Foreground activation and pull-to-refresh reload local data. Load-generation checks prevent older loads replacing newer results. Saving disables form actions; failures retain the draft. A successful save can dismiss the form even if the subsequent list refresh reports an error.
+Foreground activation and pull-to-refresh reload local data. Load-generation checks prevent older loads replacing newer results. `RecordsViewModel` runs one load at a time; requests made meanwhile fold into a single load after it, and change notices queue a load without waiting. `reload()` returns once a load that began after the call has landed, so a caller waits through at most two loads. It used to wait until no more were asked for, and iCloud sync, whose own transactions count as foreign changes, could keep asking long enough that the dashboard's pull to refresh never finished. Saving disables form actions; failures retain the draft. A successful save can dismiss the form even if the subsequent list refresh reports an error.
 
 ## Persistence and CloudKit
 

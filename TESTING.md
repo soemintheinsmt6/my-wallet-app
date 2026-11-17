@@ -821,3 +821,21 @@ Manual checks:
 5. Pay a bill with Mark Paid and Add Expense and confirm the forecast no longer lists that occurrence, while the balance today has dropped by its amount.
 6. Confirm a credit card with charges planned shows its lowest point but no red warning, until a minimum-balance alert is turned on for it.
 7. Confirm that on an existing install the card appears right after Upcoming Bills, and can be hidden and reordered in Edit Dashboard.
+
+## Dashboard Pull to Refresh (2026-11-16)
+
+The Dashboard's pull to refresh could stay open, its indicator running, while iCloud sync was posting changes: the records reload it waits on kept loading for as long as change notices arrived. A reload now waits only for one load that began after it was asked. Pull to refresh on the Dashboard also draws the wallet mark (`WalletRefreshScrollView`) in place of the system spinner. **424 tests across 65 suites passed** (three runs), and the unsigned iOS Simulator app build passed. SwiftLint reports no new warnings.
+
+`reloadReturnsWhileStoreChangesKeepArriving` announces a change during every load. Against the previous `reload()` it waited through 6,539 loads (27 seconds) before returning; now it waits through at most two. `screensSharingTheRecordsModelLoadItOnceBetweenThem` now accepts one load as well as two, since three screens asking before the first load begins share it.
+
+**Not verified:** the pull gesture was not run here, so the wallet indicator and the fix were checked only by tests and build.
+
+Device follow-up, same day: the checkmark never showed, and a refresh still sometimes bounced without end while the console repeated CloudKit's `updateTaskRequest called for a pre-running task …activity.export…`. The indicator reset to the empty wallet whenever the pull read zero, which it does as soon as the refresh finishes, so it now resets when the next pull begins. The control now stays open for at most 6 seconds; the refresh goes on and its data lands when it finishes. A planning refresh still running after 5 seconds logs the step it is waiting on (subsystem `com.app.My-Wallet`, category `Planning`), to find the stalled step. Checked by tests and build only.
+
+Second device follow-up (2026-11-17): the control closed as soon as the pull was released, with the refresh running out of sight, so the checkmark flashed at the start of the next pull; and sometimes a blank band stayed above the title. The dashboard now installs its own `UIRefreshControl` and opens and closes it itself instead of using `.refreshable`, and after closing scrolls back to the top if the content was left pulled down. Checked on the iPhone 18 Pro simulator with a temporary hook, since removed, that began a refresh in code and slowed it by 2 seconds; screenshots were taken through it. The wallet bounced while the control was open, the green checkmark showed, and the control closed. Before the scroll-back, the content stayed pulled down after closing, as on device; after it, the final frame matched the frame before the refresh exactly. A real finger pull was not simulated.
+
+Manual checks:
+
+1. Pull to refresh on the Dashboard: the wallet fills in the accent color while pulling, bounces while refreshing, shows a green checkmark and closes. No system spinner shows behind it.
+2. Pull to refresh repeatedly just after adding or editing a record on another iCloud device, while sync is busy. The indicator should always finish within a few seconds.
+3. With Reduce Motion on, the wallet pulses instead of bouncing.

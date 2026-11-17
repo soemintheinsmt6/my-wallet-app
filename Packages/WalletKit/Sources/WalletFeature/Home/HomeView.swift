@@ -144,7 +144,9 @@ public struct HomeView: View {
         NavigationStack {
             // Cards drawn here rather than as grouped list sections, so they all share one radius
             // (see `DashboardSection`).
-            ScrollView {
+            // Its own pull to refresh, on the scroll view itself rather than the navigation stack
+            // around it: attached higher up, the release could leave the content pulled down.
+            WalletRefreshScrollView(action: { await planning.refresh(generate: true) }) {
                 LazyVStack(alignment: .leading, spacing: WalletMetrics.xxLarge) {
                     if includedAccounts.isEmpty {
                         if !records.isLoading { setUpSection }
@@ -158,9 +160,6 @@ public struct HomeView: View {
                 .padding(.horizontal, WalletMetrics.large)
                 .padding(.vertical, WalletMetrics.small)
             }
-            // On the scroll view itself, not the navigation stack around it: attached higher up,
-            // the release could leave the content pulled down after the refresh had finished.
-            .refreshable { await planning.refresh(generate: true) }
             .background(Color.walletGroupedBackground)
             .navigationTitle("Dashboard")
             .toolbar {

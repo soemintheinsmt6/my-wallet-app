@@ -39,8 +39,13 @@ public final class RecordsViewModel: ObservableObject {
     private let tagUseCases: TagUseCases
     private var generation = 0
     private var observation: Task<Void, Never>?
-    private var isReloading = false
+    /// Runs loads back to back while any are asked for; nil when idle.
+    private var reloading: Task<Void, Never>?
     private var needsReload = false
+    /// How many loads have begun, so a caller can wait for one that began after it asked.
+    private var loadsStarted = 0
+    /// Callers waiting for the load numbered `after` or a later one to land.
+    private var reloadWaiters: [(after: Int, continuation: CheckedContinuation<Void, Never>)] = []
     /// Set once a full load has landed; until then a change cannot be applied in memory.
     private var hasLoaded = false
 
@@ -68,7 +73,8 @@ public final class RecordsViewModel: ObservableObject {
             observation = Task { [weak self] in
                 for await change in changes {
                     guard let self, !Task.isCancelled else { break }
-                    if !apply(change) { await reload() }
+                    // Not awaited, so a burst of notices folds into the loads already queued.
+                    if !apply(change) { requestReload() }
                 }
             }
         }
@@ -92,19 +98,44 @@ public final class RecordsViewModel: ObservableObject {
         return true
     }
 
-    /// Folds into the load already running rather than racing it, and runs once more afterwards if
-    /// something changed while it was in flight.
+    /// Returns once a load that began after this call has landed, so what it shows is at least as
+    /// new as the store was when asked.
+    ///
+    /// Loads never race: one runs at a time, and requests made meanwhile fold into a single load
+    /// after it. A caller waits for that one load, not for every load later requests add. Waiting
+    /// until no more were asked for kept pull to refresh spinning for as long as iCloud sync kept
+    /// posting changes, which can be indefinitely.
     public func reload() async {
-        guard !isReloading else { needsReload = true; return }
-        isReloading = true
-        defer { isReloading = false }
-        repeat {
-            needsReload = false
-            await load()
-        } while needsReload
+        let after = loadsStarted + 1
+        requestReload()
+        await withCheckedContinuation { reloadWaiters.append((after, $0)) }
     }
 
-    private func load() async {
+    /// Queues a load without waiting for it.
+    private func requestReload() {
+        needsReload = true
+        guard reloading == nil else { return }
+        reloading = Task { [weak self] in await self?.runLoads() }
+    }
+
+    private func runLoads() async {
+        while needsReload {
+            needsReload = false
+            loadsStarted += 1
+            let number = loadsStarted
+            // A load that read the ledger before a change applied meanwhile asks for another and
+            // does not count as landed, so its waiters stay for the next one.
+            guard await load() else { continue }
+            let landed = reloadWaiters.filter { $0.after <= number }
+            reloadWaiters.removeAll { $0.after <= number }
+            for waiter in landed { waiter.continuation.resume() }
+        }
+        reloading = nil
+    }
+
+    /// Returns `false` when what it read was overtaken by a change applied meanwhile.
+    @discardableResult
+    private func load() async -> Bool {
         generation += 1
         let version = generation
         // Assigning `false` over `false` would still publish, and redraw every screen with it.
@@ -116,7 +147,7 @@ public final class RecordsViewModel: ObservableObject {
             let records = try await useCases.load()
             try Task.checkCancellation()
             // A change applied meanwhile is newer than what was read, so read once more instead.
-            guard version == generation else { needsReload = true; return }
+            guard version == generation else { needsReload = true; return false }
             // Only what actually changed is published: the repeated loads a launch makes read the
             // same rows back, and republishing them redrew every dashboard card — charts and
             // progress bars animating from nothing — for no change at all.
@@ -127,6 +158,8 @@ public final class RecordsViewModel: ObservableObject {
             hasLoaded = true
         } catch is CancellationError {
         } catch { if version == generation { errorMessage = error.localizedDescription } }
+        // A failed read still lands: its waiters are told through the error rather than kept waiting.
+        return true
     }
 
     /// Applies the saved record at once, so it is on screen when this returns; the change notice

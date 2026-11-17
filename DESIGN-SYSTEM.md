@@ -22,6 +22,7 @@ Use system controls and text styles for new screens. Keep account-specific color
 | `WalletStatTile` | Labelled figure for summary rows, on a cleared list row so the grouped background reads as the gap |
 | `WalletBadge` | Status capsule; the label always carries the meaning |
 | `WalletEmptyState` / `WalletLoadingState` | The single empty and loading shapes, wrapping `ContentUnavailableView` and `ProgressView` |
+| `WalletRefreshScrollView` | The Dashboard's scroll view with pull to refresh drawn as the wallet mark instead of the spinner: it fills in the accent color as it is pulled, bounces while refreshing (pulses with Reduce Motion) and becomes a green checkmark as it finishes. On iOS it installs its own `UIRefreshControl`, spinner made clear, and opens and closes it itself rather than through `.refreshable`, so the dashboard redrawing mid-refresh cannot close it early or leave it open. It stays open at most 6 seconds, and scrolls back to the top if closing left the content pulled down. Other screens keep the system spinner |
 | `WalletLaunchView` | The launch screen: wallet mark, app name and a quiet progress line on the grouped background; shown while storage opens and during the dashboard's first load |
 | `WalletListFooter` / `.walletFirstRow(_:)` | Caption-style section footers for flat lists, and hiding the stray rule above a flat list's first row |
 | `Color.walletCard` / `Color.walletGroupedBackground` | The grouped list's card fill and background, for tiles placed on cleared rows and full screens; correct in dark mode, unlike `.background` |
