@@ -33,6 +33,21 @@ extension WorkoutActivity {
     static let unspecifiedSymbol = "figure.mixed.cardio"
 }
 
+extension WorkoutExerciseGroup {
+    var symbol: String {
+        switch name {
+        case "Chest": "figure.strengthtraining.traditional"
+        case "Back": "figure.rower"
+        case "Shoulders": "figure.arms.open"
+        case "Arms": "dumbbell"
+        case "Legs": "figure.step.training"
+        case "Core": "figure.core.training"
+        case "Cardio": "bolt.heart"
+        default: WorkoutActivity.unspecifiedSymbol
+        }
+    }
+}
+
 extension WorkoutDay {
     var symbol: String { activity?.symbol ?? WorkoutActivity.unspecifiedSymbol }
 }

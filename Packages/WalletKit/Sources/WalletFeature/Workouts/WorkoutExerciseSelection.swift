@@ -2,9 +2,9 @@ import SwiftUI
 import WalletDomain
 
 /// Tick the body parts and exercises a workout covered. Your own exercises come first, then the
-/// presets under their body part. Every group opens collapsed, its header counting what is ticked
-/// inside; searching lists matches from all groups at once. Tapping a row toggles it and the list
-/// stays open.
+/// presets under their body part. Each group is a row with an icon tile that opens and closes in
+/// place, all closed at first, counting what is ticked inside; searching lists matches from every
+/// group at once. Tapping an exercise toggles it and the list stays open.
 struct WorkoutExerciseSelection: View {
     @ObservedObject var viewModel: WorkoutDaysViewModel
     @Binding var selection: [String]
@@ -15,6 +15,8 @@ struct WorkoutExerciseSelection: View {
     @State private var errorMessage: String?
 
     private static let ownTitle = "My Exercises"
+    /// The width of an icon tile, so tick circles sit in the same column as the group icons.
+    private static let leadingColumn: CGFloat = 36
 
     var body: some View {
         List {
@@ -48,36 +50,36 @@ struct WorkoutExerciseSelection: View {
 
     // MARK: Groups
 
+    /// Rows only, no sections: a plain list pads every section header with a tall gap, which spread
+    /// the closed groups down the screen.
     @ViewBuilder private var groups: some View {
         addRow(title: "Add Exercise") { newName = ""; isAdding = true }
             .walletFirstRow(true)
 
         let own = ownExercises
         if !own.isEmpty {
-            Section {
-                if expanded.contains(Self.ownTitle) {
-                    ForEach(own, id: \.self) { name in
-                        row(name).swipeActions(allowsFullSwipe: false) { deleteAction(name) }
-                    }
+            groupRow(Self.ownTitle, symbol: "star", names: own)
+            if expanded.contains(Self.ownTitle) {
+                ForEach(own, id: \.self) { name in
+                    exerciseRow(name).swipeActions(allowsFullSwipe: false) { deleteAction(name) }
                 }
-            } header: {
-                sectionHeader(Self.ownTitle, names: own)
             }
         }
 
         ForEach(WorkoutExercises.presets) { group in
-            Section {
-                if expanded.contains(group.name) {
-                    ForEach(group.exercises, id: \.self) { row($0) }
+            groupRow(group.name, symbol: group.symbol, names: group.exercises)
+            if expanded.contains(group.name) {
+                ForEach(group.exercises, id: \.self) { name in
+                    // The body part itself leads its group; under its own name it would read twice.
+                    exerciseRow(name, title: name == group.name ? "General" : name)
                 }
-            } header: {
-                sectionHeader(group.name, names: group.exercises)
             }
         }
     }
 
-    /// The group's name, how many of its exercises are ticked, and a chevron that turns down when open.
-    private func sectionHeader(_ title: String, names: [String]) -> some View {
+    /// The group's icon and name, how many of its exercises are ticked, and a chevron that turns
+    /// down when open.
+    private func groupRow(_ title: String, symbol: String, names: [String]) -> some View {
         let isOpen = expanded.contains(title)
         let ticked = names.filter(isSelected).count
         return Button {
@@ -85,10 +87,12 @@ struct WorkoutExerciseSelection: View {
                 if isOpen { expanded.remove(title) } else { expanded.insert(title) }
             }
         } label: {
-            HStack(spacing: WalletMetrics.small) {
+            HStack(spacing: WalletMetrics.medium) {
+                WalletIconTile(symbol: symbol, color: WorkoutDaysView.tint)
                 Text(title)
-                    .font(.headline)
+                    .font(.body.weight(.semibold))
                     .foregroundStyle(.primary)
+                Spacer()
                 if ticked > 0 {
                     Text("\(ticked)")
                         .font(.caption.weight(.semibold))
@@ -98,21 +102,19 @@ struct WorkoutExerciseSelection: View {
                         .padding(.vertical, 2)
                         .background(Capsule().fill(WorkoutDaysView.tint))
                 }
-                Spacer()
                 Image(systemName: "chevron.right")
                     .font(.footnote.weight(.semibold))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.tertiary)
                     .rotationEffect(.degrees(isOpen ? 90 : 0))
             }
-            .frame(minHeight: WalletMetrics.touchTarget)
+            .frame(minHeight: 44)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .textCase(nil)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(title)
         .accessibilityValue("\(isOpen ? "Expanded" : "Collapsed")\(ticked > 0 ? ", \(ticked) selected" : "")")
-        .accessibilityAddTraits([.isHeader, .isButton])
+        .accessibilityAddTraits(.isButton)
     }
 
     // MARK: Search
@@ -128,7 +130,7 @@ struct WorkoutExerciseSelection: View {
                 .walletFirstRow(true)
         }
         ForEach(matches, id: \.name) { match in
-            row(match.name, detail: match.group)
+            exerciseRow(match.name, detail: match.group)
                 .swipeActions(allowsFullSwipe: false) { deleteAction(match.name) }
         }
     }
@@ -168,22 +170,27 @@ struct WorkoutExerciseSelection: View {
         .buttonStyle(.plain)
     }
 
-    private func row(_ name: String, detail: String? = nil) -> some View {
+    /// A tick circle in the icon column, then the name in line with the group titles above.
+    private func exerciseRow(_ name: String, title: String? = nil, detail: String? = nil) -> some View {
         let selected = isSelected(name)
-        return Button { toggle(name) } label: {
-            HStack {
-                Text(name).foregroundStyle(.primary)
+        return Button { withAnimation(.snappy(duration: 0.2)) { toggle(name) } } label: {
+            HStack(spacing: WalletMetrics.medium) {
+                Image(systemName: selected ? "checkmark.circle.fill" : "circle")
+                    .font(.title3)
+                    .foregroundStyle(selected ? AnyShapeStyle(WorkoutDaysView.tint) : AnyShapeStyle(.tertiary))
+                    .contentTransition(.symbolEffect(.replace))
+                    .frame(width: Self.leadingColumn)
+                Text(title ?? name).foregroundStyle(.primary)
                 Spacer()
                 if let detail { Text(detail).font(.subheadline).foregroundStyle(.secondary) }
-                Image(systemName: "checkmark")
-                    .foregroundStyle(WorkoutDaysView.tint)
-                    .opacity(selected ? 1 : 0)
             }
             .frame(minHeight: 44)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .accessibilityAddTraits(selected ? .isSelected : [])
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(detail.map { "\(title ?? name), \($0)" } ?? (title ?? name))
+        .accessibilityAddTraits(selected ? [.isButton, .isSelected] : .isButton)
     }
 
     /// Only the user's own exercises can be deleted; presets offer no action.

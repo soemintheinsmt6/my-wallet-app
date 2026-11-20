@@ -886,3 +886,5 @@ Manual checks:
 2. Tick Push-up, collapse Chest and confirm its header shows a pink 1.
 3. Search "press" and confirm Bench press, Shoulder press and Leg press list with their groups. Tick one and clear the search; confirm the tick stays.
 4. Search "Wall sit" and tap Add “Wall sit”; confirm it is ticked, the search clears and My Exercises is open showing it.
+
+Device follow-up, same day: on device the collapsed groups showed as gray section headers with tall gaps between them, exercises had no tick affordance until ticked, and an open group repeated its own name as its first entry. Groups are now rows with a pink icon tile, a semibold title, the ticked count and a chevron, and no gaps between them. Exercises show an empty or filled tick circle in the icon column, and the body part's own entry reads General. Tests and builds pass as above; the new layout was checked only by build.
