@@ -873,3 +873,16 @@ Manual checks:
 3. Tap Add Exercise, enter "Wall sit", and confirm it appears ticked under My Exercises. Add "push-up" and confirm the preset Push-up is ticked rather than a new entry.
 4. Swipe Wall sit in My Exercises and delete it; confirm days that list it still show it.
 5. Add an exercise on one device and confirm it appears on another through iCloud.
+
+## Collapsible, Searchable Exercise List (2026-11-20)
+
+The exercise list now opens with every group collapsed. Each group header is tappable, with a chevron and a count of the exercises ticked inside it, and a search field above the list finds exercises across all groups. **438 tests across 66 suites passed**, and unsigned builds passed for the app on iOS Simulator and macOS. SwiftLint reports no new warnings. This is a view-only change with no new tests.
+
+**Not verified:** the app was not run, so the headers, animation and search were checked only by build.
+
+Manual checks:
+
+1. Open Exercises and confirm only Add Exercise and the group headers show, all collapsed. Tap Chest and confirm it opens with its chevron turned down; tap again to close.
+2. Tick Push-up, collapse Chest and confirm its header shows a pink 1.
+3. Search "press" and confirm Bench press, Shoulder press and Leg press list with their groups. Tick one and clear the search; confirm the tick stays.
+4. Search "Wall sit" and tap Add “Wall sit”; confirm it is ticked, the search clears and My Exercises is open showing it.
