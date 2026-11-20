@@ -13,9 +13,11 @@ struct WorkoutDayEditorView: View {
     /// Zero means the duration was not recorded.
     @State private var minutes: Int
     @State private var activity: WorkoutActivity?
+    @State private var exercises: [String]
     @State private var note: String
     @State private var errorMessage: String?
     @State private var choosingActivity = false
+    @State private var choosingExercises = false
     @State private var editingNote = false
     @ScaledMetric(relativeTo: .largeTitle) private var countFontSize = 60
 
@@ -28,10 +30,15 @@ struct WorkoutDayEditorView: View {
         self.existing = existing
         _minutes = State(initialValue: existing?.minutes ?? 0)
         _activity = State(initialValue: existing?.activity)
+        _exercises = State(initialValue: existing?.exercises ?? [])
         _note = State(initialValue: existing?.note ?? "")
     }
 
     private var date: Date { day.date(in: viewModel.calendar) }
+
+    /// Ticked exercises stay while switching to Run and back; saving drops them for an activity
+    /// that does not list exercises.
+    private var tracksExercises: Bool { activity?.tracksExercises ?? true }
 
     /// "Wed, 11 Nov", with the year only when the day is not in the current one.
     private var dayFormat: Date.FormatStyle {
@@ -50,6 +57,16 @@ struct WorkoutDayEditorView: View {
                             choosingActivity = true
                         }
                     }
+                    if tracksExercises {
+                        RecordFormRow(symbol: "list.bullet") {
+                            WalletEditorNavigationButton(
+                                title: "Exercises",
+                                value: exercises.isEmpty ? nil : WorkoutExercises.ordered(exercises).joined(separator: ", ")
+                            ) {
+                                choosingExercises = true
+                            }
+                        }
+                    }
                     RecordFormRow(symbol: "calendar") {
                         Text("Day")
                         Spacer()
@@ -63,7 +80,9 @@ struct WorkoutDayEditorView: View {
                             editingNote = true
                         }
                     }
-                    WalletEditorCaption("Time and activity are optional. Leave them empty to just mark the day.")
+                    WalletEditorCaption(tracksExercises
+                        ? "Time, activity and exercises are optional. Leave them empty to just mark the day."
+                        : "Time and activity are optional. Leave them empty to just mark the day.")
                     if let errorMessage {
                         Text(errorMessage)
                             .foregroundStyle(.red)
@@ -85,6 +104,9 @@ struct WorkoutDayEditorView: View {
             #endif
             .navigationDestination(isPresented: $choosingActivity) {
                 WorkoutActivitySelection(selection: $activity)
+            }
+            .navigationDestination(isPresented: $choosingExercises) {
+                WorkoutExerciseSelection(viewModel: viewModel, selection: $exercises)
             }
             .navigationDestination(isPresented: $editingNote) {
                 RecordTextEntry(title: "Note", text: $note, caption: "Add note", multiline: true)
@@ -190,7 +212,8 @@ struct WorkoutDayEditorView: View {
     private func save() async {
         errorMessage = nil
         do {
-            try await viewModel.mark(day, minutes: minutes == 0 ? nil : minutes, activity: activity, note: note)
+            try await viewModel.mark(day, minutes: minutes == 0 ? nil : minutes, activity: activity,
+                                     exercises: exercises, note: note)
             if let activity { lastActivity = activity.rawValue }
             dismiss()
         } catch { errorMessage = error.localizedDescription }

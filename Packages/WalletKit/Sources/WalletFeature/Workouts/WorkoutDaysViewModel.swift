@@ -8,6 +8,8 @@ public final class WorkoutDaysViewModel: ObservableObject {
         didSet { cachedHeatmap = nil }
     }
     /// The first day of the month on screen.
+    /// Exercises the user added to the presets, alphabetically.
+    @Published public private(set) var customExercises: [String] = []
     @Published public private(set) var month: DayKey
     @Published public private(set) var isLoading = true
     @Published public private(set) var isSaving = false
@@ -119,24 +121,44 @@ public final class WorkoutDaysViewModel: ObservableObject {
         defer { if version == loadVersion { isLoading = false } }
         do {
             let loaded = try await useCases.load()
+            let exercises = try await useCases.loadExercises()
             try Task.checkCancellation()
             guard version == loadVersion else { return }
             days = Dictionary(loaded.map { ($0.day, $0) }, uniquingKeysWith: { first, _ in first })
+            if customExercises != exercises { customExercises = exercises }
         } catch is CancellationError {
         } catch {
             if version == loadVersion { errorMessage = error.localizedDescription }
         }
     }
 
-    public func mark(_ day: DayKey, minutes: Int?, activity: WorkoutActivity?, note: String) async throws {
+    public func mark(_ day: DayKey, minutes: Int?, activity: WorkoutActivity?, exercises: [String] = [],
+                     note: String) async throws {
         guard !isSaving else { throw WorkoutDayError.saveInProgress }
         isSaving = true
         defer { isSaving = false }
-        try await useCases.mark(day, minutes: minutes, activity: activity, note: note, today: today)
+        let saved = try await useCases.mark(day, minutes: minutes, activity: activity, exercises: exercises,
+                                            note: note, today: today)
         // Shown at once: while observing, the change notification's reload may already be running,
         // and the `reload()` below then folds into it and returns before it has the saved day.
-        days[day] = WorkoutDay(day: day, minutes: minutes, activity: activity,
-                               note: note.trimmingCharacters(in: .whitespacesAndNewlines))
+        days[day] = saved
+        await reload()
+    }
+
+    /// Adds one of the user's own exercises and returns the name to tick, which is an existing
+    /// spelling when the name is already listed.
+    public func addExercise(_ name: String) async throws -> String {
+        let added = try await useCases.addExercise(name)
+        if WorkoutExercises.presetName(matching: added) == nil, !customExercises.contains(added) {
+            customExercises = (customExercises + [added]).sorted { $0.localizedStandardCompare($1) == .orderedAscending }
+        }
+        await reload()
+        return added
+    }
+
+    public func deleteExercise(_ name: String) async throws {
+        try await useCases.deleteExercise(name)
+        customExercises.removeAll { $0.caseInsensitiveCompare(name) == .orderedSame }
         await reload()
     }
 

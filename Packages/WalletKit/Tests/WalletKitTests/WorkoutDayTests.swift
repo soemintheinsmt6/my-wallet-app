@@ -36,6 +36,81 @@ struct WorkoutDayTests {
         #expect(try await useCases.load().isEmpty)
     }
 
+    @Test func exercisesAreSavedInListOrderOnceEachAndOnlyForActivitiesThatListThem() async throws {
+        let repository = try await SwiftDataWalletRepository.make(configuration: .inMemory)
+        let useCases = WorkoutDayUseCases(repository: repository)
+        let saved = try await useCases.mark(today, minutes: 30, activity: .home,
+                                            exercises: ["crunch", "  Wall  sit ", "Push-up", "Chest", "CRUNCH", " "],
+                                            note: "", today: today)
+        #expect(saved.exercises == ["Chest", "Push-up", "Crunch", "Wall sit"])
+        #expect(try await useCases.load().first?.exercises == saved.exercises)
+
+        let run = try await useCases.mark(today, minutes: 30, activity: .run, exercises: ["Squat"], note: "", today: today)
+        #expect(run.exercises.isEmpty)
+        #expect(try await useCases.load().first?.exercises == [])
+
+        let unspecified = try await useCases.mark(today, minutes: nil, activity: nil, exercises: ["Squat"], note: "", today: today)
+        #expect(unspecified.exercises == ["Squat"])
+
+        await #expect(throws: WorkoutDayError.tooManyExercises) {
+            try await useCases.mark(today, minutes: nil, activity: .gym,
+                                    exercises: (0...WorkoutExercises.maximumPerDay).map { "Move \($0)" }, note: "", today: today)
+        }
+        await #expect(throws: WorkoutDayError.invalidExerciseName) {
+            try await useCases.mark(today, minutes: nil, activity: .gym,
+                                    exercises: [String(repeating: "a", count: WorkoutExercises.maximumNameLength + 1)],
+                                    note: "", today: today)
+        }
+    }
+
+    @Test func ownExercisesAreAddedOnceIgnoringCaseAndDeletingOneKeepsPastDays() async throws {
+        let repository = try await SwiftDataWalletRepository.make(configuration: .inMemory)
+        let useCases = WorkoutDayUseCases(repository: repository)
+        #expect(try await useCases.addExercise("  wall   sit ") == "wall sit")
+        #expect(try await useCases.addExercise("Wall Sit") == "wall sit")
+        #expect(try await useCases.addExercise("push-UP") == "Push-up")
+        #expect(try await useCases.addExercise("Bear crawl") == "Bear crawl")
+        #expect(try await useCases.loadExercises() == ["Bear crawl", "wall sit"])
+        for name in ["", "   ", String(repeating: "a", count: WorkoutExercises.maximumNameLength + 1)] {
+            await #expect(throws: WorkoutDayError.invalidExerciseName) { try await useCases.addExercise(name) }
+        }
+
+        try await useCases.mark(today, minutes: nil, activity: .gym, exercises: ["wall sit"], note: "", today: today)
+        try await useCases.deleteExercise("WALL SIT")
+        #expect(try await useCases.loadExercises() == ["Bear crawl"])
+        #expect(try await useCases.load().first?.exercises == ["wall sit"])
+    }
+
+    @Test func ownExercisesUploadedTwiceReadOnceAndDeleteTogether() async throws {
+        let container = try WalletPersistence.makeContainer(configuration: .inMemory)
+        let context = ModelContext(container)
+        context.insert(WorkoutExerciseRecord(name: "Wall sit"))
+        context.insert(WorkoutExerciseRecord(name: "wall sit"))
+        try context.save()
+        let store = WalletStore(modelContainer: container)
+        #expect(try await store.fetchWorkoutExercises().count == 1)
+        try await store.saveWorkoutExercise("WALL SIT")
+        #expect(try ModelContext(container).fetchCount(FetchDescriptor<WorkoutExerciseRecord>()) == 2)
+        try await store.deleteWorkoutExercise("Wall Sit")
+        #expect(try await store.fetchWorkoutExercises().isEmpty)
+    }
+
+    @Test func viewModelListsOwnExercisesAndShowsSavedExercisesAtOnce() async throws {
+        let repository = try await SwiftDataWalletRepository.make(configuration: .inMemory)
+        let now = today.date(in: calendar).addingTimeInterval(3600)
+        let viewModel = WorkoutDaysViewModel(useCases: WorkoutDayUseCases(repository: repository),
+                                             calendar: calendar, now: { now })
+        await viewModel.observe()
+        #expect(try await viewModel.addExercise("Wall sit") == "Wall sit")
+        #expect(try await viewModel.addExercise("Bear crawl") == "Bear crawl")
+        #expect(try await viewModel.addExercise("plank") == "Plank")
+        #expect(viewModel.customExercises == ["Bear crawl", "Wall sit"])
+        try await viewModel.mark(today, minutes: 20, activity: .home, exercises: ["Wall sit", "Plank"], note: "")
+        #expect(viewModel.days[today]?.exercises == ["Plank", "Wall sit"])
+        try await viewModel.deleteExercise("Wall sit")
+        #expect(viewModel.customExercises == ["Bear crawl"])
+    }
+
     @Test func rejectsFutureDaysOutOfRangeMinutesAndLongNotes() async throws {
         let repository = try await SwiftDataWalletRepository.make(configuration: .inMemory)
         let useCases = WorkoutDayUseCases(repository: repository)

@@ -857,3 +857,19 @@ Manual checks:
 5. Switch to Year and confirm the chart shades longer workouts darker, today is outlined, and the stats show Time and Longest streak.
 6. Recheck Drinking Days' month calendar, year chart and stats after the shared-view refactor.
 7. Mark a workout day on one device and confirm it appears on another through iCloud.
+
+## Workout Exercises (2026-11-20)
+
+A Gym, Home, Other or unspecified workout day can now list the body parts and exercises trained, ticked from presets grouped by body part (Chest, Back, Shoulders, Arms, Legs, Core, Cardio) or from the user's own list, which syncs through iCloud as the new `WorkoutExerciseRecord`. Home joins the activities. **438 tests across 66 suites passed**, and unsigned builds passed for the app on iOS Simulator and macOS and for `WalletWatch` and `WalletWatchWidgets` on watchOS Simulator. SwiftLint reports no new warnings.
+
+New tests cover exercises saved once each in list order, with preset spelling and collapsed spaces; exercises dropped for Run but kept with no activity; the per-day and name-length limits; adding your own exercise once ignoring case, a preset name returning the preset; deleting one leaving past days unchanged; duplicate iCloud copies reading once and deleting together; and the view model's list and saved day.
+
+**Not verified:** the app was not run, so the Exercises row and list were checked only by build. `exercisesValue` on `WorkoutDayRecord` and the new `WorkoutExerciseRecord` both need the CloudKit development schema deployed to production before release.
+
+Manual checks:
+
+1. Mark a day with Gym and confirm an Exercises row appears; switch to Run and confirm it hides, then back to Gym and confirm the ticks are still there.
+2. Open Exercises, tick Chest, Push-up and Crunch, go back and confirm the row reads "Chest, Push-up, Crunch". Mark the day and confirm the month row reads "Gym · Chest, Push-up, Crunch".
+3. Tap Add Exercise, enter "Wall sit", and confirm it appears ticked under My Exercises. Add "push-up" and confirm the preset Push-up is ticked rather than a new entry.
+4. Swipe Wall sit in My Exercises and delete it; confirm days that list it still show it.
+5. Add an exercise on one device and confirm it appears on another through iCloud.

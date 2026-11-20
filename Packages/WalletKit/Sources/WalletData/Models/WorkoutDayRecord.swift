@@ -11,6 +11,8 @@ final class WorkoutDayRecord {
     var minutes: Int?
     /// A `WorkoutActivity` raw value, `nil` when none was chosen.
     var activityValue: String?
+    /// Exercise names, one per line; names are normalized to a single line before saving.
+    var exercisesValue: String = ""
     var note: String = ""
     var updatedAt: Date = Date()
 
@@ -22,6 +24,7 @@ final class WorkoutDayRecord {
     func apply(_ day: WorkoutDay) {
         minutes = day.minutes
         activityValue = day.activity?.rawValue
+        exercisesValue = day.exercises.joined(separator: "\n")
         note = day.note
         updatedAt = day.updatedAt
     }
@@ -29,6 +32,19 @@ final class WorkoutDayRecord {
     var workoutDay: WorkoutDay? {
         guard let key = DayKey(rawValue: dayValue) else { return nil }
         return WorkoutDay(day: key, minutes: minutes, activity: activityValue.map(WorkoutActivity.init(storedValue:)),
+                          exercises: exercisesValue.split(separator: "\n").map(String.init),
                           note: note, updatedAt: updatedAt)
+    }
+}
+
+/// An exercise the user added to the preset list. Like workout days, two devices can upload the
+/// same name; reads keep one per name ignoring case. Every property is defaulted for CloudKit.
+@Model
+final class WorkoutExerciseRecord {
+    var name: String = ""
+    var createdAt: Date = Date()
+
+    init(name: String) {
+        self.name = name
     }
 }

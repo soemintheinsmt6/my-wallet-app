@@ -184,9 +184,10 @@ private struct WorkoutDayRow: View {
     let day: WorkoutDay
     let calendar: Calendar
 
-    /// The activity, then the note, so a row reads "Run · Morning loop".
+    /// The activity, then the exercises, so a row reads "Gym · Chest, Push-up, Crunch".
     private var subtitle: String? {
-        let parts = [day.activity?.title, day.note.isEmpty ? nil : day.note].compactMap { $0 }
+        let exercises = day.exercises.isEmpty ? nil : day.exercises.joined(separator: ", ")
+        let parts = [day.activity?.title, exercises].compactMap { $0 }
         return parts.isEmpty ? nil : parts.joined(separator: " · ")
     }
 
@@ -198,7 +199,10 @@ private struct WorkoutDayRow: View {
                     .font(.body.weight(.medium))
                     .foregroundStyle(.primary)
                 if let subtitle {
-                    Text(subtitle).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                    Text(subtitle).font(.caption).foregroundStyle(.secondary).lineLimit(2)
+                }
+                if !day.note.isEmpty {
+                    Text(day.note).font(.caption).foregroundStyle(.secondary).lineLimit(1)
                 }
             }
             Spacer(minLength: WalletMetrics.small)

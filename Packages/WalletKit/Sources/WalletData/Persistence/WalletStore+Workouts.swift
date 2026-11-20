@@ -40,4 +40,37 @@ extension WalletStore {
         }
         if context.hasChanges { try context.save() }
     }
+
+    /// The list is short, so it is fetched whole and matched ignoring case in memory, which a
+    /// SwiftData predicate cannot do portably.
+    func fetchWorkoutExercises() throws -> [String] {
+        let context = ModelContext(modelContainer)
+        var seen = Set<String>()
+        return try context.fetch(FetchDescriptor<WorkoutExerciseRecord>())
+            .map(\.name)
+            .filter { !$0.isEmpty && seen.insert($0.lowercased()).inserted }
+            .sorted { $0.localizedStandardCompare($1) == .orderedAscending }
+    }
+
+    func saveWorkoutExercise(_ name: String) throws {
+        try Task.checkCancellation()
+        let context = ModelContext(modelContainer)
+        context.autosaveEnabled = false
+        let key = name.lowercased()
+        guard try !context.fetch(FetchDescriptor<WorkoutExerciseRecord>()).contains(where: { $0.name.lowercased() == key })
+        else { return }
+        context.insert(WorkoutExerciseRecord(name: name))
+        try context.save()
+    }
+
+    func deleteWorkoutExercise(_ name: String) throws {
+        try Task.checkCancellation()
+        let context = ModelContext(modelContainer)
+        context.autosaveEnabled = false
+        let key = name.lowercased()
+        for record in try context.fetch(FetchDescriptor<WorkoutExerciseRecord>()) where record.name.lowercased() == key {
+            context.delete(record)
+        }
+        if context.hasChanges { try context.save() }
+    }
 }

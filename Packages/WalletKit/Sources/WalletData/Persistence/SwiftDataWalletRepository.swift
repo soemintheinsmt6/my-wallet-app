@@ -244,6 +244,18 @@ public final class SwiftDataWalletRepository: WalletRepository, AccountRepositor
         notifyChanges()
     }
 
+    public func fetchWorkoutExercises() async throws -> [String] { try await store.fetchWorkoutExercises() }
+
+    public func saveWorkoutExercise(_ name: String) async throws {
+        try await store.saveWorkoutExercise(name)
+        notifyChanges()
+    }
+
+    public func deleteWorkoutExercise(_ name: String) async throws {
+        try await store.deleteWorkoutExercise(name)
+        notifyChanges()
+    }
+
     public func fetchCategories() async throws -> [WalletCategory] { try await store.fetchCategories() }
 
     public func createCategory(name: String, nature: CategoryNature, parentID: UUID?) async throws {

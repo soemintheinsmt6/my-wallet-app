@@ -8,6 +8,7 @@ extension WorkoutActivity {
         case .cycle: "Cycle"
         case .swim: "Swim"
         case .gym: "Gym"
+        case .home: "Home"
         case .yoga: "Yoga"
         case .sport: "Sport"
         case .other: "Other"
@@ -21,6 +22,7 @@ extension WorkoutActivity {
         case .cycle: "figure.outdoor.cycle"
         case .swim: "figure.pool.swim"
         case .gym: "dumbbell"
+        case .home: "figure.strengthtraining.functional"
         case .yoga: "figure.yoga"
         case .sport: "sportscourt"
         case .other: WorkoutActivity.unspecifiedSymbol
