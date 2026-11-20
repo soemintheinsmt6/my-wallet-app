@@ -3,6 +3,8 @@ public enum WalletPreferenceKeys {
     static let lastUsedAccountID = "records.lastUsedAccountID"
     static let lastUsedPaymentType = "records.lastUsedPaymentType"
     static let recentSearches = "records.recentSearches"
+    /// The activity a new workout day starts with; per-device, like the last payment type.
+    static let lastWorkoutActivity = "workouts.lastActivity"
     /// App lock settings; the passcode verifier itself lives in the keychain, never here.
     static let appLockUseBiometrics = "security.appLock.useBiometrics"
     /// Set when the lock is held by biometrics alone, with no wallet passcode behind it.

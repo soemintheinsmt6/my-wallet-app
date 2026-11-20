@@ -10,7 +10,7 @@ public enum WalletPersistence {
     public static func makeContainer(configuration: WalletStorageConfiguration) throws -> ModelContainer {
         let schema = Schema([Item.self, AccountRecord.self, CategoryRecord.self, TagRecord.self, TransactionRecord.self, BudgetRecord.self, RecurringSeriesRecord.self, ScheduledOccurrenceRecord.self, BillReminderRecord.self, ReceiptRecord.self, DebtRecord.self, DebtPaymentRecord.self,
                              SavingsGoalRecord.self, GoalContributionRecord.self, RecordSplitRecord.self,
-                             DrinkingDayRecord.self])
+                             DrinkingDayRecord.self, WorkoutDayRecord.self])
         let modelConfiguration: ModelConfiguration
         switch configuration {
         case .cloud(let identifier):

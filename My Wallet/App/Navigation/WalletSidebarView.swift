@@ -73,6 +73,7 @@ struct WalletSidebarView: View {
                      insights: dependencies.insightsViewModel,
                      theme: dependencies.themeViewModel,
                      drinking: dependencies.drinkingDaysViewModel,
+                     workouts: dependencies.workoutDaysViewModel,
                      appIcons: WalletAppIcons.options,
                      refile: dependencies.refileRecords)
         }

@@ -28,6 +28,7 @@ struct AppDependencies {
     let themeViewModel: ThemeViewModel
     let splitsViewModel: SplitsViewModel
     let drinkingDaysViewModel: DrinkingDaysViewModel
+    let workoutDaysViewModel: WorkoutDaysViewModel
 
     static func make() async throws -> AppDependencies {
         let repository = try await SwiftDataWalletRepository.make(
@@ -107,7 +108,8 @@ struct AppDependencies {
             themeViewModel: ThemeViewModel(iconReader: { WalletAppIcons.current() },
                                            iconSetter: { try await WalletAppIcons.apply($0) }),
             splitsViewModel: splits,
-            drinkingDaysViewModel: DrinkingDaysViewModel(useCases: DrinkingDayUseCases(repository: repository))
+            drinkingDaysViewModel: DrinkingDaysViewModel(useCases: DrinkingDayUseCases(repository: repository)),
+            workoutDaysViewModel: WorkoutDaysViewModel(useCases: WorkoutDayUseCases(repository: repository))
         )
     }
 }

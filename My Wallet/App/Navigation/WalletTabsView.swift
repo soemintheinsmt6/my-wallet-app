@@ -58,6 +58,7 @@ struct WalletTabsView: View {
                      insights: dependencies.insightsViewModel,
                      theme: dependencies.themeViewModel,
                      drinking: dependencies.drinkingDaysViewModel,
+                     workouts: dependencies.workoutDaysViewModel,
                      appIcons: WalletAppIcons.options,
                      refile: dependencies.refileRecords)
                 .tabItem { Label(WalletTab.more.title, systemImage: WalletTab.more.symbol) }

@@ -17,6 +17,7 @@ public struct MoreView: View {
     private let insights: InsightsViewModel?
     private let theme: ThemeViewModel?
     private let drinking: DrinkingDaysViewModel?
+    private let workouts: WorkoutDaysViewModel?
     private let appIcons: [WalletAppIcon]
     /// Passed through to the categories list so records can be dropped onto a category.
     private let refile: ((Set<UUID>, UUID) async -> Void)?
@@ -26,6 +27,7 @@ public struct MoreView: View {
                 appLock: AppLockViewModel? = nil, dataExchange: DataExchangeViewModel? = nil,
                 currency: CurrencyViewModel? = nil, insights: InsightsViewModel? = nil,
                 theme: ThemeViewModel? = nil, drinking: DrinkingDaysViewModel? = nil,
+                workouts: WorkoutDaysViewModel? = nil,
                 appIcons: [WalletAppIcon] = [],
                 refile: ((Set<UUID>, UUID) async -> Void)? = nil) {
         self.accounts = accounts
@@ -39,6 +41,7 @@ public struct MoreView: View {
         self.insights = insights
         self.theme = theme
         self.drinking = drinking
+        self.workouts = workouts
         self.appIcons = appIcons
         self.refile = refile
     }
@@ -71,12 +74,21 @@ public struct MoreView: View {
                     Text("Accounts hold balances. Categories and labels organize records.")
                 }
 
-                if let drinking {
+                if drinking != nil || workouts != nil {
                     Section {
-                        NavigationLink {
-                            DrinkingDaysView(viewModel: drinking)
-                        } label: {
-                            DrinkingMoreRow(viewModel: drinking)
+                        if let drinking {
+                            NavigationLink {
+                                DrinkingDaysView(viewModel: drinking)
+                            } label: {
+                                DrinkingMoreRow(viewModel: drinking)
+                            }
+                        }
+                        if let workouts {
+                            NavigationLink {
+                                WorkoutDaysView(viewModel: workouts)
+                            } label: {
+                                WorkoutMoreRow(viewModel: workouts)
+                            }
                         }
                     } header: {
                         Text("Personal")
@@ -137,6 +149,23 @@ private struct DrinkingMoreRow: View {
                                       today: viewModel.today, calendar: viewModel.calendar)
         let count = summary.drinkingDays
         return count == 1 ? "1 drinking day this month" : "\(count) drinking days this month"
+    }
+}
+
+/// Observes the workout view model itself, since `MoreView` only holds it optionally.
+private struct WorkoutMoreRow: View {
+    @ObservedObject var viewModel: WorkoutDaysViewModel
+
+    var body: some View {
+        MoreRow(title: "Workout Days", detail: detail, symbol: "figure.run", color: WorkoutDaysView.tint)
+            .task { await viewModel.observe() }
+    }
+
+    private var detail: String {
+        let summary = WorkoutSummary(days: Array(viewModel.days.values), month: viewModel.today,
+                                     today: viewModel.today, calendar: viewModel.calendar)
+        let count = summary.workoutDays
+        return count == 1 ? "1 workout this month" : "\(count) workouts this month"
     }
 }
 

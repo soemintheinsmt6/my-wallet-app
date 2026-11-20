@@ -839,3 +839,21 @@ Manual checks:
 1. Pull to refresh on the Dashboard: the wallet fills in the accent color while pulling, bounces while refreshing, shows a green checkmark and closes. No system spinner shows behind it.
 2. Pull to refresh repeatedly just after adding or editing a record on another iCloud device, while sync is busy. The indicator should always finish within a few seconds.
 3. With Reduce Motion on, the wallet pulses instead of bouncing.
+
+## Workout Days (2026-11-20)
+
+Workout Days sits in More → Personal beside Drinking Days: a month calendar and year chart for marking exercise days, each with an optional time in minutes, activity and note. Drinking Days' calendar, year chart, paging row and stat rows moved into shared views (`WalletFeature/Shared/DayTracking/`) and its year layout into `DayGrid`, so both trackers draw from one copy; Drinking Days should look and behave as before. **434 tests across 66 suites passed**, and unsigned builds passed for the app on iOS Simulator and macOS and for `WalletWatch` and `WalletWatchWidgets` on watchOS Simulator. The app build needed a clean once, because Xcode's cached package graph linked against the old drinking heatmap types. SwiftLint reports no new warnings.
+
+`WorkoutDayTests` covers marking, replacing and repeat unmarking; rejecting future days, out-of-range minutes and long notes; folding duplicate iCloud rows; an activity from a newer version reading as Other; workout days surviving wallet reset; monthly counts and the current streak (an unmarked today does not break it); heatmap shading and the longest streak; the shared grid matching for both trackers; five-minute stepping; and the view model's month and year paging. The existing `DrinkingDayTests` pass unchanged against the shared layout.
+
+**Not verified:** the app was not run, so both screens and the editor were checked only by build. `WorkoutDayRecord` is a new CloudKit record type: deploy the development schema to production before release.
+
+Manual checks:
+
+1. Open More and confirm Personal lists Drinking Days and Workout Days, the latter reading "0 workouts this month".
+2. In Workout Days, tap + and confirm the editor opens on today with Time reading Not recorded. Step up to 45 min, choose Run, add a note and tap Mark. Confirm today fills pink, the row lists "Run · note" with 45 min, and the stats show 1 day, 45 min and a 1-day streak.
+3. Mark yesterday too and confirm the streak reads 2 days. Open a third new day and confirm it starts on Run, the activity marked last.
+4. Open a marked day, tap Remove Workout and confirm it clears; swipe a row in This Month and tap Remove.
+5. Switch to Year and confirm the chart shades longer workouts darker, today is outlined, and the stats show Time and Longest streak.
+6. Recheck Drinking Days' month calendar, year chart and stats after the shared-view refactor.
+7. Mark a workout day on one device and confirm it appears on another through iCloud.
