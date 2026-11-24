@@ -902,3 +902,20 @@ Manual checks:
 3. Edit the debt, open Photo, delete it and save; confirm the debt's screen no longer shows it. Attach one again, then delete it from the debt's screen viewer.
 4. On a device, take a photo with the camera from the editor and confirm it attaches.
 5. Launch over an existing store with debts and confirm they load, then confirm a debt photo syncs to another device.
+
+## Lend or Borrow More on a Debt (2026-11-24)
+
+A debt can now grow in steps: Lend More / Borrow More saves a `DebtAddition` instead of editing the amount, and the debt's screen shows a History of every step with the running balance. Six tests were added. `DebtCalculationTests`: additions raise the total and reopen a settled debt, including per-person netting, and the history lists opening, addition and payment in order with balances 100, 150, 120. `DebtGoalStorageTests`: additions round trip with a trimmed note, a zero addition is refused, deleting one restores the total, deleting the debt removes them, and a wallet reset removes them. `DebtMoneyMovedTests`: lending more on a loan moves the money out with a "Lent to Ana" adjustment and full repayment restores the balance; adding to a debt without moved money writes no record; a refused addition leaves no adjustment. **447 tests across 66 suites passed**, and unsigned builds passed for the app on iOS Simulator and macOS and for the watch app. SwiftLint reports no new warnings.
+
+The first run crashed the test process: the history's running balance was a static function on `DebtDetailView`, which is main-actor isolated, and the nonisolated calculation test tripped Swift's runtime isolation check. It moved to `DebtProgress.history` in the domain.
+
+**Not verified:** the app was not run, so the sheet, the history rows and the editor's note were checked only by build. `DebtAdditionRecord` is a new model in the schema, a lightweight migration, but it was not checked against an existing store or through iCloud sync.
+
+Manual checks:
+
+1. Lend Ana 100. On her debt's screen tap Lend More, enter 50 with a note, and confirm the outstanding reads 150 and History shows "Lent" +100 (owed 100) and "Lent more" +50 with the note (owed 150).
+2. Settle 30 and confirm History adds "Repaid to you" −30 (owed 120) at the top.
+3. Open Edit Debt and confirm the amount is still 100, with a note that 50 more was lent later.
+4. Make a debt with "Take from my balance now" on, lend more, and confirm the account balance drops again and the new record reads "Lent to …". Repay everything and confirm the balance returns to where it started.
+5. Settle a debt fully, lend more from the Debts list's context menu, and confirm it reopens.
+6. Swipe an addition away in History and confirm the outstanding falls back.

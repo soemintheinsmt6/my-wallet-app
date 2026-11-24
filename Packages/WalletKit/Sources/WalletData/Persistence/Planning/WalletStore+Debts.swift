@@ -44,7 +44,7 @@ extension WalletStore {
         try context.save()
     }
 
-    /// Deleting a debt deletes its payments; a payment without a debt could never be shown.
+    /// Deleting a debt deletes its payments and additions; neither could be shown without it.
     func deleteDebt(id: UUID) throws {
         try Task.checkCancellation()
         let context = ModelContext(modelContainer)
@@ -54,6 +54,37 @@ extension WalletStore {
         }
         for payment in try context.fetch(FetchDescriptor<DebtPaymentRecord>(predicate: #Predicate { $0.debtID == id })) {
             context.delete(payment)
+        }
+        for addition in try context.fetch(FetchDescriptor<DebtAdditionRecord>(predicate: #Predicate { $0.debtID == id })) {
+            context.delete(addition)
+        }
+        try context.save()
+    }
+
+    func fetchDebtAdditions() throws -> [DebtAddition] {
+        try Task.checkCancellation()
+        let context = ModelContext(modelContainer)
+        return try context.fetch(FetchDescriptor<DebtAdditionRecord>()).compactMap(\.addition)
+    }
+
+    func saveDebtAddition(_ addition: DebtAddition) throws {
+        try Task.checkCancellation()
+        let context = ModelContext(modelContainer)
+        context.autosaveEnabled = false
+        let id = addition.id
+        for existing in try context.fetch(FetchDescriptor<DebtAdditionRecord>(predicate: #Predicate { $0.id == id })) {
+            context.delete(existing)
+        }
+        context.insert(DebtAdditionRecord(addition: addition))
+        try context.save()
+    }
+
+    func deleteDebtAddition(id: UUID) throws {
+        try Task.checkCancellation()
+        let context = ModelContext(modelContainer)
+        context.autosaveEnabled = false
+        for existing in try context.fetch(FetchDescriptor<DebtAdditionRecord>(predicate: #Predicate { $0.id == id })) {
+            context.delete(existing)
         }
         try context.save()
     }

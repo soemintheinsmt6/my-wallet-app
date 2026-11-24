@@ -51,6 +51,27 @@ final class DebtPaymentRecord {
     }
 }
 
+/// Its own model rather than a kind of payment, so an older build syncing these never mistakes
+/// money added to a debt for money paid off it.
+@Model
+final class DebtAdditionRecord {
+    var id: UUID = UUID()
+    /// Kept as a column so additions for a deleted debt can be found without decoding every row.
+    var debtID: UUID = UUID()
+    var payload: Data?
+
+    init(addition: DebtAddition) {
+        id = addition.id
+        debtID = addition.debtID
+        payload = try? JSONEncoder().encode(addition)
+    }
+
+    var addition: DebtAddition? {
+        guard let payload else { return nil }
+        return try? JSONDecoder().decode(DebtAddition.self, from: payload)
+    }
+}
+
 @Model
 final class SavingsGoalRecord {
     var id: UUID = UUID()

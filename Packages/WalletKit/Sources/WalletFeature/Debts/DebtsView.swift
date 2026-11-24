@@ -8,6 +8,7 @@ public struct DebtsView: View {
     @State private var editing: Debt?
     @State private var deleting: DebtProgress?
     @State private var settling: DebtProgress?
+    @State private var adding: DebtProgress?
     @Environment(\.mainCurrency) private var mainCurrency
 
     public init(viewModel: DebtsViewModel) { self.viewModel = viewModel }
@@ -36,6 +37,8 @@ public struct DebtsView: View {
                             if !progress.isSettled {
                                 Button("Settle", systemImage: "checkmark") { settling = progress }
                             }
+                            Button(progress.debt.direction == .owedToMe ? "Lend More" : "Borrow More",
+                                   systemImage: "plus.circle") { adding = progress }
                             Button("Edit", systemImage: "pencil") { editing = progress.debt }
                             Button("Delete", role: .destructive) { deleting = progress }
                         }
@@ -57,6 +60,7 @@ public struct DebtsView: View {
         .toolbar { Button("Add Debt", systemImage: "plus") { editing = Debt(currencyCode: mainCurrency) } }
         .sheet(item: $editing) { DebtEditorView(viewModel: viewModel, debt: $0) }
         .sheet(item: $settling) { DebtSettlementView(viewModel: viewModel, progress: $0) }
+        .sheet(item: $adding) { DebtAdditionView(viewModel: viewModel, progress: $0) }
         .alert("Delete Debt?", isPresented: Binding(get: { deleting != nil }, set: { if !$0 { deleting = nil } })) {
             Button("Cancel", role: .cancel) {}
             Button("Delete", role: .destructive) {
@@ -122,7 +126,7 @@ public struct DebtsView: View {
                     .foregroundStyle(progress.isSettled ? Color.secondary : Color.primary)
                     .lineLimit(1)
                 if progress.paid > 0, !progress.isSettled {
-                    Text("of \(progress.debt.amount.walletFormatted(progress.debt.currencyCode))")
+                    Text("of \(progress.total.walletFormatted(progress.debt.currencyCode))")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
@@ -279,6 +283,13 @@ struct DebtEditorView: View {
         #endif
     }
 
+    /// What has been lent or borrowed on this debt since it was made, if anything.
+    private var addedSince: Decimal? {
+        guard let progress = viewModel.debts.first(where: { $0.debt.id == debt.id }),
+              !progress.additions.isEmpty else { return nil }
+        return progress.total - progress.debt.amount
+    }
+
     private var amountSection: some View {
         VStack(spacing: 12) {
             Picker("Direction", selection: $debt.direction) {
@@ -292,6 +303,14 @@ struct DebtEditorView: View {
                 sign: "", color: amountColor, label: "\(debt.direction.title) amount",
                 currency: debt.currencyCode, amount: $amount, focus: $focusedField, field: .amount,
                 chooseCurrency: debt.movedMoney ? nil : { open(.currency) })
+            // Money added later is its own step, so this amount stays the first one.
+            if let added = addedSince {
+                Text("First amount. \(added.walletFormatted(debt.currencyCode)) more was "
+                     + (debt.direction == .owedToMe ? "lent" : "borrowed") + " later; see the debt's history.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+            }
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 12)

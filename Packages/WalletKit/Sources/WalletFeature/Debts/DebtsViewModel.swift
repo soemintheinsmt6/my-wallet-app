@@ -53,8 +53,10 @@ public final class DebtsViewModel: ObservableObject {
         for progress in debts where progress.debt.movedMoney {
             let person = progress.debt.person
             let lent = progress.debt.direction == .owedToMe
-            if let id = progress.debt.openingRecordID {
-                titles[id] = lent ? "Lent to \(person)" : "Borrowed from \(person)"
+            let opening = lent ? "Lent to \(person)" : "Borrowed from \(person)"
+            if let id = progress.debt.openingRecordID { titles[id] = opening }
+            for addition in progress.additions {
+                if let id = addition.recordID { titles[id] = opening }
             }
             for payment in progress.payments {
                 if let id = payment.recordID { titles[id] = lent ? "Repaid by \(person)" : "Repaid to \(person)" }
@@ -63,11 +65,11 @@ public final class DebtsViewModel: ObservableObject {
         return titles
     }
 
-    /// The records a debt wrote: the money lent or borrowed, then each settlement that added one,
-    /// oldest first. Records the person has since deleted are left out.
+    /// The records a debt wrote, in the order of its history: the money lent or borrowed, any more
+    /// added since, and each settlement that added one. Records the person has since deleted are
+    /// left out.
     func records(for progress: DebtProgress) -> [WalletRecord] {
-        let ids = [progress.debt.openingRecordID].compactMap { $0 } + progress.payments.compactMap(\.recordID)
-        return ids.compactMap { id in records.records.first { $0.id == id } }
+        progress.entries.compactMap(\.recordID).compactMap { id in records.records.first { $0.id == id } }
     }
 
     private func publishLoanTitles() {
@@ -187,6 +189,49 @@ public final class DebtsViewModel: ObservableObject {
 
     public func deletePayment(id: UUID) async throws {
         try await mutate { try await debtUseCases.deletePayment(id: id) }
+    }
+
+    /// Adds more money lent or borrowed to an existing debt, kept as its own step in the history.
+    ///
+    /// With `account`, for a debt whose money moved, also records this money changing hands as a
+    /// balance adjustment the same way the opening one went, so settling it later balances out. The
+    /// record is removed again if the addition then fails to save.
+    public func add(to progress: DebtProgress, amount: Decimal, date: Date = Date(), note: String = "",
+                    account: Account?) async throws {
+        try await mutate {
+            let debt = progress.debt
+            var addition = DebtAddition(debtID: debt.id, amount: amount, date: date, note: note)
+            guard amount > 0 else { throw DebtError.invalidAdditionAmount }
+            if let account {
+                var draft = RecordDraft.adjustment(accountID: account.id,
+                                                   increase: debt.direction.openingIncreasesBalance,
+                                                   amount: amount, date: date)
+                draft.payee = debt.person
+                draft.note = debt.direction == .owedToMe ? "Lent to \(debt.person)" : "Borrowed from \(debt.person)"
+                let id = UUID()
+                try await recordUseCases.create(id: id, draft: draft)
+                addition.recordID = id
+            }
+            do {
+                try await debtUseCases.add(addition)
+            } catch {
+                if let id = addition.recordID { try? await recordUseCases.delete(id: id) }
+                throw error
+            }
+            if addition.recordID != nil { await records.reload() }
+        }
+    }
+
+    /// Removes an addition from the debt's history. A record it wrote is kept, as a payment's is.
+    public func deleteAddition(id: UUID) async throws {
+        try await mutate { try await debtUseCases.deleteAddition(id: id) }
+    }
+
+    /// The account the debt's money was first recorded on, to offer again for money added later.
+    func openingAccount(of debt: Debt) -> Account? {
+        guard let id = debt.openingRecordID,
+              let record = records.records.first(where: { $0.id == id }) else { return nil }
+        return records.account(record.draft.accountID)
     }
 
     // MARK: - Goals

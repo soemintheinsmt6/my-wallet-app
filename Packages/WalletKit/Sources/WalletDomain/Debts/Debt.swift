@@ -125,6 +125,74 @@ public struct DebtPayment: Identifiable, Codable, Sendable, Equatable {
     }
 }
 
+/// More money lent or borrowed on an existing debt, so the same person's debt grows in steps with
+/// each step kept, rather than its amount being edited over.
+public struct DebtAddition: Identifiable, Codable, Sendable, Equatable {
+    public var id: UUID
+    public var debtID: UUID
+    public var amount: Decimal
+    public var date: Date
+    public var note: String
+    /// The balance adjustment written when this money changed hands, for a debt whose money moved.
+    public var recordID: UUID?
+
+    public init(id: UUID = UUID(), debtID: UUID, amount: Decimal, date: Date = Date(), note: String = "",
+                recordID: UUID? = nil) {
+        self.id = id
+        self.debtID = debtID
+        self.amount = amount
+        self.date = date
+        self.note = note
+        self.recordID = recordID
+    }
+}
+
+/// One step in a debt's history, oldest first: the money it started with, each addition, each
+/// payment.
+public enum DebtEntry: Identifiable, Sendable, Equatable {
+    case opening(Debt)
+    case addition(DebtAddition)
+    case payment(DebtPayment)
+
+    public var id: UUID {
+        switch self {
+        case .opening(let debt): debt.id
+        case .addition(let addition): addition.id
+        case .payment(let payment): payment.id
+        }
+    }
+
+    public var date: Date {
+        switch self {
+        case .opening(let debt): debt.createdAt
+        case .addition(let addition): addition.date
+        case .payment(let payment): payment.date
+        }
+    }
+
+    public var amount: Decimal {
+        switch self {
+        case .opening(let debt): debt.amount
+        case .addition(let addition): addition.amount
+        case .payment(let payment): payment.amount
+        }
+    }
+
+    public var recordID: UUID? {
+        switch self {
+        case .opening(let debt): debt.openingRecordID
+        case .addition(let addition): addition.recordID
+        case .payment(let payment): payment.recordID
+        }
+    }
+}
+
+/// One entry of a debt's history with the balance it left.
+public struct DebtHistoryStep: Sendable, Equatable {
+    public let entry: DebtEntry
+    public let balance: Decimal
+}
+
 public enum DebtError: LocalizedError, Equatable {
     case invalidPerson
     case invalidCurrency
@@ -132,6 +200,7 @@ public enum DebtError: LocalizedError, Equatable {
     case noteTooLong
     case paymentExceedsOutstanding
     case invalidPaymentAmount
+    case invalidAdditionAmount
     case busy
 
     public var errorDescription: String? {
@@ -142,25 +211,48 @@ public enum DebtError: LocalizedError, Equatable {
         case .noteTooLong: "Use up to 2,000 characters for the note."
         case .paymentExceedsOutstanding: "That is more than is still outstanding."
         case .invalidPaymentAmount: "Enter a payment greater than zero."
+        case .invalidAdditionAmount: "Enter an amount greater than zero."
         case .busy: "A debt is being saved. Please try again."
         }
     }
 }
 
-/// A debt together with what has been paid against it.
+/// A debt together with what has been added to it and paid against it.
 public struct DebtProgress: Identifiable, Sendable, Equatable {
     public let debt: Debt
     public let payments: [DebtPayment]
+    public let additions: [DebtAddition]
 
     public var id: UUID { debt.id }
     public var paid: Decimal { payments.reduce(0) { $0 + $1.amount } }
-    public var outstanding: Decimal { max(0, debt.amount - paid) }
+    /// The original amount plus everything lent or borrowed since.
+    public var total: Decimal { additions.reduce(debt.amount) { $0 + $1.amount } }
+    public var outstanding: Decimal { max(0, total - paid) }
     public var isSettled: Bool { outstanding == 0 }
 
     public var fraction: Double {
-        guard debt.amount > 0 else { return 0 }
-        let value = NSDecimalNumber(decimal: paid / debt.amount).doubleValue
+        guard total > 0 else { return 0 }
+        let value = NSDecimalNumber(decimal: paid / total).doubleValue
         return min(1, max(0, value))
+    }
+
+    /// The debt's history, oldest first. On the same instant the opening comes first, then
+    /// additions, then payments, so a running balance never dips below zero part-way.
+    public var entries: [DebtEntry] {
+        let all = [DebtEntry.opening(debt)] + additions.map(DebtEntry.addition) + payments.map(DebtEntry.payment)
+        return all.enumerated().sorted { first, second in
+            first.element.date != second.element.date
+                ? first.element.date < second.element.date : first.offset < second.offset
+        }.map(\.element)
+    }
+
+    /// The entries oldest first, each with what was still owed once it was taken.
+    public var history: [DebtHistoryStep] {
+        var balance = Decimal.zero
+        return entries.map { entry in
+            if case .payment = entry { balance -= entry.amount } else { balance += entry.amount }
+            return DebtHistoryStep(entry: entry, balance: max(0, balance))
+        }
     }
 
     public var isOverdue: Bool {
@@ -168,9 +260,10 @@ public struct DebtProgress: Identifiable, Sendable, Equatable {
         return due < Date()
     }
 
-    public init(debt: Debt, payments: [DebtPayment]) {
+    public init(debt: Debt, payments: [DebtPayment], additions: [DebtAddition] = []) {
         self.debt = debt
         self.payments = payments.sorted { $0.date < $1.date }
+        self.additions = additions.sorted { $0.date < $1.date }
     }
 }
 
@@ -210,6 +303,9 @@ public protocol DebtRepository: AnyObject {
     func deleteDebt(id: UUID) async throws
     func saveDebtPayment(_ payment: DebtPayment) async throws
     func deleteDebtPayment(id: UUID) async throws
+    func fetchDebtAdditions() async throws -> [DebtAddition]
+    func saveDebtAddition(_ addition: DebtAddition) async throws
+    func deleteDebtAddition(id: UUID) async throws
 }
 
 @MainActor
@@ -221,7 +317,8 @@ public struct DebtUseCases {
     public func load() async throws -> [DebtProgress] {
         let debts = try await repository.fetchDebts()
         let payments = try await repository.fetchDebtPayments()
-        return Self.progress(debts: debts, payments: payments)
+        let additions = try await repository.fetchDebtAdditions()
+        return Self.progress(debts: debts, payments: payments, additions: additions)
     }
 
     public func save(_ debt: Debt, photo: DebtPhotoChange = .keep) async throws {
@@ -252,13 +349,27 @@ public struct DebtUseCases {
 
     public func deletePayment(id: UUID) async throws { try await repository.deleteDebtPayment(id: id) }
 
+    /// Adds money lent or borrowed to an existing debt. A settled debt reopens by that much.
+    public func add(_ addition: DebtAddition) async throws {
+        guard addition.amount > 0 else { throw DebtError.invalidAdditionAmount }
+        try RecordDraft.validateAmount(addition.amount)
+        var value = addition
+        value.note = addition.note.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard value.note.count <= 2000 else { throw DebtError.noteTooLong }
+        try await repository.saveDebtAddition(value)
+    }
+
+    public func deleteAddition(id: UUID) async throws { try await repository.deleteDebtAddition(id: id) }
+
     // MARK: - Pure calculations
 
     /// Pure, so it needs no actor: callers off the main actor (and tests) can use it directly.
-    public nonisolated static func progress(debts: [Debt], payments: [DebtPayment]) -> [DebtProgress] {
+    public nonisolated static func progress(debts: [Debt], payments: [DebtPayment],
+                                            additions: [DebtAddition] = []) -> [DebtProgress] {
         let byDebt = Dictionary(grouping: payments, by: \.debtID)
+        let addedByDebt = Dictionary(grouping: additions, by: \.debtID)
         return debts
-            .map { DebtProgress(debt: $0, payments: byDebt[$0.id] ?? []) }
+            .map { DebtProgress(debt: $0, payments: byDebt[$0.id] ?? [], additions: addedByDebt[$0.id] ?? []) }
             .sorted { first, second in
                 // Outstanding debts first, then soonest due, then newest.
                 if first.isSettled != second.isSettled { return !first.isSettled }

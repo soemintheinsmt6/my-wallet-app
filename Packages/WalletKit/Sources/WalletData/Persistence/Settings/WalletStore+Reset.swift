@@ -11,6 +11,7 @@ extension WalletStore {
         for occurrence in try context.fetch(FetchDescriptor<ScheduledOccurrenceRecord>()) { context.delete(occurrence) }
         for bill in try context.fetch(FetchDescriptor<BillReminderRecord>()) { context.delete(bill) }
         for payment in try context.fetch(FetchDescriptor<DebtPaymentRecord>()) { context.delete(payment) }
+        for addition in try context.fetch(FetchDescriptor<DebtAdditionRecord>()) { context.delete(addition) }
         for debt in try context.fetch(FetchDescriptor<DebtRecord>()) { context.delete(debt) }
         for contribution in try context.fetch(FetchDescriptor<GoalContributionRecord>()) { context.delete(contribution) }
         for goal in try context.fetch(FetchDescriptor<SavingsGoalRecord>()) { context.delete(goal) }

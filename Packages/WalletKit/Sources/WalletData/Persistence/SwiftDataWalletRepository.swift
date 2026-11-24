@@ -144,6 +144,18 @@ public final class SwiftDataWalletRepository: WalletRepository, AccountRepositor
         notifyChanges()
     }
 
+    public func fetchDebtAdditions() async throws -> [DebtAddition] { try await store.fetchDebtAdditions() }
+
+    public func saveDebtAddition(_ addition: DebtAddition) async throws {
+        try await store.saveDebtAddition(addition)
+        notifyChanges()
+    }
+
+    public func deleteDebtAddition(id: UUID) async throws {
+        try await store.deleteDebtAddition(id: id)
+        notifyChanges()
+    }
+
     public func saveDebtPayment(_ payment: DebtPayment) async throws {
         try await store.saveDebtPayment(payment)
         notifyChanges()

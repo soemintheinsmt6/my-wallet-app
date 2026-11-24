@@ -9,6 +9,7 @@ struct DebtDetailView: View {
     let debtID: UUID
     @State private var editing: Debt?
     @State private var settling: DebtProgress?
+    @State private var adding: DebtProgress?
     @State private var editingRecord: WalletRecord?
     @State private var confirmingDelete = false
     @State private var mutationError: String?
@@ -24,8 +25,8 @@ struct DebtDetailView: View {
                 List {
                     header(progress)
                     photoSection
+                    history(progress)
                     records(progress)
-                    payments(progress)
                     actions(progress)
                 }
                 .listStyle(.plain)
@@ -40,6 +41,7 @@ struct DebtDetailView: View {
         #endif
         .sheet(item: $editing) { DebtEditorView(viewModel: viewModel, debt: $0) }
         .sheet(item: $settling) { DebtSettlementView(viewModel: viewModel, progress: $0) }
+        .sheet(item: $adding) { DebtAdditionView(viewModel: viewModel, progress: $0) }
         .sheet(item: $editingRecord) { RecordEditorView(viewModel: viewModel.records, record: $0) }
         // Deleted from here or from its editor: there is nothing left to show.
         .onChange(of: progress == nil) { _, isGone in if isGone { dismiss() } }
@@ -129,7 +131,7 @@ struct DebtDetailView: View {
                     ProgressView(value: progress.fraction)
                         .tint(progress.tileColor)
                         .accessibilityHidden(true)
-                    Text("\(progress.paid.walletFormatted(currency)) paid of \(progress.debt.amount.walletFormatted(currency))")
+                    Text("\(progress.paid.walletFormatted(currency)) paid of \(progress.total.walletFormatted(currency))")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .monospacedDigit()
@@ -168,34 +170,85 @@ struct DebtDetailView: View {
         }
     }
 
-    /// Each payment, newest first, saying whether it added a record. Swiping one away reopens that
-    /// much of the debt; a record it added is kept, as deleting the debt keeps them.
-    @ViewBuilder private func payments(_ progress: DebtProgress) -> some View {
-        if !progress.payments.isEmpty {
-            let payments = Array(progress.payments.reversed())
-            WalletListSectionHeader("Payments")
-            ForEach(payments) { payment in
-                WalletListValueRow(title: payment.date.formatted(date: .abbreviated, time: .omitted),
-                                   value: payment.amount.walletFormatted(progress.debt.currencyCode)) {
-                    WalletIconTile(symbol: payment.recordID == nil ? "checkmark" : "doc.text.fill",
-                                   color: payment.recordID == nil ? .gray : .blue)
-                }
-                .accessibilityHint(payment.recordID == nil ? "Tracked against the debt only" : "Added a record")
-                .listRowSeparator(payment.id == payments.last?.id ? .hidden : .automatic, edges: .bottom)
+    /// Every step of the debt, newest first: what it started at, each time more was lent or borrowed,
+    /// and each payment, with the balance after it. Money added reads with a plus, payments with a
+    /// minus. Additions and payments swipe away; the opening amount is changed by editing the debt.
+    /// A record a step added is kept when the step is deleted, as deleting the debt keeps them.
+    @ViewBuilder private func history(_ progress: DebtProgress) -> some View {
+        let currency = progress.debt.currencyCode
+        let rows = Array(progress.history.reversed())
+        WalletListSectionHeader("History")
+        ForEach(rows, id: \.entry.id) { row in
+            historyRow(row, progress: progress, currency: currency)
+                .listRowSeparator(row.entry.id == rows.last?.entry.id ? .hidden : .automatic, edges: .bottom)
                 .swipeActions {
-                    Button("Delete", role: .destructive) {
-                        Task {
-                            do { try await viewModel.deletePayment(id: payment.id) }
-                            catch { mutationError = error.localizedDescription }
-                        }
+                    if case .opening = row.entry {} else {
+                        Button("Delete", role: .destructive) { delete(row.entry) }
                     }
                 }
+        }
+    }
+
+    private func historyRow(_ row: DebtHistoryStep, progress: DebtProgress, currency: String) -> some View {
+        let lending = progress.debt.direction == .owedToMe
+        let isPayment: Bool = { if case .payment = row.entry { true } else { false } }()
+        let title: String
+        var detail: String?
+        switch row.entry {
+        case .opening: title = lending ? "Lent" : "Borrowed"
+        case .addition(let addition):
+            title = lending ? "Lent more" : "Borrowed more"
+            detail = addition.note.isEmpty ? nil : addition.note
+        case .payment: title = lending ? "Repaid to you" : "You repaid"
+        }
+        let date = row.entry.date.formatted(date: .abbreviated, time: .omitted)
+        return HStack(spacing: WalletMetrics.medium) {
+            WalletIconTile(symbol: isPayment ? "checkmark" : "plus",
+                           color: isPayment ? .blue : lending ? .green : .orange)
+            VStack(alignment: .leading, spacing: WalletMetrics.hair) {
+                Text(title)
+                Text([date, detail].compactMap { $0 }.joined(separator: " · "))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
             }
+            Spacer(minLength: WalletMetrics.small)
+            VStack(alignment: .trailing, spacing: WalletMetrics.hair) {
+                Text((isPayment ? "−" : "+") + row.entry.amount.walletFormatted(currency))
+                    .monospacedDigit()
+                    .foregroundStyle(isPayment ? Color.primary : lending ? Color.green : Color.red)
+                Text("Owed \(row.balance.walletFormatted(currency))")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
+            }
+            .lineLimit(1)
+        }
+        .frame(minHeight: WalletMetrics.touchTarget)
+        .walletListRowPadding(WalletMetrics.tight)
+        .accessibilityElement(children: .combine)
+        .accessibilityHint(row.entry.recordID == nil ? "Tracked against the debt only" : "Added a record")
+    }
+
+    private func delete(_ entry: DebtEntry) {
+        Task {
+            do {
+                switch entry {
+                case .opening: return
+                case .addition(let addition): try await viewModel.deleteAddition(id: addition.id)
+                case .payment(let payment): try await viewModel.deletePayment(id: payment.id)
+                }
+            } catch { mutationError = error.localizedDescription }
         }
     }
 
     @ViewBuilder private func actions(_ progress: DebtProgress) -> some View {
         WalletListSectionHeader("Manage")
+        Button { adding = progress } label: {
+            Label(progress.debt.direction == .owedToMe ? "Lend More" : "Borrow More", systemImage: "plus.circle")
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
+        }
         Button { editing = progress.debt } label: {
             Label("Edit Debt", systemImage: "square.and.pencil")
                 .frame(maxWidth: .infinity, alignment: .leading)

@@ -105,6 +105,40 @@ struct DebtCalculationTests {
         #expect(throws: DebtError.invalidCurrency) { try value.validate() }
     }
 
+    /// Lending more grows what is owed without touching the first amount, and nets per person.
+    @Test func additionsRaiseTheTotalAndReopenASettledDebt() {
+        let owed = debt("Ana", .owedToMe, 100)
+        let settled = DebtProgress(debt: owed, payments: [DebtPayment(debtID: owed.id, amount: 100)])
+        #expect(settled.isSettled)
+
+        let reopened = DebtProgress(debt: owed, payments: settled.payments,
+                                    additions: [DebtAddition(debtID: owed.id, amount: 50)])
+        #expect(reopened.total == 150)
+        #expect(reopened.outstanding == 50)
+        #expect(!reopened.isSettled)
+        #expect(abs(reopened.fraction - 2.0 / 3.0) < 0.0001)
+
+        let balances = DebtUseCases.balances(DebtUseCases.progress(
+            debts: [owed], payments: [], additions: [DebtAddition(debtID: owed.id, amount: 25)]))
+        #expect(balances.first?.net == 125)
+    }
+
+    @Test func historyListsEveryStepInOrderWithARunningBalance() {
+        let start = now
+        let owed = Debt(person: "Ana", direction: .owedToMe, amount: 100, createdAt: start)
+        let progress = DebtProgress(
+            debt: owed,
+            payments: [DebtPayment(debtID: owed.id, amount: 30, date: start.addingTimeInterval(200))],
+            additions: [DebtAddition(debtID: owed.id, amount: 50, date: start.addingTimeInterval(100))])
+
+        let rows = progress.history
+        #expect(rows.map(\.balance) == [100, 150, 120])
+        guard case .opening = rows[0].entry, case .addition = rows[1].entry, case .payment = rows[2].entry else {
+            Issue.record("Entries out of order")
+            return
+        }
+    }
+
     /// Settling a debt someone owes brings money in; one the user owes sends it out.
     @Test func settlementDirectionMatchesWhoOwesWhom() {
         #expect(DebtDirection.owedToMe.settlementKind == .income)
@@ -317,13 +351,39 @@ struct DebtGoalStorageTests {
         }
     }
 
+    @Test func additionsRoundTripAndGoWithTheirDebt() async throws {
+        let repository = try await repository()
+        let useCases = DebtUseCases(repository: repository)
+        let debt = Debt(person: "Ana", direction: .owedToMe, amount: 100)
+        try await useCases.save(debt)
+        try await useCases.add(DebtAddition(debtID: debt.id, amount: 40, note: "  Rent  "))
+
+        let loaded = try #require(try await useCases.load().first)
+        #expect(loaded.total == 140)
+        #expect(loaded.debt.amount == 100)
+        #expect(loaded.additions.first?.note == "Rent")
+
+        await #expect(throws: DebtError.invalidAdditionAmount) {
+            try await useCases.add(DebtAddition(debtID: debt.id, amount: 0))
+        }
+        try await useCases.deleteAddition(id: try #require(loaded.additions.first).id)
+        #expect(try await useCases.load().first?.total == 100)
+
+        try await useCases.add(DebtAddition(debtID: debt.id, amount: 10))
+        try await useCases.delete(id: debt.id)
+        #expect(try await repository.fetchDebtAdditions().isEmpty)
+    }
+
     @Test func resettingTheWalletRemovesDebtsAndGoals() async throws {
         let repository = try await repository()
-        try await DebtUseCases(repository: repository).save(Debt(person: "Ana", direction: .iOwe, amount: 10))
+        let debt = Debt(person: "Ana", direction: .iOwe, amount: 10)
+        try await DebtUseCases(repository: repository).save(debt)
+        try await DebtUseCases(repository: repository).add(DebtAddition(debtID: debt.id, amount: 5))
         try await GoalUseCases(repository: repository).save(SavingsGoal(name: "Laptop", targetAmount: 10))
 
         try await ResetWalletUseCase(repository: repository).execute()
 
+        #expect(try await repository.fetchDebtAdditions().isEmpty)
         #expect(try await repository.fetchDebts().isEmpty)
         #expect(try await repository.fetchGoals().isEmpty)
     }
@@ -412,6 +472,45 @@ struct DebtMoneyMovedTests {
         #expect(DebtsViewModel.loanTitles([
             DebtProgress(debt: Debt(person: "Cy", direction: .iOwe, amount: 5, openingRecordID: opening), payments: []),
         ])[opening] == "Borrowed from Cy")
+    }
+
+    /// Lending more on a loan moves that money out too, so being repaid all of it returns the
+    /// balance to where it started, and nothing counts as income or spending.
+    @Test func lendingMoreOnALoanRecordsItAndFullRepaymentRestoresTheBalance() async throws {
+        let (repository, viewModel, records, account) = try await setup()
+        try await viewModel.save(Debt(person: "Ana", direction: .owedToMe, amount: 300), moneyMovedThrough: account)
+        try await viewModel.add(to: try #require(viewModel.debts.first), amount: 200, account: account)
+
+        #expect(try await balance(repository) == 500)
+        let progress = try #require(viewModel.debts.first)
+        #expect(progress.outstanding == 500)
+        let added = try #require(progress.additions.first?.recordID)
+        #expect(records.loanTitles[added] == "Lent to Ana")
+        #expect(viewModel.records(for: progress).map(\.id).last == added)
+
+        try await viewModel.pay(progress, amount: 500, account: account, categoryID: nil)
+        #expect(try await balance(repository) == 1000)
+        #expect(records.records.allSatisfy { $0.draft.isAdjustment && !$0.draft.countsAsActivity })
+    }
+
+    @Test func addingToADebtWithoutMovedMoneyWritesNoRecord() async throws {
+        let (repository, viewModel, records, _) = try await setup()
+        try await viewModel.save(Debt(person: "Cy", direction: .iOwe, amount: 50))
+        try await viewModel.add(to: try #require(viewModel.debts.first), amount: 20, account: nil)
+
+        #expect(viewModel.debts.first?.outstanding == 70)
+        #expect(records.records.isEmpty)
+        #expect(try await balance(repository) == 1000)
+    }
+
+    @Test func aRefusedAdditionLeavesNoAdjustmentBehind() async throws {
+        let (repository, viewModel, records, account) = try await setup()
+        try await viewModel.save(Debt(person: "Ana", direction: .owedToMe, amount: 100), moneyMovedThrough: account)
+        await #expect(throws: DebtError.invalidAdditionAmount) {
+            try await viewModel.add(to: try #require(viewModel.debts.first), amount: 0, account: account)
+        }
+        #expect(records.records.count == 1)
+        #expect(try await balance(repository) == 900)
     }
 
     @Test func aDebtThatFailsToSaveLeavesNoAdjustmentBehind() async throws {
