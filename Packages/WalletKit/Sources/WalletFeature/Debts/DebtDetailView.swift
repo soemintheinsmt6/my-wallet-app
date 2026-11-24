@@ -12,6 +12,8 @@ struct DebtDetailView: View {
     @State private var editingRecord: WalletRecord?
     @State private var confirmingDelete = false
     @State private var mutationError: String?
+    @State private var photo: Data?
+    @State private var viewingPhoto = false
     @Environment(\.dismiss) private var dismiss
 
     private var progress: DebtProgress? { viewModel.debts.first { $0.debt.id == debtID } }
@@ -21,6 +23,7 @@ struct DebtDetailView: View {
             if let progress {
                 List {
                     header(progress)
+                    photoSection
                     records(progress)
                     payments(progress)
                     actions(progress)
@@ -53,8 +56,55 @@ struct DebtDetailView: View {
                                                              set: { if !$0 { mutationError = nil } })) {
             Button("OK", role: .cancel) { mutationError = nil }
         } message: { Text(mutationError ?? "") }
+        .sheet(isPresented: $viewingPhoto) {
+            if let photo, let debt = progress?.debt {
+                RecordPhotoViewer(data: photo) {
+                    Task {
+                        do { try await viewModel.removePhoto(from: debt) }
+                        catch { mutationError = error.localizedDescription }
+                    }
+                }
+            }
+        }
+        // Reloads when the debt changes, and when the editor closes: replacing one photo with another
+        // leaves the debt itself unchanged.
+        .task(id: photoVersion) { await loadPhoto() }
+        .onChange(of: editing == nil) { _, closed in if closed { Task { await loadPhoto() } } }
         .refreshable { await viewModel.refresh() }
         .disabled(viewModel.isSaving)
+    }
+
+    /// Changes whenever the saved debt does, so an edit that replaced the photo reloads it.
+    private var photoVersion: Debt? { progress?.debt }
+
+    private func loadPhoto() async {
+        guard let debt = progress?.debt, debt.hasPhoto else {
+            photo = nil
+            return
+        }
+        do {
+            let data = try await viewModel.photo(id: debt.id)
+            try Task.checkCancellation()
+            photo = data
+        } catch is CancellationError {
+        } catch { mutationError = error.localizedDescription }
+    }
+
+    /// The attached photo, fitted to the screen's width; tapping it opens it full size, where it
+    /// can be deleted.
+    @ViewBuilder private var photoSection: some View {
+        if let photo {
+            WalletListSectionHeader("Photo")
+            Button { viewingPhoto = true } label: {
+                RecordPhotoView(data: photo, maxHeight: 200)
+                    .frame(maxWidth: .infinity)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityHint("Show photo")
+            .listRowSeparator(.hidden)
+        }
     }
 
     /// The debt's tile, who owes whom, what is still outstanding and where it stands, then Settle.

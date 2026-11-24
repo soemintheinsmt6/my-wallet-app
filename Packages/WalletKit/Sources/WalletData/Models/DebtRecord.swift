@@ -9,6 +9,10 @@ import WalletDomain
 final class DebtRecord {
     var id: UUID = UUID()
     var payload: Data?
+    /// The photo lives in its own columns, as a record's does, so listing debts never reads it.
+    /// Defaulted, so adding them is a lightweight, CloudKit-compatible migration.
+    var hasPhoto: Bool = false
+    @Attribute(.externalStorage) var photoData: Data?
 
     init(debt: Debt) {
         id = debt.id
@@ -16,8 +20,15 @@ final class DebtRecord {
     }
 
     var debt: Debt? {
-        guard let payload else { return nil }
-        return try? JSONDecoder().decode(Debt.self, from: payload)
+        guard let payload, var debt = try? JSONDecoder().decode(Debt.self, from: payload) else { return nil }
+        debt.hasPhoto = hasPhoto
+        return debt
+    }
+
+    func apply(photo change: DebtPhotoChange) {
+        guard case .replace(let data) = change else { return }
+        photoData = data
+        hasPhoto = data != nil
     }
 }
 

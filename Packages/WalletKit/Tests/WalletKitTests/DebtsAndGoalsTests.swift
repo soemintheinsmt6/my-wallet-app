@@ -222,6 +222,47 @@ struct DebtGoalStorageTests {
         #expect(loaded[0].outstanding == 150)
     }
 
+    @Test func aDebtPhotoIsStoredApartAndSurvivesEditsThatLeaveIt() async throws {
+        let repository = try await repository()
+        let useCases = DebtUseCases(repository: repository)
+        let photo = Data([0xFF, 0xD8, 0xFF, 0x01])
+        let debt = Debt(person: "Ana", direction: .owedToMe, amount: 100)
+        try await useCases.save(debt, photo: .replace(photo))
+
+        var loaded = try #require(try await useCases.load().first).debt
+        #expect(loaded.hasPhoto)
+        #expect(try await useCases.photo(id: debt.id) == photo)
+
+        loaded.note = "Lunch"
+        try await useCases.save(loaded)
+        #expect(try await useCases.load().first?.debt.note == "Lunch")
+        #expect(try await useCases.photo(id: debt.id) == photo)
+
+        try await useCases.save(loaded, photo: .replace(nil))
+        #expect(try await useCases.load().first?.debt.hasPhoto == false)
+        #expect(try await useCases.photo(id: debt.id) == nil)
+    }
+
+    @Test func anOversizedDebtPhotoIsRefusedAndNothingIsSaved() async throws {
+        let repository = try await repository()
+        let useCases = DebtUseCases(repository: repository)
+        let debt = Debt(person: "Ana", direction: .owedToMe, amount: 100)
+
+        await #expect(throws: RecordValidationError.photoTooLarge) {
+            try await useCases.save(debt, photo: .replace(Data(count: 5 * 1024 * 1024 + 1)))
+        }
+        #expect(try await useCases.load().isEmpty)
+    }
+
+    /// Debts saved before photos existed decode with none, and the flag never leaks into the payload.
+    @Test func debtsDecodeWithoutAPhotoFlag() throws {
+        var debt = Debt(person: "Ana", amount: 10)
+        debt.hasPhoto = true
+        let data = try JSONEncoder().encode(debt)
+        #expect(String(bytes: data, encoding: .utf8)?.contains("hasPhoto") == false)
+        #expect(try JSONDecoder().decode(Debt.self, from: data).hasPhoto == false)
+    }
+
     @Test func aPaymentBeyondTheOutstandingBalanceIsRefused() async throws {
         let repository = try await repository()
         let useCases = DebtUseCases(repository: repository)

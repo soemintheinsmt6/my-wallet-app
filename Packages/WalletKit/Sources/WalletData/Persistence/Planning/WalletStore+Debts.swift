@@ -17,15 +17,30 @@ extension WalletStore {
         return try context.fetch(FetchDescriptor<DebtPaymentRecord>()).compactMap(\.payment)
     }
 
-    func saveDebt(_ debt: Debt) throws {
+    func debtPhoto(id: UUID) throws -> Data? {
+        try Task.checkCancellation()
+        let context = ModelContext(modelContainer)
+        return try context.fetch(FetchDescriptor<DebtRecord>(predicate: #Predicate { $0.id == id })).first?.photoData
+    }
+
+    /// Updates the debt in place, so a photo kept by `.keep` survives the edit. Any duplicate rows
+    /// (from a sync conflict, say) are removed.
+    func saveDebt(_ debt: Debt, photo: DebtPhotoChange) throws {
         try Task.checkCancellation()
         let context = ModelContext(modelContainer)
         context.autosaveEnabled = false
         let id = debt.id
-        for existing in try context.fetch(FetchDescriptor<DebtRecord>(predicate: #Predicate { $0.id == id })) {
-            context.delete(existing)
+        let existing = try context.fetch(FetchDescriptor<DebtRecord>(predicate: #Predicate { $0.id == id }))
+        let record: DebtRecord
+        if let first = existing.first {
+            record = first
+            record.payload = try JSONEncoder().encode(debt)
+            for duplicate in existing.dropFirst() { context.delete(duplicate) }
+        } else {
+            record = DebtRecord(debt: debt)
+            context.insert(record)
         }
-        context.insert(DebtRecord(debt: debt))
+        record.apply(photo: photo)
         try context.save()
     }
 

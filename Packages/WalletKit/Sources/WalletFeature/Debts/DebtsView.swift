@@ -1,3 +1,4 @@
+import PhotosUI
 import SwiftUI
 import WalletDomain
 
@@ -149,6 +150,17 @@ struct DebtEditorView: View {
     @State private var didLoad = false
     @State private var movesMoney = false
     @State private var moneyAccountID: UUID?
+    /// The photo as it will be saved. Only written when `photoChanged`, so an edit that leaves the
+    /// photo alone never has to wait for it to load.
+    @State private var photoData: Data?
+    @State private var photoChanged = false
+    @State private var isLoadingPhoto = false
+    @State private var isLoadingOriginalPhoto = false
+    @State private var photoItem: PhotosPickerItem?
+    @State private var choosingPhotoSource = false
+    @State private var pickingPhotoFromLibrary = false
+    @State private var capturingPhoto = false
+    @State private var viewingPhoto = false
     @FocusState private var focusedField: Field?
     @Environment(\.dismiss) private var dismiss
 
@@ -189,11 +201,13 @@ struct DebtEditorView: View {
                     moneySection
                     dueDateSection
                     WalletEditorSectionHeader(title: "More Details") { focusedField = nil }
-                    RecordFormRow(symbol: "square.and.pencil", showsDivider: false) {
+                    RecordFormRow(symbol: "square.and.pencil") {
                         WalletEditorNavigationButton(title: "Note", value: debt.note.isEmpty ? nil : debt.note) {
                             open(.note)
                         }
                     }
+                    photoRow
+                    if isLoadingPhoto { ProgressView("Preparing photo…").padding(.vertical, 8) }
                     if let errorMessage { Text(errorMessage).foregroundStyle(.red).padding(20) }
                     if !isNew {
                         WalletEditorDeleteButton(title: "Delete Debt") {
@@ -239,7 +253,8 @@ struct DebtEditorView: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") { save() }.disabled(viewModel.isSaving)
+                    // Not while a picked photo is still being prepared, or it would be left out.
+                    Button("Save") { save() }.disabled(viewModel.isSaving || isLoadingPhoto)
                 }
             }
             .task {
@@ -254,6 +269,9 @@ struct DebtEditorView: View {
                     focusedField = .amount
                 }
             }
+            // Its own task, so a load cut short by pushing a screen is retried on coming back.
+            .task { await loadOriginalPhoto() }
+            .task(id: photoItem) { await loadPickedPhoto() }
             .interactiveDismissDisabled(viewModel.isSaving)
         }
         #if os(macOS)
@@ -354,6 +372,84 @@ struct DebtEditorView: View {
         }
     }
 
+    /// One photo per debt, as a record has: a receipt, a signed IOU, a transfer screenshot. An empty
+    /// row asks where it should come from; a filled one opens it, which is where it can be deleted.
+    private var photoRow: some View {
+        RecordFormRow(symbol: "photo", showsDivider: false) {
+            WalletEditorNavigationButton(title: "Photo", value: photoData == nil ? "None" : "1") {
+                focusedField = nil
+                if photoData == nil { choosingPhotoSource = true } else { viewingPhoto = true }
+            }
+            .disabled(isLoadingPhoto || isLoadingOriginalPhoto)
+        }
+        .confirmationDialog("Add Photo", isPresented: $choosingPhotoSource, titleVisibility: .visible) {
+            if RecordCameraAvailability.isAvailable {
+                Button("Take Photo") { capturingPhoto = true }
+            }
+            Button("Choose from Library") { pickingPhotoFromLibrary = true }
+            Button("Cancel", role: .cancel) {}
+        }
+        .photosPicker(isPresented: $pickingPhotoFromLibrary, selection: $photoItem, matching: .images)
+        .sheet(isPresented: $viewingPhoto) {
+            if let photoData {
+                RecordPhotoViewer(data: photoData) {
+                    self.photoData = nil
+                    photoChanged = true
+                    photoItem = nil
+                }
+            }
+        }
+        #if os(iOS)
+            .fullScreenCover(isPresented: $capturingPhoto) {
+                RecordCameraPicker(
+                    onCapture: { data in Task { await applyPhoto(data) } },
+                    onError: { errorMessage = $0 })
+                    .ignoresSafeArea()
+            }
+        #endif
+    }
+
+    /// Reads an existing debt's photo so the row can show and open it.
+    private func loadOriginalPhoto() async {
+        guard debt.hasPhoto, photoData == nil, !photoChanged else { return }
+        isLoadingOriginalPhoto = true
+        defer { isLoadingOriginalPhoto = false }
+        do {
+            let data = try await viewModel.photo(id: debt.id)
+            try Task.checkCancellation()
+            if !photoChanged { photoData = data }
+        } catch is CancellationError {
+        } catch { errorMessage = error.localizedDescription }
+    }
+
+    private func loadPickedPhoto() async {
+        guard let item = photoItem else {
+            isLoadingPhoto = false
+            return
+        }
+        isLoadingPhoto = true
+        defer { if item == photoItem { isLoadingPhoto = false } }
+        do {
+            guard let data = try await item.loadTransferable(type: Data.self) else {
+                throw RecordValidationError.invalidPhoto
+            }
+            try Task.checkCancellation()
+            if item == photoItem { await applyPhoto(data) }
+        } catch is CancellationError {
+        } catch { if item == photoItem { errorMessage = error.localizedDescription } }
+    }
+
+    /// Shrinks a picked or freshly taken photo on the record editor's path, so both are stored alike.
+    private func applyPhoto(_ data: Data) async {
+        isLoadingPhoto = true
+        defer { isLoadingPhoto = false }
+        do {
+            photoData = try await Task.detached { try RecordPhoto.prepare(data) }.value
+            photoChanged = true
+            errorMessage = nil
+        } catch { errorMessage = error.localizedDescription }
+    }
+
     private func open(_ destination: Screen) {
         focusedField = nil
         screen = destination
@@ -391,7 +487,8 @@ struct DebtEditorView: View {
                     errorMessage = "Add a \(debt.currencyCode) account to record the money, or turn off Money moved now."
                     return
                 }
-                try await viewModel.save(value, moneyMovedThrough: movingThrough)
+                try await viewModel.save(value, moneyMovedThrough: movingThrough,
+                                         photo: photoChanged ? .replace(photoData) : .keep)
                 dismiss()
             } catch { errorMessage = error.localizedDescription }
         }

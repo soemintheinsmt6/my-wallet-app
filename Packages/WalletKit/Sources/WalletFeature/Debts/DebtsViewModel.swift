@@ -85,7 +85,8 @@ public final class DebtsViewModel: ObservableObject {
     /// The debt is checked before the adjustment is written, and the adjustment is removed again if
     /// the debt then fails to save, so neither is left without the other. A debt whose adjustment
     /// already exists keeps it in step with its person, direction and amount.
-    public func save(_ debt: Debt, moneyMovedThrough account: Account? = nil) async throws {
+    public func save(_ debt: Debt, moneyMovedThrough account: Account? = nil,
+                     photo: DebtPhotoChange = .keep) async throws {
         try await mutate {
             var value = debt
             var writtenID: UUID?
@@ -101,7 +102,7 @@ public final class DebtsViewModel: ObservableObject {
                 value.openingRecordID = id
             }
             do {
-                try await debtUseCases.save(value)
+                try await debtUseCases.save(value, photo: photo)
             } catch {
                 if let writtenID { try? await recordUseCases.delete(id: writtenID) }
                 throw error
@@ -132,6 +133,14 @@ public final class DebtsViewModel: ObservableObject {
         // a photo attached to this record is read back first rather than erased.
         if record.hasPhoto { draft.photoData = try await recordUseCases.photo(id: id) }
         _ = try await recordUseCases.update(id: id, draft: draft)
+    }
+
+    /// The photo attached to a debt; the debt list carries only whether there is one.
+    func photo(id: UUID) async throws -> Data? { try await debtUseCases.photo(id: id) }
+
+    /// Removes a debt's photo without touching anything else about it.
+    func removePhoto(from debt: Debt) async throws {
+        try await mutate { try await debtUseCases.save(debt, photo: .replace(nil)) }
     }
 
     public func deleteDebt(id: UUID) async throws {

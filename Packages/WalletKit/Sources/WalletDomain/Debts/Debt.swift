@@ -51,14 +51,23 @@ public struct Debt: Identifiable, Codable, Sendable, Equatable {
     ///
     /// Optional in the stored JSON, so debts saved before it existed decode with none.
     public var openingRecordID: UUID?
+    /// Whether a photo is attached. The bytes are stored beside the debt rather than in it, so
+    /// loading the debt list never reads them; fetch them with `DebtUseCases.photo(id:)`.
+    /// Not encoded: the store sets it from its own column.
+    public var hasPhoto: Bool
 
     /// Whether the money was recorded moving when the debt was made.
     public var movedMoney: Bool { openingRecordID != nil }
 
+    private enum CodingKeys: String, CodingKey {
+        case id, person, direction, amount, currencyCode, dueDate, note, createdAt, notificationsEnabled,
+             openingRecordID
+    }
+
     public init(id: UUID = UUID(), person: String = "", direction: DebtDirection = .owedToMe,
                 amount: Decimal = 0, currencyCode: String = "USD", dueDate: Date? = nil,
                 note: String = "", createdAt: Date = Date(), notificationsEnabled: Bool = false,
-                openingRecordID: UUID? = nil) {
+                openingRecordID: UUID? = nil, hasPhoto: Bool = false) {
         self.id = id
         self.person = person
         self.direction = direction
@@ -69,6 +78,22 @@ public struct Debt: Identifiable, Codable, Sendable, Equatable {
         self.createdAt = createdAt
         self.notificationsEnabled = notificationsEnabled
         self.openingRecordID = openingRecordID
+        self.hasPhoto = hasPhoto
+    }
+
+    public init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        person = try container.decode(String.self, forKey: .person)
+        direction = try container.decode(DebtDirection.self, forKey: .direction)
+        amount = try container.decode(Decimal.self, forKey: .amount)
+        currencyCode = try container.decode(String.self, forKey: .currencyCode)
+        dueDate = try container.decodeIfPresent(Date.self, forKey: .dueDate)
+        note = try container.decode(String.self, forKey: .note)
+        createdAt = try container.decode(Date.self, forKey: .createdAt)
+        notificationsEnabled = try container.decode(Bool.self, forKey: .notificationsEnabled)
+        openingRecordID = try container.decodeIfPresent(UUID.self, forKey: .openingRecordID)
+        hasPhoto = false
     }
 
     public func validate() throws {
@@ -168,11 +193,20 @@ public struct PersonBalance: Identifiable, Sendable, Equatable {
     }
 }
 
+/// What saving a debt does to its photo: an edit that never touched the photo leaves it alone, so the
+/// editor need not load it just to write it back.
+public enum DebtPhotoChange: Sendable, Equatable {
+    case keep
+    /// Attaches this photo, or with `nil` removes the one attached.
+    case replace(Data?)
+}
+
 @MainActor
 public protocol DebtRepository: AnyObject {
     func fetchDebts() async throws -> [Debt]
     func fetchDebtPayments() async throws -> [DebtPayment]
-    func saveDebt(_ debt: Debt) async throws
+    func debtPhoto(id: UUID) async throws -> Data?
+    func saveDebt(_ debt: Debt, photo: DebtPhotoChange) async throws
     func deleteDebt(id: UUID) async throws
     func saveDebtPayment(_ payment: DebtPayment) async throws
     func deleteDebtPayment(id: UUID) async throws
@@ -190,13 +224,19 @@ public struct DebtUseCases {
         return Self.progress(debts: debts, payments: payments)
     }
 
-    public func save(_ debt: Debt) async throws {
+    public func save(_ debt: Debt, photo: DebtPhotoChange = .keep) async throws {
         var value = debt
         value.person = debt.person.trimmingCharacters(in: .whitespacesAndNewlines)
         value.note = debt.note.trimmingCharacters(in: .whitespacesAndNewlines)
         try value.validate()
-        try await repository.saveDebt(value)
+        if case .replace(let data?) = photo, data.count > 5 * 1024 * 1024 {
+            throw RecordValidationError.photoTooLarge
+        }
+        try await repository.saveDebt(value, photo: photo)
     }
+
+    /// The attached photo's bytes, or `nil` when there is none.
+    public func photo(id: UUID) async throws -> Data? { try await repository.debtPhoto(id: id) }
 
     public func delete(id: UUID) async throws { try await repository.deleteDebt(id: id) }
 

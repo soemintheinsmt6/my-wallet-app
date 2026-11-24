@@ -132,8 +132,10 @@ public final class SwiftDataWalletRepository: WalletRepository, AccountRepositor
     public func fetchDebts() async throws -> [Debt] { try await store.fetchDebts() }
     public func fetchDebtPayments() async throws -> [DebtPayment] { try await store.fetchDebtPayments() }
 
-    public func saveDebt(_ debt: Debt) async throws {
-        try await store.saveDebt(debt)
+    public func debtPhoto(id: UUID) async throws -> Data? { try await store.debtPhoto(id: id) }
+
+    public func saveDebt(_ debt: Debt, photo: DebtPhotoChange) async throws {
+        try await store.saveDebt(debt, photo: photo)
         notifyChanges()
     }
 

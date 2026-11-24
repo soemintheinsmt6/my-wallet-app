@@ -888,3 +888,17 @@ Manual checks:
 4. Search "Wall sit" and tap Add “Wall sit”; confirm it is ticked, the search clears and My Exercises is open showing it.
 
 Device follow-up, same day: on device the collapsed groups showed as gray section headers with tall gaps between them, exercises had no tick affordance until ticked, and an open group repeated its own name as its first entry. Groups are now rows with a pink icon tile, a semibold title, the ticked count and a chevron, and no gaps between them. Exercises show an empty or filled tick circle in the icon column, and the body part's own entry reads General. Tests and builds pass as above; the new layout was checked only by build.
+
+## Debt Photo (2026-11-24)
+
+The debt editor gains a Photo row (camera or library, one photo), and the debt's screen shows it. `DebtGoalStorageTests` adds three tests: a photo round trips, survives an edit that leaves it alone (`.keep`) and is removed by `.replace(nil)`; an oversized photo is refused and nothing is saved; and `hasPhoto` never enters the debt's JSON, so existing debts decode with no photo. **441 tests across 66 suites passed**, and unsigned builds passed for the app on iOS Simulator and macOS and for the watch app. SwiftLint reports no new warnings.
+
+**Not verified:** the app was not run, so the row, camera, picker, viewer and the photo on the debt's screen were checked only by build. The new `DebtRecord` columns are defaulted (a lightweight migration) but were not checked against an existing store or through iCloud sync.
+
+Manual checks:
+
+1. Add a debt, tap Photo, choose from the library and save. Open the debt and confirm the photo shows under the header; tap it to view full size.
+2. Edit the debt's note only and save; confirm the photo is still there.
+3. Edit the debt, open Photo, delete it and save; confirm the debt's screen no longer shows it. Attach one again, then delete it from the debt's screen viewer.
+4. On a device, take a photo with the camera from the editor and confirm it attaches.
+5. Launch over an existing store with debts and confirm they load, then confirm a debt photo syncs to another device.
