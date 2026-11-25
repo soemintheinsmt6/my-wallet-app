@@ -958,3 +958,5 @@ Manual checks:
 Same day: Show All is repeated at the bottom trailing edge of History. Unsigned iOS Simulator and macOS builds passed and SwiftLint reports no new warnings; view-only, no new tests, not seen in the app.
 
 Manual check: on a debt with more than 3 steps, tap Show All at the bottom right, scroll to the end, tap Show Less there, and confirm both buttons change together.
+
+Later the same day the header button was removed and the bottom one became `WalletExpandButton`, a tinted capsule with a turning chevron. A temporary `ImageRenderer` test drew it collapsed and expanded under sample rows for a visual check, then was deleted; both states sat trailing-aligned with even padding. Unused support for a trailing header accessory was removed. **449 tests across 66 suites passed**, unsigned iOS Simulator and macOS builds passed, and SwiftLint reports no new warnings. Not seen in the app or in dark mode.

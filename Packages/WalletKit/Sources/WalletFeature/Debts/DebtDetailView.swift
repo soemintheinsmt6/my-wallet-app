@@ -176,16 +176,13 @@ struct DebtDetailView: View {
     /// A record a step added is kept when the step is deleted, as deleting the debt keeps them.
     ///
     /// A long history opens collapsed to its latest few steps, so the records and actions below stay
-    /// in reach; Show All, on the header's trailing edge and again under the last row, expands the
-    /// rest in place, then Show Less.
+    /// in reach; Show All under the last row expands the rest in place, then Show Less.
     @ViewBuilder private func history(_ progress: DebtProgress) -> some View {
         let currency = progress.debt.currencyCode
         let all = Array(progress.history.reversed())
         let collapsible = all.count > Self.collapsedHistoryCount
         let rows = collapsible && !showsAllHistory ? Array(all.prefix(Self.collapsedHistoryCount)) : all
-        WalletListSectionHeader("History") {
-            if collapsible { showAllHistoryButton(count: all.count) }
-        }
+        WalletListSectionHeader("History")
         ForEach(rows, id: \.entry.id) { row in
             historyRow(row, progress: progress, currency: currency)
                 .listRowSeparator(row.entry.id == rows.last?.entry.id ? .hidden : .automatic, edges: .bottom)
@@ -195,24 +192,18 @@ struct DebtDetailView: View {
                     }
                 }
         }
-        // Repeated under the last row, so a long expanded history collapses without scrolling back up.
+        // Under the last row, so a long expanded history collapses without scrolling back up.
         if collapsible {
             HStack {
                 Spacer()
-                showAllHistoryButton(count: all.count)
-                    .font(.subheadline)
+                WalletExpandButton(isExpanded: showsAllHistory, count: all.count) {
+                    withAnimation { showsAllHistory.toggle() }
+                }
+                .accessibilityHint(showsAllHistory ? "Shows only the latest steps" : "Shows every step")
             }
             .frame(minHeight: WalletMetrics.touchTarget)
             .listRowSeparator(.hidden)
         }
-    }
-
-    private func showAllHistoryButton(count: Int) -> some View {
-        Button(showsAllHistory ? "Show Less" : "Show All \(count)") {
-            withAnimation { showsAllHistory.toggle() }
-        }
-        .buttonStyle(.borderless)
-        .accessibilityHint(showsAllHistory ? "Shows only the latest steps" : "Shows every step")
     }
 
     /// How many of the latest steps a collapsed history shows.

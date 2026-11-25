@@ -47,33 +47,45 @@ struct WalletEditorSectionHeader: View {
 /// than as a section header, because a plain list pads above every header: the gap under a group's
 /// last row would then be larger than the gap above its first. Full width and without rules; the
 /// row above it hides its bottom rule, since the band separates the groups.
-///
-/// An optional trailing accessory, such as a Show All button, sits on the band's trailing edge,
-/// level with the title.
-struct WalletListSectionHeader<Trailing: View>: View {
+struct WalletListSectionHeader: View {
     let title: String
-    @ViewBuilder let trailing: Trailing
 
-    init(_ title: String, @ViewBuilder trailing: () -> Trailing) {
-        self.title = title
-        self.trailing = trailing()
-    }
+    init(_ title: String) { self.title = title }
 
     var body: some View {
         WalletEditorSectionHeader(title: title)
-            .overlay(alignment: .bottomTrailing) {
-                trailing
-                    .font(.subheadline)
-                    .padding(.trailing, 20)
-                    .padding(.bottom, 16)
-            }
             .listRowInsets(EdgeInsets())
             .listRowSeparator(.hidden)
     }
 }
 
-extension WalletListSectionHeader where Trailing == EmptyView {
-    init(_ title: String) { self.init(title) { EmptyView() } }
+/// A tinted capsule that expands or collapses a list in place: "Show All 30" with a down chevron,
+/// then "Show Less" with the chevron turned up.
+struct WalletExpandButton: View {
+    let isExpanded: Bool
+    let count: Int
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: WalletMetrics.tight) {
+                Text(isExpanded ? "Show Less" : "Show All \(count)")
+                    .monospacedDigit()
+                    .contentTransition(.numericText())
+                Image(systemName: "chevron.down")
+                    .font(.caption2.weight(.bold))
+                    .rotationEffect(.degrees(isExpanded ? 180 : 0))
+            }
+            .font(.subheadline.weight(.semibold))
+            .foregroundStyle(.tint)
+            .padding(.horizontal, WalletMetrics.medium)
+            .padding(.vertical, 6)
+            .background(.tint.opacity(0.12), in: Capsule())
+            .contentShape(Capsule())
+        }
+        // Plain, so in a list row only the capsule takes the tap.
+        .buttonStyle(.plain)
+    }
 }
 
 /// A rounded progress track filled to `value` (0 to 1) in `tint`. Thicker and softer than the system
