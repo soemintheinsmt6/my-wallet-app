@@ -33,6 +33,8 @@ struct DebtDetailView: View {
                     actions(progress)
                 }
                 .listStyle(.plain)
+                // The bar fills and the paid amount rolls up as the screen opens.
+                .walletChartsReveal(when: true)
             } else {
                 WalletEmptyState(title: "Debt unavailable", symbol: "person.2.slash",
                                  message: "It may have been deleted on another device.")
@@ -121,10 +123,14 @@ struct DebtDetailView: View {
                 Text(progress.debt.direction.title)
                     .font(.subheadline.weight(.medium))
                     .foregroundStyle(.secondary)
+                // Rolls when a payment or loan changes it; never shown at zero on the reveal, which
+                // would read as settled.
                 Text(progress.outstanding.walletFormatted(currency))
                     .font(.title2.weight(.semibold))
                     .monospacedDigit()
                     .foregroundStyle(progress.isSettled ? Color.secondary : Color.primary)
+                    .contentTransition(.numericText(value: progress.outstanding.doubleValue))
+                    .animation(.easeOut(duration: 0.3), value: progress.outstanding)
                 Text(progress.statusText)
                     .font(.subheadline)
                     .foregroundStyle(progress.isOverdue ? Color.red : Color.secondary)
@@ -132,10 +138,7 @@ struct DebtDetailView: View {
             if progress.paid > 0, !progress.isSettled {
                 VStack(spacing: WalletMetrics.tight) {
                     WalletProgressBar(value: progress.fraction, tint: progress.tileColor, height: 8)
-                    Text("\(progress.paid.walletFormatted(currency)) paid of \(progress.total.walletFormatted(currency))")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .monospacedDigit()
+                    DebtPaidText(progress: progress)
                 }
             }
             if !progress.debt.note.isEmpty {
@@ -310,5 +313,23 @@ extension DebtProgress {
         }
         let when = due.formatted(date: .abbreviated, time: .omitted)
         return isOverdue ? "Overdue · \(when)" : "Due \(when)"
+    }
+}
+
+/// "Paid of" under the debt screen's bar. Rolls up from zero with the bar on the reveal, and to a
+/// new figure after a payment.
+private struct DebtPaidText: View {
+    let progress: DebtProgress
+    @Environment(\.walletChartsRevealed) private var revealed
+
+    var body: some View {
+        let currency = progress.debt.currencyCode
+        let paid = revealed ? progress.paid : 0
+        Text("\(paid.walletFormatted(currency)) paid of \(progress.total.walletFormatted(currency))")
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .monospacedDigit()
+            .contentTransition(.numericText(value: paid.doubleValue))
+            .animation(.easeOut(duration: 0.3), value: progress.paid)
     }
 }

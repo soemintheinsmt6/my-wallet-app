@@ -10,9 +10,6 @@ public struct GoalsView: View {
     /// The goal whose celebration is showing, so it plays once rather than on every redraw.
     @State private var celebrating: UUID?
     @Environment(\.mainCurrency) private var mainCurrency
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    /// False until there are goals to show, so the rings sweep round and the figures roll up once.
-    @State private var revealed = false
 
     public init(viewModel: DebtsViewModel) { self.viewModel = viewModel }
 
@@ -33,11 +30,9 @@ public struct GoalsView: View {
                     if !progress.contributions.isEmpty { history(progress) }
                 }
             }
-            .environment(\.walletChartsRevealed, revealed)
         }
-        .onAppear(perform: reveal)
-        .onChange(of: viewModel.isLoading) { _, _ in reveal() }
-        .onChange(of: viewModel.goals.isEmpty) { _, _ in reveal() }
+        // The rings sweep round and the figures roll up once there are goals to show.
+        .walletChartsReveal(when: !viewModel.isLoading && !viewModel.goals.isEmpty)
         .overlay {
             if viewModel.goals.isEmpty && !viewModel.isLoading {
                 WalletEmptyState(title: "No savings goals", symbol: "target",
@@ -79,17 +74,6 @@ public struct GoalsView: View {
                 try? await Task.sleep(for: .seconds(2.5))
                 withAnimation { celebrating = nil }
             }
-        }
-    }
-
-    /// Sweeps the rings in once goals are loaded, as Statistics grows its charts; at once with
-    /// Reduce Motion.
-    private func reveal() {
-        guard !revealed, !viewModel.isLoading, !viewModel.goals.isEmpty else { return }
-        if reduceMotion {
-            revealed = true
-        } else {
-            withAnimation(WalletChartGrid.reveal) { revealed = true }
         }
     }
 

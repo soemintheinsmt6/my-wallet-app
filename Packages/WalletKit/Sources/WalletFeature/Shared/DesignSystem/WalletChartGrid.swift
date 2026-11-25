@@ -47,6 +47,38 @@ enum WalletChartGrid {
     }
 }
 
+/// Holds a screen's progress visuals at zero until `ready`, then grows them in once with
+/// `animation` (at once with Reduce Motion), through `walletChartsRevealed`. For screens whose own
+/// body does not need the flag; the Dashboard and Statistics keep their own, which their charts read.
+private struct WalletChartsReveal: ViewModifier {
+    let ready: Bool
+    let animation: Animation
+    @State private var revealed = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    func body(content: Content) -> some View {
+        content
+            .environment(\.walletChartsRevealed, revealed)
+            .onAppear(perform: reveal)
+            .onChange(of: ready) { _, _ in reveal() }
+    }
+
+    private func reveal() {
+        guard !revealed, ready else { return }
+        if reduceMotion {
+            revealed = true
+        } else {
+            withAnimation(animation) { revealed = true }
+        }
+    }
+}
+
+extension View {
+    func walletChartsReveal(when ready: Bool, animation: Animation = WalletChartGrid.reveal) -> some View {
+        modifier(WalletChartsReveal(ready: ready, animation: animation))
+    }
+}
+
 private struct WalletChartsRevealedKey: EnvironmentKey {
     static let defaultValue = true
 }

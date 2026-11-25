@@ -110,14 +110,17 @@ struct WalletProgressBar: View {
     let value: Double
     let tint: Color
     var height: CGFloat = 6
+    /// Empty until the screen reveals its charts, then fills (see `walletChartsRevealed`).
+    @Environment(\.walletChartsRevealed) private var revealed
 
     var body: some View {
         GeometryReader { proxy in
+            let shown = revealed ? min(1, max(0, value)) : 0
             ZStack(alignment: .leading) {
                 Capsule().fill(tint.opacity(0.18))
                 Capsule()
                     .fill(tint.gradient)
-                    .frame(width: max(height, proxy.size.width * min(1, max(0, value))))
+                    .frame(width: max(height, proxy.size.width * shown))
             }
         }
         .frame(height: height)

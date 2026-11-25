@@ -79,6 +79,8 @@ public struct DebtsView: View {
         .refreshable { await viewModel.refresh() }
         .task { await viewModel.refresh() }
         .disabled(viewModel.isSaving)
+        // The bars fill and the shares paid roll up once there are debts to show.
+        .walletChartsReveal(when: !viewModel.isLoading && !viewModel.balances.isEmpty)
     }
 
     /// Nets the person's debts, saying in words which way the balance runs.
@@ -108,8 +110,12 @@ public struct DebtsView: View {
 /// with what is outstanding, the status with the total) and, once something is paid, a bar across
 /// the full width of both ending in the share paid, so it lines up with the figures it measures.
 /// A settled debt shows its zero outstanding, grayed, over "of" its whole amount.
+///
+/// On the reveal the bar fills and the share paid rolls up; the outstanding amount is never shown
+/// at zero, which would read as settled, and rolls only when a payment or loan changes it.
 struct DebtRow: View {
     let progress: DebtProgress
+    @Environment(\.walletChartsRevealed) private var revealed
 
     var body: some View {
         let currency = progress.debt.currencyCode
@@ -130,6 +136,7 @@ struct DebtRow: View {
                             .monospacedDigit()
                             .foregroundStyle(progress.isSettled ? Color.secondary : Color.primary)
                             .lineLimit(1)
+                            .contentTransition(.numericText(value: progress.outstanding.doubleValue))
                     }
                     HStack(alignment: .firstTextBaseline, spacing: WalletMetrics.small) {
                         Text(progress.statusText)
@@ -152,14 +159,18 @@ struct DebtRow: View {
                         // As wide as "100%" whatever the figure, so every row's bar ends at the same point.
                         ZStack(alignment: .trailing) {
                             Text("100%").hidden()
-                            Text(progress.fraction.formatted(.percent.precision(.fractionLength(0)).rounded(rule: .down)))
+                            let shown = revealed ? progress.fraction : 0
+                            Text(shown.formatted(.percent.precision(.fractionLength(0)).rounded(rule: .down)))
                                 .foregroundStyle(tint)
+                                .contentTransition(.numericText(value: shown))
                         }
                         .font(.caption2.weight(.semibold))
                         .monospacedDigit()
                     }
                 }
             }
+            // A payment or loan moves the figures with the bar, which animates on its own.
+            .animation(.easeOut(duration: 0.3), value: progress.outstanding)
             // The navigation link draws the chevron.
         }
         .frame(minHeight: WalletMetrics.touchTarget)

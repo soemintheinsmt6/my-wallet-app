@@ -1066,3 +1066,15 @@ Manual checks:
 3. Add money to a goal and confirm the ring, amount and percentage move to the new figures together.
 4. With no goals, create one and confirm its ring sweeps in.
 5. Turn on Reduce Motion and confirm the rings and figures appear at once.
+
+## Debt Progress Animation (2026-11-25)
+
+Debt progress bars now fill, and the share paid and "paid of" amount roll up, on the Debts list (once debts are loaded) and on a debt's screen (as it opens). Outstanding amounts roll after a payment or loan but are never shown at zero on the reveal. A new `walletChartsReveal(when:)` modifier holds the reveal for screens that only hand it down; Goals now uses it too. **453 tests across 66 suites passed**, unsigned iOS Simulator and macOS builds passed, and SwiftLint reports no new warnings. View-only, no new tests, not seen in the app.
+
+Manual checks:
+
+1. Open Debts with a partly paid debt and confirm its bar fills and its percentage rolls up, while the outstanding amount stays put.
+2. Open the debt and confirm the bar fills and "paid of" rolls up; settled and unpaid debts show no bar.
+3. Record a payment and confirm the outstanding amount, percentage, "paid of" and bar move to the new figures.
+4. Confirm Goals still sweeps its rings as before.
+5. Turn on Reduce Motion and confirm debt bars and figures appear at once.
