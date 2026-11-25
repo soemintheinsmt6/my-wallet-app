@@ -100,6 +100,7 @@ A dedicated tab or section showing spending and income analytics. Reuse `categor
 - [x] Daily/weekly/monthly spending trend — bar or line chart
 - [x] Account balance history over time
 - [x] Top spending categories ranking
+- [x] Nature of spending — how much was a must, a need or a want: an All/Must/Need/Want picker, the total for the choice, a chart of spending over the period stacked by nature in the badge colors, and the categories behind it ranked with meters (five, then Show All). A category set to None takes its parent's nature; spending with no nature at all is left out. Unit-tested and built, not yet verified on device
 - [x] Filter by account, category, tag, date range
 - [x] Respect `excludeFromStats` account setting
 - [x] Swift Charts integration

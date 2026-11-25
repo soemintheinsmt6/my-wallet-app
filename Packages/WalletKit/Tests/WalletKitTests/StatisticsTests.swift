@@ -138,4 +138,42 @@ struct StatisticsTests {
         #expect(empty.net == 0)
         #expect(empty.spendingTrend.map(\.amount) == [0])
     }
+
+    @Test func spendingByNatureStacksDaysAndInheritsAParentsNatureLeavingUnsetSpendingOut() {
+        let account = Account(name: "Cash", type: .cash)
+        let housing = WalletCategory(name: "Housing", nature: .must)
+        let rent = WalletCategory(parentID: housing.id, name: "Rent")
+        let groceries = WalletCategory(name: "Groceries", nature: .need)
+        let fun = WalletCategory(name: "Fun", nature: .want)
+        let misc = WalletCategory(name: "Misc")
+        let records = [record(account, rent, amount: 100), record(account, groceries, amount: 20),
+                       record(account, fun, amount: 5, day: 1), record(account, fun, amount: 7, day: 1),
+                       record(account, misc, amount: 50), record(account, nil, amount: 60),
+                       record(account, fun, amount: 900, kind: .income)]
+        let filter = StatisticsFilter(interval: DateInterval(start: start, duration: 2 * 86400), currencyCode: "USD")
+        let result = WalletStatistics.spendingByNature(records: records, accounts: [account],
+                                                       categories: [housing, rent, groceries, fun, misc],
+                                                       filter: filter, calendar: calendar)
+        #expect(result.trend.map(\.nature) == [.must, .need, .want])
+        #expect(result.trend.map(\.amount) == [100, 20, 12])
+        #expect(result.trend(.want).map(\.date) == [start.addingTimeInterval(86400)])
+        #expect(result.total(nil) == 132)
+        #expect(result.total(.must) == 100)
+        #expect(result.categories(.must).map(\.categoryID) == [rent.id])
+        #expect(result.categories(nil).map(\.categoryID) == [rent.id, groceries.id, fun.id])
+    }
+
+    @Test func spendingByNatureRespectsTheCategoryFilter() {
+        let account = Account(name: "Cash", type: .cash)
+        let food = WalletCategory(name: "Food", nature: .need)
+        let fun = WalletCategory(name: "Fun", nature: .want)
+        let filter = StatisticsFilter(interval: DateInterval(start: start, duration: 86400), currencyCode: "USD",
+                                      categoryID: food.id)
+        let records = [record(account, food, amount: 8), record(account, fun, amount: 3)]
+        let result = WalletStatistics.spendingByNature(records: records,
+                                                       accounts: [account], categories: [food, fun],
+                                                       filter: filter, calendar: calendar)
+        #expect(result.total(nil) == 8)
+        #expect(result.total(.want) == 0)
+    }
 }

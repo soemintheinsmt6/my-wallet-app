@@ -147,16 +147,7 @@ public struct WalletStatistics: Sendable {
         }
         let accountIDs = Set(included.map(\.id))
         let categoryIDs = Set(categories.map(\.id))
-        let selectedCategories = Set(categories.filter {
-            $0.id == filter.categoryID || $0.parentID == filter.categoryID
-        }.map(\.id))
-        let activity = records.filter {
-            let draft = $0.draft
-            return draft.countsAsActivity && draft.accountID.map { accountIDs.contains($0) } == true &&
-                draft.date >= filter.interval.start && draft.date < filter.interval.end &&
-                (filter.categoryID == nil || draft.categoryID.map { selectedCategories.contains($0) } == true) &&
-                (filter.tagID == nil || draft.tagIDs.contains(filter.tagID!))
-        }
+        let activity = activity(records: records, accountIDs: accountIDs, categories: categories, filter: filter)
         func breakdown(_ kind: RecordKind) -> [CategoryTotal] {
             var values: [String: Decimal] = [:]
             for record in activity where record.draft.kind == kind {
@@ -190,17 +181,8 @@ public struct WalletStatistics: Sendable {
             }
         }
         advanceBalance(to: filter.interval.start)
-        /// Consecutive steps of `component` across the filter's window, clipped to its ends.
         func steps(_ component: Calendar.Component) -> [DateInterval] {
-            var result: [DateInterval] = []
-            var date = filter.interval.start
-            while date < filter.interval.end {
-                guard let next = calendar.dateInterval(of: component, for: date)?.end, next > date else { break }
-                let end = min(next, filter.interval.end)
-                result.append(DateInterval(start: date, end: end))
-                date = end
-            }
-            return result
+            Self.steps(across: filter.interval, by: component, calendar: calendar)
         }
         let trend = steps(filter.granularity.component).map { step in
             StatisticsPoint(date: step.start, amount: activity
@@ -217,6 +199,132 @@ public struct WalletStatistics: Sendable {
                                 incomeByCategory: incomeCategories, expensesByCategory: expenseCategories,
                                 spendingTrend: trend, balanceHistory: history)
     }
+
+    /// Records in the filter's window, accounts, category (with its children) and label that count
+    /// as income or spending.
+    static func activity(records: [WalletRecord], accountIDs: Set<UUID>, categories: [WalletCategory],
+                         filter: StatisticsFilter) -> [WalletRecord] {
+        let selectedCategories = Set(categories.filter {
+            $0.id == filter.categoryID || $0.parentID == filter.categoryID
+        }.map(\.id))
+        return records.filter {
+            let draft = $0.draft
+            return draft.countsAsActivity && draft.accountID.map { accountIDs.contains($0) } == true &&
+                draft.date >= filter.interval.start && draft.date < filter.interval.end &&
+                (filter.categoryID == nil || draft.categoryID.map { selectedCategories.contains($0) } == true) &&
+                (filter.tagID == nil || draft.tagIDs.contains(filter.tagID!))
+        }
+    }
+
+    /// Consecutive steps of `component` across `interval`, clipped to its ends.
+    static func steps(across interval: DateInterval, by component: Calendar.Component,
+                      calendar: Calendar) -> [DateInterval] {
+        var result: [DateInterval] = []
+        var date = interval.start
+        while date < interval.end {
+            guard let next = calendar.dateInterval(of: component, for: date)?.end, next > date else { break }
+            let end = min(next, interval.end)
+            result.append(DateInterval(start: date, end: end))
+            date = end
+        }
+        return result
+    }
+
+    /// Expenses under the same filters as `calculate`, split by whether they were a must, a need or
+    /// a want. A category set to None takes its parent's nature; spending still without one
+    /// (uncategorized, or None all the way up) is left out.
+    public static func spendingByNature(records: [WalletRecord], accounts: [Account], categories: [WalletCategory],
+                                        filter: StatisticsFilter, calendar: Calendar = .current) -> NatureSpending {
+        let accountIDs = Set(accounts.filter {
+            !$0.settings.excludeFromStats && $0.currencyCode == filter.currencyCode &&
+                (filter.accountID == nil || $0.id == filter.accountID)
+        }.map(\.id))
+        let byID = Dictionary(categories.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        func nature(of id: UUID?) -> CategoryNature? {
+            guard let category = id.flatMap({ byID[$0] }) else { return nil }
+            if category.nature != .none { return category.nature }
+            guard let parent = category.parentID.flatMap({ byID[$0] }), parent.nature != .none else { return nil }
+            return parent.nature
+        }
+        let tagged: [(record: WalletRecord, nature: CategoryNature)] =
+            activity(records: records, accountIDs: accountIDs, categories: categories, filter: filter)
+                .compactMap { record in
+                    guard record.draft.kind == .expense, let nature = nature(of: record.draft.categoryID) else { return nil }
+                    return (record, nature)
+                }
+
+        var trend: [NatureSpendingPoint] = []
+        let sorted = tagged.sorted { $0.record.draft.date < $1.record.draft.date }
+        var cursor = 0
+        for step in steps(across: filter.interval, by: filter.granularity.component, calendar: calendar) {
+            var sums: [CategoryNature: Decimal] = [:]
+            while cursor < sorted.count && sorted[cursor].record.draft.date < step.end {
+                sums[sorted[cursor].nature, default: 0] += sorted[cursor].record.draft.amount
+                cursor += 1
+            }
+            for nature in NatureSpending.natures {
+                if let amount = sums[nature], amount != 0 {
+                    trend.append(NatureSpendingPoint(date: step.start, nature: nature, amount: amount))
+                }
+            }
+        }
+
+        var categoryTotals: [CategoryNature: [UUID: Decimal]] = [:]
+        for (record, nature) in tagged {
+            categoryTotals[nature, default: [:]][record.draft.categoryID!, default: 0] += record.draft.amount
+        }
+        let byCategory = categoryTotals.mapValues { totals in
+            totals.map { CategoryTotal(categoryID: $0.key, amount: $0.value) }
+        }
+        return NatureSpending(trend: trend, byCategory: byCategory)
+    }
+}
+
+/// One nature's spending in one step of the period.
+public struct NatureSpendingPoint: Identifiable, Sendable, Equatable {
+    public let date: Date
+    public let nature: CategoryNature
+    public let amount: Decimal
+    public var id: String { "\(date.timeIntervalSinceReferenceDate)-\(nature.rawValue)" }
+
+    public init(date: Date, nature: CategoryNature, amount: Decimal) {
+        self.date = date
+        self.nature = nature
+        self.amount = amount
+    }
+}
+
+/// Spending split into musts, needs and wants: over time, and by category within each.
+public struct NatureSpending: Sendable {
+    /// The natures spending is split into, in the order they stack and are listed.
+    public static let natures: [CategoryNature] = [.must, .need, .want]
+
+    /// Non-zero amounts only, in date order then nature order.
+    public let trend: [NatureSpendingPoint]
+    private let byCategory: [CategoryNature: [CategoryTotal]]
+
+    public init(trend: [NatureSpendingPoint], byCategory: [CategoryNature: [CategoryTotal]]) {
+        self.trend = trend
+        self.byCategory = byCategory
+    }
+
+    /// The trend for one nature, or every nature when `nature` is `nil`.
+    public func trend(_ nature: CategoryNature?) -> [NatureSpendingPoint] {
+        nature.map { nature in trend.filter { $0.nature == nature } } ?? trend
+    }
+
+    /// Spending per category for one nature, or across all of them, largest first.
+    public func categories(_ nature: CategoryNature?) -> [CategoryTotal] {
+        let values = nature.map { byCategory[$0] ?? [] } ?? byCategory.values.flatMap { $0 }
+        return values.sorted { $0.amount == $1.amount ? $0.id < $1.id : $0.amount > $1.amount }
+    }
+
+    public func total(_ nature: CategoryNature?) -> Decimal {
+        categories(nature).reduce(0) { $0 + $1.amount }
+    }
+}
+
+extension WalletStatistics {
 
     /// Expenses grouped by label over the filter's window, largest first, with unlabeled spending
     /// as its own entry so the parts add up to the same total as the category breakdown.

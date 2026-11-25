@@ -18,6 +18,9 @@ public struct StatisticsView: View {
     @State private var tagID: UUID?
     @State private var filtering = false
     @State private var granularity = StatisticsGranularity.day
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// False until the first load lands, so the charts grow in from nothing once, on real data.
+    @State private var revealed = false
 
     private enum Period: String, CaseIterable, Identifiable {
         case week, month, year, custom
@@ -96,26 +99,35 @@ public struct StatisticsView: View {
 
     public var body: some View {
         NavigationStack {
+            // Flat, with the editors' band headings between groups rather than grouped cards, like
+            // the rest of the app; charts get the full width. Groups are told apart by the bands, so
+            // rows draw no rules.
             List {
-                periodSection
-                if !activeFilters.isEmpty { filterSummary }
-                if accounts.isEmpty {
-                    Section {
+                Group {
+                    periodSection
+                    if !activeFilters.isEmpty { filterSummary }
+                    if accounts.isEmpty {
                         WalletEmptyState(title: "Nothing to chart yet", symbol: "chart.pie",
                                          message: "Create an account, or include an existing account in statistics, to see your activity.")
                             .listRowBackground(Color.clear)
+                    } else {
+                        let result = statistics
+                        summarySection(result)
+                        if let planning { BudgetProgressSection(viewModel: planning, bandHeader: true) }
+                        breakdown("Expenses by category", values: result.expensesByCategory, total: result.expenses)
+                        NatureSpendingSection(viewModel: viewModel, spending: natureSpending, interval: interval,
+                                              grouping: grouping, periodTitle: periodTitle, revealed: revealed,
+                                              currencyCode: selectedCurrency,
+                                              numberScale: NumberScale(rawValue: numberScale) ?? .automatic)
+                        breakdown("Income by category", values: result.incomeByCategory, total: result.income)
+                        trendSection(result)
+                        historySection(result)
+                        topCategoriesSection(result)
                     }
-                } else {
-                    let result = statistics
-                    summarySection(result)
-                    if let planning { BudgetProgressSection(viewModel: planning) }
-                    breakdown("Expenses by category", values: result.expensesByCategory, total: result.expenses)
-                    breakdown("Income by category", values: result.incomeByCategory, total: result.income)
-                    trendSection(result)
-                    historySection(result)
-                    topCategoriesSection(result)
                 }
+                .listRowSeparator(.hidden)
             }
+            .listStyle(.plain)
             .navigationTitle("Statistics")
             .toolbar { ToolbarItem { filterButton } }
             .sheet(isPresented: $filtering) {
@@ -128,6 +140,8 @@ public struct StatisticsView: View {
                 }
             }
             .task { await viewModel.observe() }
+            .onAppear(perform: reveal)
+            .onChange(of: viewModel.isLoading) { _, _ in reveal() }
             .onChange(of: scenePhase) { _, phase in if phase == .active { Task { await viewModel.reload() } } }
             .onChange(of: selectedCurrency) { _, code in
                 // The filter sheet may apply a new currency and one of its accounts together.
@@ -142,8 +156,8 @@ public struct StatisticsView: View {
 
     // MARK: - Period
 
-    private var periodSection: some View {
-        Section {
+    @ViewBuilder private var periodSection: some View {
+        Group {
             Picker("Period", selection: $period) {
                 ForEach(Period.allCases) { Text($0.title).tag($0) }
             }
@@ -185,16 +199,16 @@ public struct StatisticsView: View {
     }
 
     private var filterSummary: some View {
-        Section {
-            HStack {
-                Label(activeFilters.joined(separator: " · "), systemImage: "line.3.horizontal.decrease")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                Spacer()
-                Button("Clear") { clearFilters() }
-                    .font(.footnote.weight(.semibold))
-            }
+        HStack {
+            Label(activeFilters.joined(separator: " · "), systemImage: "line.3.horizontal.decrease")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+            Spacer()
+            Button("Clear") { clearFilters() }
+                .font(.footnote.weight(.semibold))
+                // Plain, so in a list row only the button takes the tap.
+                .buttonStyle(.borderless)
         }
     }
 
@@ -210,20 +224,18 @@ public struct StatisticsView: View {
         let comparison = PeriodComparison(interval: interval, component: period.component)
         let soFar = expenses(in: comparison.current)
         let inProgress = comparison.current.end < interval.end
-        return Section {
+        return Group {
+            WalletListSectionHeader("Summary")
+                .overlay(alignment: .bottomTrailing) {
+                    // On the band's baseline, where the inset list's header put it.
+                    if currencies.count > 1 { currencyMenu.padding(.trailing, 20).padding(.bottom, 16) }
+                }
             WalletSummaryCard(income: result.income, expenses: result.expenses, currencyCode: selectedCurrency,
                               dailyAverage: soFar / Decimal(comparison.elapsedDays),
                               comparison: .init(label: comparisonLabel,
                                                 change: PeriodComparison.change(from: expenses(in: comparison.previous),
                                                                                 to: soFar)))
-        } header: {
-            HStack {
-                Text("Summary")
-                Spacer()
-                if currencies.count > 1 { currencyMenu }
-            }
-        } footer: {
-            WalletListFooter(inProgress
+            WalletListCaption(inProgress
                  ? "Spending is compared with the same days of the previous \(comparisonUnit). Transfers and accounts excluded from stats are left out."
                  : "Transfers and accounts excluded from stats are left out.")
         }
@@ -268,7 +280,8 @@ public struct StatisticsView: View {
     // MARK: - Charts
 
     private func breakdown(_ title: String, values: [CategoryTotal], total: Decimal) -> some View {
-        Section(title) {
+        Group {
+            WalletListSectionHeader(title)
             if values.isEmpty {
                 Text("No activity in this period.").foregroundStyle(.secondary)
             } else {
@@ -298,6 +311,10 @@ public struct StatisticsView: View {
                     .frame(maxWidth: WalletMetrics.Chart.donutHeight * 0.62 - WalletMetrics.large)
                     .accessibilityHidden(true)
                 }
+                // Swings in a quarter turn as it grows; sector angles cannot animate up from a zero total.
+                .rotationEffect(.degrees(revealed ? 0 : -90))
+                .scaleEffect(revealed ? 1 : 0.7)
+                .opacity(revealed ? 1 : 0)
                 .padding(.vertical, WalletMetrics.small)
 
                 ForEach(values) { entry in
@@ -329,7 +346,8 @@ public struct StatisticsView: View {
     }
 
     private func trendSection(_ result: WalletStatistics) -> some View {
-        Section {
+        Group {
+            WalletListSectionHeader("Spending trend")
             if groupingOptions.count > 1 {
                 Picker("Group by", selection: Binding(get: { grouping }, set: { granularity = $0 })) {
                     ForEach(groupingOptions, id: \.self) { Text($0.rawValue.capitalized).tag($0) }
@@ -345,24 +363,25 @@ public struct StatisticsView: View {
             } else {
                 Chart(result.spendingTrend) { point in
                     BarMark(x: .value("Date", point.date, unit: grouping.component),
-                            y: .value("Expenses", point.amount.doubleValue))
+                            y: .value("Expenses", revealed ? point.amount.doubleValue : 0))
                         .foregroundStyle(Color.accentColor.gradient)
                         .cornerRadius(WalletMetrics.tight)
                         .accessibilityLabel(point.date.formatted(date: .abbreviated, time: .omitted))
                         .accessibilityValue(money(point.amount))
                 }
+                .chartYScale(domain: 0...WalletChartGrid.niceCeiling(
+                    result.spendingTrend.map(\.amount.doubleValue).max() ?? 0))
                 .chartYAxis { compactYAxis }
                 .chartXAxis { WalletChartGrid.dottedDateAxis(desiredCount: 4) }
                 .frame(height: WalletMetrics.Chart.height)
                 .padding(.vertical, WalletMetrics.small)
             }
-        } header: {
-            Text("Spending trend")
         }
     }
 
     private func historySection(_ result: WalletStatistics) -> some View {
-        Section {
+        Group {
+            WalletListSectionHeader("Account balance history")
             Chart(result.balanceHistory) { point in
                 AreaMark(x: .value("Date", point.date), y: .value("Balance", point.amount.doubleValue))
                     .interpolationMethod(.monotone)
@@ -382,15 +401,14 @@ public struct StatisticsView: View {
             .chartXScale(domain: interval.start...interval.end)
             .frame(height: WalletMetrics.Chart.height)
             .padding(.vertical, WalletMetrics.small)
-        } header: {
-            Text("Account balance history")
-        } footer: {
-            WalletListFooter("Reconstructed from opening balances and records, including dated balance adjustments. Category and label filters affect activity charts only.")
+            WalletListCaption("Reconstructed from opening balances and records, including dated balance adjustments. "
+                              + "Category and label filters affect activity charts only.")
         }
     }
 
     private func topCategoriesSection(_ result: WalletStatistics) -> some View {
-        Section("Top spending categories") {
+        Group {
+            WalletListSectionHeader("Top spending categories")
             if result.expensesByCategory.isEmpty {
                 Text("No expenses in this period.").foregroundStyle(.secondary)
             } else {
@@ -408,9 +426,8 @@ public struct StatisticsView: View {
                             Spacer(minLength: WalletMetrics.small)
                             Text(money(entry.amount)).monospacedDigit().lineLimit(1)
                         }
-                        ProgressView(value: peak > 0 ? (entry.amount / peak).doubleValue : 0)
-                            .tint(color(for: entry))
-                            .accessibilityHidden(true)
+                        WalletProgressBar(value: revealed && peak > 0 ? (entry.amount / peak).doubleValue : 0,
+                                          tint: color(for: entry), height: 8)
                     }
                     .padding(.vertical, WalletMetrics.tight)
                     .accessibilityElement(children: .combine)
@@ -438,4 +455,26 @@ public struct StatisticsView: View {
     }
 
     private func money(_ value: Decimal) -> String { value.walletFormatted(selectedCurrency) }
+}
+
+// MARK: - Nature of spending and reveal
+
+extension StatisticsView {
+    private var natureSpending: NatureSpending {
+        WalletStatistics.spendingByNature(records: viewModel.records, accounts: viewModel.accounts,
+                                          categories: viewModel.categories,
+                                          filter: StatisticsFilter(interval: interval, currencyCode: selectedCurrency,
+                                                                   accountID: accountID, categoryID: categoryID,
+                                                                   tagID: tagID, granularity: grouping))
+    }
+
+    /// Grows the charts in once the first load has finished; at once with Reduce Motion.
+    private func reveal() {
+        guard !revealed, !viewModel.isLoading else { return }
+        if reduceMotion {
+            revealed = true
+        } else {
+            withAnimation(WalletChartGrid.reveal) { revealed = true }
+        }
+    }
 }

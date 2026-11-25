@@ -970,3 +970,48 @@ Manual checks:
 1. Open a debt with more than 3 records and confirm only the newest 3 show, with Show All at the bottom right.
 2. Expand Records and confirm History stays collapsed, and the other way round.
 3. Leave and reopen the screen and confirm both are collapsed again.
+
+## Nature of Spending (2026-11-25)
+
+Statistics gains a Nature of spending section: spending split into Must, Need and Want by category nature, stacked by day (or the chosen grouping), with the categories behind the selected nature. `WalletStatistics.spendingByNature` is covered by two new tests (stacking, parent nature inheritance, unset spending left out, income ignored; the category filter). **451 tests across 66 suites passed**, unsigned iOS Simulator and watchOS builds passed, and SwiftLint reports no new warnings. Not seen in the app.
+
+Manual checks:
+
+1. Open Statistics for a month and confirm the All total equals Must + Need + Want and the bars stack in green, blue and red.
+2. Pick Must, Need and Want in turn and confirm the chart, total and category list follow, and the legend hides.
+3. Set a subcategory's nature to None and confirm its spending counts under its parent's nature.
+4. Apply a category or account filter and confirm the section follows it.
+
+## Category Meters (2026-11-25)
+
+The category bars in Top spending categories and Nature of spending are now a shared `WalletMeter`, an 8-point capsule over a gray track, in place of the 4-point system progress bar. **451 tests across 66 suites passed**, the unsigned iOS Simulator build passed, and SwiftLint reports no new warnings. View-only, no new tests, not seen in the app.
+
+Manual checks:
+
+1. Confirm the largest category's bar fills the row and the others are proportional, in their category colors.
+2. Confirm a very small category still shows a dot rather than nothing.
+3. Check both lists in light and dark mode and confirm the track is visible but faint.
+
+## Statistics Animation (2026-11-25)
+
+Statistics now grows its charts in once its first load finishes, and switching the Nature of spending picker animates the chart, total and category list. `WalletChartGrid.niceCeiling`, which fixes the y scale while bars grow, has a new test. **452 tests across 66 suites passed**, unsigned iOS Simulator and macOS builds passed, and SwiftLint reports no new warnings. Not seen in the app.
+
+Manual checks:
+
+1. Launch the app, open Statistics and confirm the bars grow up, the meters fill, the donuts swing in and the nature total rolls up from zero, once.
+2. Switch tabs and come back, and change period, and confirm the reveal does not replay.
+3. Switch between All, Must, Need and Want and confirm the bars restack, the axis rescales smoothly, the total rolls and category rows slide.
+4. Confirm the y-axis does not jump while the bars grow, and its top label is a round figure.
+5. Turn on Reduce Motion and confirm the charts appear without animating.
+
+## Flat Statistics List (2026-11-25)
+
+Statistics is now a plain list with band headings (`WalletListSectionHeader`) and band captions (new `WalletListCaption`) between groups, no row rules, and full-width charts, like Category details. The `WalletMeter` from the Category Meters entry was a duplicate of the existing `WalletProgressBar` and is removed; both category lists use `WalletProgressBar` at 8 points, and Nature of spending uses the shared `WalletExpandButton`. **452 tests across 66 suites passed**, unsigned iOS Simulator and macOS builds passed, and SwiftLint reports no new warnings. View-only, no new tests, not seen in the app.
+
+Manual checks:
+
+1. Scroll Statistics in light and dark mode and confirm each group opens on a gray band, captions join the band below them, and there are no stray rules.
+2. With two currencies in use, confirm the currency menu sits on the Summary band's trailing edge and still switches currency.
+3. Confirm the charts span the full width and their axis labels are not clipped at the edges.
+4. With a filter set, confirm Clear on the filter row clears it, and tapping elsewhere on the row does nothing.
+5. Confirm budget progress shows under its own band when budgets exist.

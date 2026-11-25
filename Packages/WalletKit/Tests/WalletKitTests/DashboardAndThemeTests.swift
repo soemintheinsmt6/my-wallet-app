@@ -29,6 +29,15 @@ struct ShortAmountTests {
         #expect(5_000_000.0.walletAxisLabel("MMK", scale: .millions) != "50L")
         #expect(50_000.0.walletAxisLabel("MMK", scale: .lakhs) != "0.5L")
     }
+
+    @Test func fixedChartScalesRoundUpToARoundFigure() {
+        #expect(WalletChartGrid.niceCeiling(2_800_000) == 3_000_000)
+        #expect(WalletChartGrid.niceCeiling(3_000_000) == 3_000_000)
+        #expect(WalletChartGrid.niceCeiling(1_200) == 1_500)
+        #expect(WalletChartGrid.niceCeiling(9_100) == 10_000)
+        #expect(abs(WalletChartGrid.niceCeiling(0.28) - 0.3) < 1e-12)
+        #expect(WalletChartGrid.niceCeiling(0) == 1)
+    }
 }
 
 struct DashboardConfigurationTests {

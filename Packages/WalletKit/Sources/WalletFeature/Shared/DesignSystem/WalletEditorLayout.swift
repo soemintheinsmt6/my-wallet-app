@@ -59,6 +59,21 @@ struct WalletListSectionHeader: View {
     }
 }
 
+/// `WalletEditorCaption` as a row of a plain `List`, standing in for a section footer for the same
+/// reason `WalletListSectionHeader` stands in for a header. Followed by a band heading, the two
+/// read as one band.
+struct WalletListCaption: View {
+    let text: String
+
+    init(_ text: String) { self.text = text }
+
+    var body: some View {
+        WalletEditorCaption(text)
+            .listRowInsets(EdgeInsets())
+            .listRowSeparator(.hidden)
+    }
+}
+
 /// A tinted capsule that expands or collapses a list in place: "Show All 30" with a down chevron,
 /// then "Show Less" with the chevron turned up.
 struct WalletExpandButton: View {
