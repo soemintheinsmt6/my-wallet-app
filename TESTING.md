@@ -1078,3 +1078,14 @@ Manual checks:
 3. Record a payment and confirm the outstanding amount, percentage, "paid of" and bar move to the new figures.
 4. Confirm Goals still sweeps its rings as before.
 5. Turn on Reduce Motion and confirm debt bars and figures appear at once.
+
+## Smooth Debt History and Records Expand (2026-11-25)
+
+A debt's History and Records expand and collapse exactly as Nature of spending's category list does (the same button and plain `withAnimation` toggle), and their row rules are now set by the whole list's last row, so no rule flips on or off as rows slide in and out. **453 tests across 66 suites passed**, unsigned iOS Simulator and macOS builds passed, and SwiftLint reports no new warnings. View-only, no new tests, not seen in the app.
+
+Manual checks:
+
+1. On a debt with more than 3 history steps, tap Show All and confirm the rows slide in the way Nature of spending's categories do, with no rule popping on above them.
+2. Tap Show Less and confirm the extra rows slide away the same way.
+3. Confirm the collapsed list shows no rule between its last row and Show All.
+4. Repeat for Records.

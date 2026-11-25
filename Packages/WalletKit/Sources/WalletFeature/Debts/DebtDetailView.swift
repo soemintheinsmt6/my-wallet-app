@@ -171,7 +171,9 @@ struct DebtDetailView: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityHint("Edit record")
-                .listRowSeparator(record.id == records.last?.id ? .hidden : .automatic, edges: .bottom)
+                // By the whole list's last record, not the last one showing, so no rule flips on or
+                // off as rows slide in and out; the expand row hides the rule above it.
+                .listRowSeparator(record.id == all.last?.id ? .hidden : .automatic, edges: .bottom)
             }
             if collapsible {
                 expandRow(isExpanded: $showsAllRecords, count: all.count, noun: "records")
@@ -180,7 +182,8 @@ struct DebtDetailView: View {
     }
 
     /// The expand button at the trailing edge under a collapsed list's last row, so a long expanded
-    /// list collapses without scrolling back up.
+    /// list collapses without scrolling back up. Expands and collapses exactly as Nature of
+    /// spending's category list does: the same button, the rows sliding in and out in place.
     private func expandRow(isExpanded: Binding<Bool>, count: Int, noun: String) -> some View {
         HStack {
             Spacer()
@@ -211,14 +214,17 @@ struct DebtDetailView: View {
         WalletListSectionHeader("History")
         ForEach(rows, id: \.entry.id) { row in
             historyRow(row, progress: progress, currency: currency)
-                .listRowSeparator(row.entry.id == rows.last?.entry.id ? .hidden : .automatic, edges: .bottom)
+                // By the whole history's last step, so no rule flips as rows slide in and out.
+                .listRowSeparator(row.entry.id == all.last?.entry.id ? .hidden : .automatic, edges: .bottom)
                 .swipeActions {
                     if case .opening = row.entry {} else {
                         Button("Delete", role: .destructive) { delete(row.entry) }
                     }
                 }
         }
-        if collapsible { expandRow(isExpanded: $showsAllHistory, count: all.count, noun: "steps") }
+        if collapsible {
+            expandRow(isExpanded: $showsAllHistory, count: all.count, noun: "steps")
+        }
     }
 
     private func historyRow(_ row: DebtHistoryStep, progress: DebtProgress, currency: String) -> some View {
