@@ -6,6 +6,7 @@ struct DebtSettlementView: View {
     @ObservedObject var viewModel: DebtsViewModel
     let progress: DebtProgress
     @State private var amount = ""
+    @State private var date = Date()
     @State private var createsRecord = true
     @State private var accountID: UUID?
     @State private var categoryID: UUID?
@@ -47,6 +48,7 @@ struct DebtSettlementView: View {
                 VStack(spacing: 0) {
                     amountSection
                     debtSection
+                    dateSection
                     ledgerSection
                     if let errorMessage {
                         Label(errorMessage, systemImage: "exclamationmark.triangle")
@@ -148,6 +150,14 @@ struct DebtSettlementView: View {
         WalletEditorCaption("A payment cannot exceed what is still outstanding.")
     }
 
+    /// When the payment was made, which also dates the record it can create.
+    @ViewBuilder private var dateSection: some View {
+        WalletEditorSectionHeader(title: "Details") { focusedField = nil }
+        RecordFormRow(symbol: "calendar", showsDivider: false) {
+            RecordDateTimeField(date: $date) { focusedField = nil }
+        }
+    }
+
     /// The switch and the record it creates. Every row leads with a tile: the switch's own, the
     /// record editor's wallet, and the chosen category's.
     @ViewBuilder private var ledgerSection: some View {
@@ -206,7 +216,7 @@ struct DebtSettlementView: View {
             do {
                 try await viewModel.pay(progress, amount: value,
                                         account: createsRecord ? account : nil,
-                                        categoryID: createsRecord ? categoryID : nil)
+                                        categoryID: createsRecord ? categoryID : nil, date: date)
                 dismiss()
             } catch { errorMessage = error.localizedDescription }
         }

@@ -197,10 +197,14 @@ struct DebtEditorView: View {
                 VStack(spacing: 0) {
                     amountSection
                     WalletEditorSectionHeader(title: "General") { focusedField = nil }
-                    RecordFormRow(symbol: "person", showsDivider: false) {
+                    RecordFormRow(symbol: "person") {
                         WalletEditorNavigationButton(title: "Person", value: debt.person.isEmpty ? nil : debt.person) {
                             open(.person)
                         }
+                    }
+                    // When the money changed hands, which also dates the balance adjustment, if any.
+                    RecordFormRow(symbol: "calendar", showsDivider: false) {
+                        RecordDateTimeField(date: $debt.createdAt) { focusedField = nil }
                     }
                     moneySection
                     dueDateSection
@@ -369,7 +373,7 @@ struct DebtEditorView: View {
 
     @ViewBuilder private var dueDateSection: some View {
         WalletEditorSectionHeader(title: "Due Date") { focusedField = nil }
-        RecordFormRow(symbol: "calendar", showsDivider: hasDueDate) {
+        RecordFormRow(symbol: "calendar.badge.clock", showsDivider: hasDueDate) {
             Toggle("Has a due date", isOn: $hasDueDate.animation())
         }
         if hasDueDate {

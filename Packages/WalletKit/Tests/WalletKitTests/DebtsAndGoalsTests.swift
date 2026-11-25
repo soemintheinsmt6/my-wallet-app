@@ -493,6 +493,31 @@ struct DebtMoneyMovedTests {
         #expect(records.records.allSatisfy { $0.draft.isAdjustment && !$0.draft.countsAsActivity })
     }
 
+    @Test func aPaymentAndItsRecordTakeTheChosenDate() async throws {
+        let (_, viewModel, records, account) = try await setup()
+        let when = Date(timeIntervalSince1970: 1_700_000_000)
+        try await viewModel.save(Debt(person: "Ana", direction: .owedToMe, amount: 100), moneyMovedThrough: account)
+        try await viewModel.pay(try #require(viewModel.debts.first), amount: 40, account: account,
+                                categoryID: nil, date: when)
+
+        let payment = try #require(viewModel.debts.first?.payments.first)
+        #expect(payment.date == when)
+        #expect(records.records.first { $0.id == payment.recordID }?.draft.date == when)
+    }
+
+    /// The debt's date is when its money moved, so changing it moves the opening adjustment too.
+    @Test func editingADebtsDateMovesItsOpeningAdjustment() async throws {
+        let (_, viewModel, records, account) = try await setup()
+        try await viewModel.save(Debt(person: "Ana", direction: .owedToMe, amount: 100), moneyMovedThrough: account)
+        var edited = try #require(viewModel.debts.first).debt
+        let when = Date(timeIntervalSince1970: 1_700_000_000)
+        edited.createdAt = when
+        try await viewModel.save(edited)
+
+        #expect(viewModel.debts.first?.debt.createdAt == when)
+        #expect(records.records.first { $0.id == edited.openingRecordID }?.draft.date == when)
+    }
+
     @Test func addingToADebtWithoutMovedMoneyWritesNoRecord() async throws {
         let (repository, viewModel, records, _) = try await setup()
         try await viewModel.save(Debt(person: "Cy", direction: .iOwe, amount: 50))

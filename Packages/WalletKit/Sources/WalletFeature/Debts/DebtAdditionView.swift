@@ -146,7 +146,7 @@ struct DebtAdditionView: View {
     @ViewBuilder private var detailsSection: some View {
         WalletEditorSectionHeader(title: "Details") { focusedField = nil }
         RecordFormRow(symbol: "calendar") {
-            DatePicker("Date", selection: $date, displayedComponents: .date)
+            RecordDateTimeField(date: $date) { focusedField = nil }
         }
         RecordFormRow(symbol: "square.and.pencil", showsDivider: false) {
             WalletEditorNavigationButton(title: "Note", value: note.isEmpty ? nil : note) { open(.note) }

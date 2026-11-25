@@ -919,3 +919,16 @@ Manual checks:
 4. Make a debt with "Take from my balance now" on, lend more, and confirm the account balance drops again and the new record reads "Lent to …". Repay everything and confirm the balance returns to where it started.
 5. Settle a debt fully, lend more from the Debts list's context menu, and confirm it reopens.
 6. Swipe an addition away in History and confirm the outstanding falls back.
+
+## Debt Dates (2026-11-25)
+
+The debt editor, settle sheet and Lend More sheet each have a Date & Time row, the record editor's `RecordDateTimeField`. `DebtMoneyMovedTests` adds two tests: a payment and its record take the chosen date, and editing a debt's date moves its opening adjustment. **449 tests across 66 suites passed**, and unsigned builds passed for the app on iOS Simulator and macOS. The watch app was not rebuilt, since no `WalletDomain` code changed. SwiftLint reports no new warnings.
+
+**Not verified:** the app was not run, so the rows and their popovers were checked only by build.
+
+Manual checks:
+
+1. Add a debt dated yesterday and confirm History's first row shows yesterday. With "Take from my balance now" on, confirm the "Lent to …" record is dated yesterday too.
+2. Edit that debt's date to two days ago and confirm the record moves with it.
+3. Settle part of it dated last week and confirm the payment and its record show that date.
+4. Lend more dated today and confirm History orders the steps by date.
