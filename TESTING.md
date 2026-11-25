@@ -1149,9 +1149,10 @@ The record editor now offers to mark the day of an alcohol expense as a drinking
 
 Manual checks:
 
-1. Create a "Beer" subcategory under Food & Drinks. Add an expense under it for today, payee "Blue Bar", and confirm Mark as Drinking Day appears, switched off, with a caption naming today and Blue Bar.
-2. Turn it on and save; open Drinking Days and confirm today is marked with Blue Bar as its place and no count.
-3. Add another Beer expense for today and confirm the switch no longer appears.
-4. Choose Groceries or Bar & Café and confirm no switch; choose Income and confirm none.
-5. Set the date to a day already marked and confirm the switch disappears.
-6. Without opening Drinking Days since launch, add a Beer expense and confirm the switch still appears once the days load.
+1. Create a "Beer" subcategory under Food & Drinks. Add an expense under it for today, payee "Blue Bar", and confirm Mark as Drinking Day appears, switched off, with a caption naming today.
+2. Turn it on and confirm Drinks (Not recorded) and Places (Blue Bar) appear. Step Drinks to 3, open Places and add "Club 9", then save; open Drinking Days and confirm today is marked with 3 drinks at Blue Bar and Club 9, and the record is saved.
+3. On another expense, turn it on, then change the payee and confirm Places follows it; edit Places, change the payee again and confirm Places keeps your edit.
+4. Add another Beer expense for today and confirm the switch no longer appears.
+5. Choose Groceries or Bar & Café and confirm no switch; choose Income and confirm none.
+6. Set the date to a day already marked and confirm the switch disappears.
+7. Without opening Drinking Days since launch, add a Beer expense and confirm the switch still appears once the days load.

@@ -190,22 +190,29 @@ struct DrinkingDayTests {
         let yesterday = today.adding(days: -1, calendar: calendar).date(in: calendar).addingTimeInterval(7200)
         #expect(viewModel.canSuggestMarking(yesterday))
         #expect(!viewModel.canSuggestMarking(now.addingTimeInterval(86_400 * 2)))
-        try await viewModel.markFromExpense(on: yesterday, payee: " blue  bar ")
+        // The payee suggests the place under its earlier spelling; none for no payee or a long one.
+        #expect(viewModel.places(forPayee: " blue  bar ") == ["Blue Bar"])
+        #expect(viewModel.places(forPayee: "  ").isEmpty)
+        #expect(viewModel.places(forPayee: String(repeating: "a", count: DrinkingDay.maximumPlaceNameLength + 1)).isEmpty)
+
+        try await viewModel.markFromExpense(on: yesterday, drinks: 3, places: ["Blue Bar", "Club 9"])
         let marked = try #require(viewModel.days[today.adding(days: -1, calendar: calendar)])
-        #expect(marked.places == ["Blue Bar"])
-        #expect(marked.drinks == nil)
+        #expect(marked.places == ["Blue Bar", "Club 9"])
+        #expect(marked.drinks == 3)
         #expect(!viewModel.canSuggestMarking(yesterday))
 
         // A day marked elsewhere, unseen by this model, keeps its count and places.
         try await useCases.mark(today, drinks: 4, places: ["Club 9"], note: "birthday", today: today)
-        try await viewModel.markFromExpense(on: now, payee: "Corner Shop")
+        try await viewModel.markFromExpense(on: now, drinks: 1, places: ["Corner Shop"])
         let kept = try #require(try await useCases.load().first { $0.day == today })
         #expect(kept.drinks == 4)
         #expect(kept.places == ["Club 9"])
         #expect(kept.note == "birthday")
 
-        try await viewModel.markFromExpense(on: today.adding(days: -3, calendar: calendar).date(in: calendar), payee: "")
-        #expect(viewModel.days[today.adding(days: -3, calendar: calendar)]?.places == [])
+        let earlier = today.adding(days: -3, calendar: calendar)
+        try await viewModel.markFromExpense(on: earlier.date(in: calendar), drinks: nil, places: [])
+        #expect(viewModel.days[earlier]?.places == [])
+        #expect(viewModel.days[earlier]?.drinks == nil)
     }
 
     @Test func viewModelSuggestsPlacesFromSavedDaysAndRefreshesAfterSaving() async throws {

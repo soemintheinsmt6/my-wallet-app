@@ -25,6 +25,10 @@ struct RecordEditorView: View {
     @Environment(\.drinkingDaysViewModel) private var drinkingDays
     /// Whether saving also marks the record's day as a drinking day; offered for alcohol expenses.
     @State private var marksDrinkingDay = false
+    /// The drinking day's count, zero for not recorded.
+    @State private var drinkingDrinks = 0
+    /// The drinking day's places once edited; until then they follow the payee.
+    @State private var drinkingPlaces: [String]?
     @State private var isSplitting = false
     @State private var photoItem: PhotosPickerItem?
     @State private var isLoadingPhoto = false
@@ -107,7 +111,8 @@ struct RecordEditorView: View {
                     generalSection
                     if isAlcoholExpense, let drinkingDays {
                         DrinkingDaySuggestionRow(viewModel: drinkingDays, date: draft.date, payee: draft.payee,
-                                                 isOn: $marksDrinkingDay)
+                                                 isOn: $marksDrinkingDay, drinks: $drinkingDrinks,
+                                                 editedPlaces: $drinkingPlaces)
                     }
                     detailsSection
                     // An adjustment corrects one moment's balance; interest and fees differ each
@@ -665,7 +670,9 @@ struct RecordEditorView: View {
             // error and nothing saved; the switch can be turned off to save the record alone. A
             // retry after the record fails is safe, since a marked day is never marked again.
             if marksDrinkingDay, isAlcoholExpense, let drinkingDays {
-                try await drinkingDays.markFromExpense(on: values.date, payee: values.payee)
+                try await drinkingDays.markFromExpense(
+                    on: values.date, drinks: drinkingDrinks == 0 ? nil : drinkingDrinks,
+                    places: drinkingPlaces ?? drinkingDays.places(forPayee: values.payee))
             }
             if let saveAction { try await saveAction(recordID, values) }
             else { try await viewModel.save(id: recordID, draft: values, editing: record != nil) }

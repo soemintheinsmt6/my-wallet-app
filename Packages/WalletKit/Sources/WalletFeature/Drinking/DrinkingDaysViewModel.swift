@@ -162,16 +162,20 @@ public final class DrinkingDaysViewModel: ObservableObject {
         return !isLoading && day <= today && days[day] == nil
     }
 
-    /// Marks the day of an alcohol expense with its payee as the place, under the spelling used
-    /// before. Reloads first, so a day marked on another device since is left exactly as it is
-    /// rather than overwritten.
-    public func markFromExpense(on date: Date, payee: String) async throws {
-        let day = DayKey(date, calendar: calendar)
-        await reload()
-        guard days[day] == nil else { return }
+    /// The places an expense's payee suggests for its drinking day: the payee under the spelling
+    /// used before, or none when there is no payee or it is too long to be a place.
+    public func places(forPayee payee: String) -> [String] {
         let place = placeSpelling(of: payee)
-        let places = place.isEmpty || place.count > DrinkingDay.maximumPlaceNameLength ? [] : [place]
-        try await mark(day, drinks: nil, places: places, note: "")
+        return place.isEmpty || place.count > DrinkingDay.maximumPlaceNameLength ? [] : [place]
+    }
+
+    /// Marks the day of an alcohol expense. Reads the stored days first, so a day marked on another
+    /// device since is left exactly as it is rather than overwritten. Not through `reload()`, which
+    /// returns at once when a reload is already running, before that reload has the day.
+    public func markFromExpense(on date: Date, drinks: Int?, places: [String]) async throws {
+        let day = DayKey(date, calendar: calendar)
+        guard days[day] == nil, try await !useCases.load().contains(where: { $0.day == day }) else { return }
+        try await mark(day, drinks: drinks, places: places, note: "")
     }
 
     public func unmark(_ day: DayKey) async throws {
