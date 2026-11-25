@@ -1103,3 +1103,17 @@ Manual checks:
 5. With bills in two currencies, confirm only the count shows.
 6. On the Dashboard, confirm the Upcoming bills card leads with the same progress and it animates with the other cards.
 7. Turn on Reduce Motion and confirm everything appears and changes at once.
+
+## Reports Animation (2026-11-25)
+
+Reports now rolls its figures up once records are loaded (summary card, category amounts, statement balances) and animates its Period picker, period arrows, Report picker and currency menu like Statistics; the custom date pickers stay instant. **455 tests across 67 suites passed**, unsigned iOS Simulator and macOS builds passed, and SwiftLint reports no new warnings. View-only, no new tests, not seen in the app.
+
+Manual checks:
+
+1. Open Planning › Reports and confirm the summary figures and category amounts roll up from zero.
+2. Step months and switch Monthly/Yearly, and confirm the figures roll and category rows slide in and out.
+3. Choose an account statement and confirm the opening and closing balances roll and the transactions slide in; switch back to the summary.
+4. With two currencies, change currency and confirm the figures roll.
+5. In Custom, scroll the dates and confirm nothing animates.
+6. Export a PDF and confirm it shows the real figures.
+7. Turn on Reduce Motion and confirm everything is instant.

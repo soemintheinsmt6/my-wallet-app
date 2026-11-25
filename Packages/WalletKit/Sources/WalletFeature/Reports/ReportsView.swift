@@ -16,6 +16,11 @@ struct ReportsView: View {
     @State private var isExporting = false
     @State private var error: String?
     @Environment(\.mainCurrency) private var mainCurrency
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    /// How the figures move when a control changes the report, as Statistics' controls move its
+    /// charts; none with Reduce Motion.
+    private var changeAnimation: Animation? { reduceMotion ? nil : WalletChartGrid.change }
 
     private var currencies: [String] { Array(Set(records.accounts.map(\.currencyCode))).sorted() }
 
@@ -83,6 +88,8 @@ struct ReportsView: View {
             }
             exportSection
         }
+        // The summary's figures and every amount roll up once records are loaded.
+        .walletChartsReveal(when: !records.isLoading)
         .navigationTitle("Reports")
         .onChange(of: period) { _, _ in shareURL = nil }
         .onChange(of: date) { _, _ in shareURL = nil }
@@ -96,7 +103,7 @@ struct ReportsView: View {
 
     private var optionsSection: some View {
         Section {
-            Picker("Period", selection: $period) {
+            Picker("Period", selection: $period.animation(changeAnimation)) {
                 ForEach(Period.allCases) { Text($0.title).tag($0) }
             }
             .pickerStyle(.segmented)
@@ -105,20 +112,23 @@ struct ReportsView: View {
                                       bottom: WalletMetrics.small, trailing: WalletMetrics.large))
 
             if period == .custom {
+                // Not animated, as in Statistics: the dates change while still being picked.
                 DatePicker("From", selection: $start, displayedComponents: .date)
                 DatePicker("Through", selection: $end, in: start..., displayedComponents: .date)
             } else if let component = period.component {
                 WalletPeriodStepper(title: periodTitle, unit: period == .yearly ? "year" : "month",
-                                    date: $date, component: component)
+                                    date: $date.animation(changeAnimation), component: component)
             }
 
-            WalletMenuPicker("Report", selection: $accountID,
+            WalletMenuPicker("Report", selection: $accountID.animation(changeAnimation),
                              value: records.account(accountID).map { "Statement: \($0.name)" } ?? "Financial summary") {
                 Text("Financial summary").tag(nil as UUID?)
                 ForEach(records.accounts) { Text("Statement: \($0.name)").tag(Optional($0.id)) }
             }
             if accountID == nil {
-                WalletMenuPicker("Currency", selection: Binding(get: { currency }, set: { pickedCurrency = $0 }),
+                WalletMenuPicker("Currency", selection: Binding(get: { currency }, set: { code in
+                    withAnimation(changeAnimation) { pickedCurrency = code }
+                }),
                                  value: currency) {
                     ForEach(Array(Set(currencies + [currency])).sorted(), id: \.self) { Text($0).tag($0) }
                 }
@@ -202,7 +212,7 @@ struct ReportsView: View {
                             .accessibilityHidden(true)
                         Text(records.categoryName(total.categoryID)).lineLimit(1)
                         Spacer(minLength: WalletMetrics.small)
-                        Text(money(total.amount, currency)).monospacedDigit().lineLimit(1)
+                        ReportAmountText(amount: total.amount, currencyCode: currency)
                     }
                     .accessibilityElement(children: .combine)
                 }
@@ -215,10 +225,10 @@ struct ReportsView: View {
     @ViewBuilder private func statementSections(account: Account, statement: AccountStatement) -> some View {
         Section("Balances · \(account.currencyCode)") {
             LabeledContent("Opening") {
-                Text(money(statement.openingBalance, account.currencyCode)).monospacedDigit()
+                ReportAmountText(amount: statement.openingBalance, currencyCode: account.currencyCode)
             }
             LabeledContent("Closing") {
-                Text(money(statement.closingBalance, account.currencyCode)).monospacedDigit()
+                ReportAmountText(amount: statement.closingBalance, currencyCode: account.currencyCode)
             }
         }
 
@@ -343,4 +353,20 @@ struct ReportsView: View {
     }
 
     private func money(_ value: Decimal, _ code: String) -> String { value.walletFormatted(code) }
+}
+
+/// An amount in a report row. Rolls up from zero when the screen reveals (see
+/// `walletChartsRevealed`) and to the new figure when the period, account or currency changes.
+private struct ReportAmountText: View {
+    let amount: Decimal
+    let currencyCode: String
+    @Environment(\.walletChartsRevealed) private var revealed
+
+    var body: some View {
+        let shown = revealed ? amount : 0
+        Text(shown.walletFormatted(currencyCode))
+            .monospacedDigit()
+            .lineLimit(1)
+            .contentTransition(.numericText(value: shown.doubleValue))
+    }
 }
