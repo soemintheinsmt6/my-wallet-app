@@ -954,3 +954,7 @@ Manual checks:
 2. In the Debts list, confirm a partly paid debt shows the full-width bar with its percentage, and a debt with nothing paid or settled shows no bar.
 3. Check both in dark mode.
 4. Settle a debt fully and confirm its row shows "0 MMK" in gray with "of" the whole amount under it, and no bar.
+
+Same day: Show All is repeated at the bottom trailing edge of History. Unsigned iOS Simulator and macOS builds passed and SwiftLint reports no new warnings; view-only, no new tests, not seen in the app.
+
+Manual check: on a debt with more than 3 steps, tap Show All at the bottom right, scroll to the end, tap Show Less there, and confirm both buttons change together.

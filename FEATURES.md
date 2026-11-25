@@ -547,6 +547,8 @@ Collapsed history (2026-11-25): a debt with 30 steps pushed its records and acti
 
 Same day, the Show All button moved from a row under the history to the trailing edge of the History header, and the Debts list row was reworked. Its progress bar sat only under the title column, short and unconnected to the amounts on the right. The row now pairs its two lines left with right (who owes whom with the outstanding amount, the status with "of" the total), and once something is paid a rounded bar runs the full width under both, ending in the share paid ("71%") in the debt's color. The percentage keeps the width of "100%", so every row's bar ends at the same point. The debt screen's header uses the same bar. A settled debt's row showed only "0 MMK", which said nothing about the debt. Showing the whole amount in its place was tried and replaced the same day: the large figure would then mean the outstanding amount on some rows and the total on others. A settled row now keeps "0 MMK" and adds "of 12,600,000 MMK" under it, as a partly paid row does.
 
+Same day, the Show All button was repeated at the bottom trailing edge of the history, under its last row, keeping the one on the header. With 30 steps expanded, Show Less is then in reach without scrolling back to the top.
+
 ---
 
 ### 5.2 Savings Goals
