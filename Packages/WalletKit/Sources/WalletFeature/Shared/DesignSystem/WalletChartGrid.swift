@@ -11,7 +11,8 @@ enum WalletChartGrid {
     static let reveal = Animation.smooth(duration: 0.7)
 
     /// How charts move to new data when a control changes what they show: the period, its arrows,
-    /// the grouping, the currency, the filters or the nature picker.
+    /// the grouping, the currency, the filters or the nature picker. Budgets' month arrows and an
+    /// account's period picker and arrows use it too, so every period change moves alike.
     static let change = Animation.smooth(duration: 0.45)
 
     /// The smallest round number at or above `value` (1, 1.5, 2, 2.5, 3, 4, 5, 6 or 8 times a

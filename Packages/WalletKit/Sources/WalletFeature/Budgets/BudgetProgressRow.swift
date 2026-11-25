@@ -21,9 +21,11 @@ struct BudgetProgressRow: View {
                     .font(.body.weight(.medium))
                     .lineLimit(1)
                 Spacer(minLength: WalletMetrics.small)
+                // Figures roll when the change is animated, as when stepping months in Budgets.
                 Text(progress.status)
                     .font(.caption.weight(.medium))
                     .foregroundStyle(tint)
+                    .contentTransition(.numericText())
             }
             if let caption {
                 Text(caption)
@@ -42,6 +44,7 @@ struct BudgetProgressRow: View {
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
                     .minimumScaleFactor(0.7)
+                    .contentTransition(.numericText())
                 Spacer(minLength: WalletMetrics.small)
                 Text(progress.remaining >= 0 ? "\(money(progress.remaining)) left" : "\(money(-progress.remaining)) over")
                     .font(.subheadline.weight(.medium))
@@ -49,6 +52,7 @@ struct BudgetProgressRow: View {
                     .foregroundStyle(progress.remaining >= 0 ? Color.primary : Color.red)
                     .lineLimit(1)
                     .minimumScaleFactor(0.7)
+                    .contentTransition(.numericText())
             }
 
             if progress.carried > 0 {

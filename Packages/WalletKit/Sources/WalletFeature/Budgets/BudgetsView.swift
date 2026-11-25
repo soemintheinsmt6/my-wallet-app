@@ -8,6 +8,7 @@ struct BudgetsView: View {
     /// Months back from the current one; 0 is now.
     @State private var monthOffset = 0
     @Environment(\.mainCurrency) private var mainCurrency
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     /// The moment each budget is measured at: now for the current month, otherwise the last moment
     /// of the chosen month, so a calendar-monthly budget shows that whole month.
@@ -63,10 +64,16 @@ struct BudgetsView: View {
         .disabled(viewModel.isSaving)
     }
 
+    /// Moves to another month the way Statistics moves between periods: bars slide to their new
+    /// lengths and amounts roll. Instant with Reduce Motion.
+    private func step(by months: Int) {
+        withAnimation(reduceMotion ? nil : WalletChartGrid.change) { monthOffset += months }
+    }
+
     /// Steps back through months, like an account's screen steps through its periods.
     private var monthStepper: some View {
         HStack {
-            Button { monthOffset -= 1 } label: {
+            Button { step(by: -1) } label: {
                 Image(systemName: "chevron.left")
                     .frame(minWidth: WalletMetrics.touchTarget, minHeight: WalletMetrics.touchTarget)
             }
@@ -74,7 +81,7 @@ struct BudgetsView: View {
             Spacer()
             Text(compareDate.formatted(.dateTime.month(.wide).year())).font(.headline)
             Spacer()
-            Button { monthOffset += 1 } label: {
+            Button { step(by: 1) } label: {
                 Image(systemName: "chevron.right")
                     .frame(minWidth: WalletMetrics.touchTarget, minHeight: WalletMetrics.touchTarget)
             }

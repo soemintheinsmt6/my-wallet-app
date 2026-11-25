@@ -20,6 +20,10 @@ struct AccountDetailView: View {
     /// Shows "Copied" briefly after the account number is copied.
     @State private var copiedNumber = false
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    /// How the summary and records move to another period, as Statistics does; none with Reduce Motion.
+    private var changeAnimation: Animation? { reduceMotion ? nil : WalletChartGrid.change }
 
     /// Read live, so an edit or a new record shows without leaving the screen.
     private var account: Account? { records.account(accountID) }
@@ -69,7 +73,7 @@ struct AccountDetailView: View {
             RecordEditorView(viewModel: records,
                              initialDraft: .adjustment(accountID: accountID, increase: true))
         }
-        .onChange(of: period) { _, _ in anchor = Date() }
+        .onChange(of: period) { _, _ in withAnimation(changeAnimation) { anchor = Date() } }
     }
 
     /// After the editor closes, leaves this screen if the account was deleted from it.
@@ -152,7 +156,7 @@ struct AccountDetailView: View {
 
     private var periodSection: some View {
         Section {
-            Picker("Period", selection: $period) {
+            Picker("Period", selection: $period.animation(changeAnimation)) {
                 ForEach(ActivityPeriod.allCases) { Text($0.title).tag($0) }
             }
             .pickerStyle(.segmented)
@@ -198,7 +202,7 @@ struct AccountDetailView: View {
 
     private func shift(by value: Int) {
         guard let moved = Calendar.current.date(byAdding: period.component, value: value, to: anchor) else { return }
-        anchor = moved
+        withAnimation(changeAnimation) { anchor = moved }
     }
 
     private func recordsSection(_ list: [WalletRecord]) -> some View {

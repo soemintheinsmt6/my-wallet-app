@@ -1028,3 +1028,14 @@ Manual checks:
 4. In Custom, scroll the From and Through pickers and confirm the charts update without animating.
 5. Turn on Reduce Motion and confirm every change is instant.
 6. On the Dashboard, confirm the summary card still updates correctly after adding a record.
+
+## Budget and Account Period Animation (2026-11-25)
+
+Budgets' month arrows and an account screen's period picker and arrows now animate with Statistics' `WalletChartGrid.change`; budget rows' figures roll. **452 tests across 66 suites passed**, unsigned iOS Simulator and macOS builds passed, and SwiftLint reports no new warnings. View-only, no new tests, not seen in the app.
+
+Manual checks:
+
+1. In Budgets, step back and forward and confirm the bars slide and the status and amounts roll.
+2. On an account, step periods and switch Day/Week/Month/Year, and confirm the summary figures roll and records slide in and out.
+3. Add a record and confirm a budget's bar still animates to its new length.
+4. Turn on Reduce Motion and confirm both screens change instantly.
