@@ -932,3 +932,16 @@ Manual checks:
 2. Edit that debt's date to two days ago and confirm the record moves with it.
 3. Settle part of it dated last week and confirm the payment and its record show that date.
 4. Lend more dated today and confirm History orders the steps by date.
+
+## Collapsed Debt History (2026-11-25)
+
+A debt's History opens with its latest 3 steps and a Show All / Show Less row. Unsigned builds passed for the app on iOS Simulator and macOS, and SwiftLint reports no new warnings. This is a view-only change with no new tests.
+
+**Not verified:** the app was not run, so the row and its animation were checked only by build.
+
+Manual checks:
+
+1. Open a debt with more than 3 steps and confirm only the latest 3 show, with "Show All N" below.
+2. Tap it and confirm every step appears and the row reads "Show Less"; tap again to collapse.
+3. Leave the screen, come back and confirm it is collapsed again.
+4. Open a debt with 3 steps or fewer and confirm there is no Show All row.

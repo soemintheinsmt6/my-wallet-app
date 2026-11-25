@@ -543,6 +543,8 @@ Lend or borrow more (2026-11-24): when someone who already owes the user asks fo
 
 Debt dates (2026-11-25): a debt, a payment and an addition were all dated the moment they were saved, so a loan entered a day late showed the wrong day in its history and records. The debt editor, the settle sheet and the Lend More sheet now have the record editor's Date & Time row. In the debt editor it sets the debt's `createdAt`, when the money changed hands; for a debt whose money moved, editing it moves the opening balance adjustment to the same date. In the settle sheet it dates the payment and the record it creates. The due-date switch now has a calendar-with-clock icon, so it is not mistaken for the new row.
 
+Collapsed history (2026-11-25): a debt with 30 steps pushed its records and actions far down the screen. History now opens showing the latest 3 steps, with a "Show All 30" row under them that expands the rest in place and becomes "Show Less". It starts collapsed every time the screen opens. Histories of 3 steps or fewer show no row.
+
 ---
 
 ### 5.2 Savings Goals

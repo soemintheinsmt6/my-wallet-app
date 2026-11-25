@@ -15,6 +15,8 @@ struct DebtDetailView: View {
     @State private var mutationError: String?
     @State private var photo: Data?
     @State private var viewingPhoto = false
+    /// Starts collapsed each time the screen opens.
+    @State private var showsAllHistory = false
     @Environment(\.dismiss) private var dismiss
 
     private var progress: DebtProgress? { viewModel.debts.first { $0.debt.id == debtID } }
@@ -174,20 +176,47 @@ struct DebtDetailView: View {
     /// and each payment, with the balance after it. Money added reads with a plus, payments with a
     /// minus. Additions and payments swipe away; the opening amount is changed by editing the debt.
     /// A record a step added is kept when the step is deleted, as deleting the debt keeps them.
+    ///
+    /// A long history opens collapsed to its latest few steps, so the records and actions below stay
+    /// in reach; a row under it expands the rest in place and collapses it again.
     @ViewBuilder private func history(_ progress: DebtProgress) -> some View {
         let currency = progress.debt.currencyCode
-        let rows = Array(progress.history.reversed())
+        let all = Array(progress.history.reversed())
+        let collapsible = all.count > Self.collapsedHistoryCount
+        let rows = collapsible && !showsAllHistory ? Array(all.prefix(Self.collapsedHistoryCount)) : all
         WalletListSectionHeader("History")
         ForEach(rows, id: \.entry.id) { row in
             historyRow(row, progress: progress, currency: currency)
-                .listRowSeparator(row.entry.id == rows.last?.entry.id ? .hidden : .automatic, edges: .bottom)
+                .listRowSeparator(!collapsible && row.entry.id == rows.last?.entry.id ? .hidden : .automatic,
+                                  edges: .bottom)
                 .swipeActions {
                     if case .opening = row.entry {} else {
                         Button("Delete", role: .destructive) { delete(row.entry) }
                     }
                 }
         }
+        if collapsible {
+            Button {
+                withAnimation { showsAllHistory.toggle() }
+            } label: {
+                HStack {
+                    Text(showsAllHistory ? "Show Less" : "Show All \(all.count)")
+                    Spacer()
+                    Image(systemName: showsAllHistory ? "chevron.up" : "chevron.down")
+                        .font(.caption.weight(.semibold))
+                }
+                .foregroundStyle(.tint)
+                .frame(maxWidth: .infinity, minHeight: WalletMetrics.touchTarget)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityHint(showsAllHistory ? "Shows only the latest steps" : "Shows every step")
+            .listRowSeparator(.hidden, edges: .bottom)
+        }
     }
+
+    /// How many of the latest steps a collapsed history shows.
+    private static let collapsedHistoryCount = 3
 
     private func historyRow(_ row: DebtHistoryStep, progress: DebtProgress, currency: String) -> some View {
         let lending = progress.debt.direction == .owedToMe
