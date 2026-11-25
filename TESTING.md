@@ -1054,3 +1054,15 @@ Manual checks:
 6. Open Statistics and confirm its summary card and budget rows now roll up with the charts.
 7. Add a record from the Dashboard and confirm the balance rolls to the new total.
 8. Turn on Reduce Motion and confirm the Dashboard appears without animating.
+
+## Goal Progress Animation (2026-11-25)
+
+Goal rings now sweep round, and their saved amount and percentage roll up, on the Goals screen (once goals are loaded) and in the Dashboard's Savings goals card (with the rest of its reveal). The Goals screen's figures moved into a shared `GoalFigures`, which also rolls them after money is added. **453 tests across 66 suites passed**, unsigned iOS Simulator and macOS builds passed, and SwiftLint reports no new warnings. View-only, no new tests, not seen in the app.
+
+Manual checks:
+
+1. Launch the app and confirm the Dashboard's goal rings sweep and their figures roll up with the other cards.
+2. Open Goals and confirm the rings sweep and the figures roll; open and close a goal's editor and confirm it does not replay (it does replay each time Goals is opened from Planning, as a new screen).
+3. Add money to a goal and confirm the ring, amount and percentage move to the new figures together.
+4. With no goals, create one and confirm its ring sweeps in.
+5. Turn on Reduce Motion and confirm the rings and figures appear at once.

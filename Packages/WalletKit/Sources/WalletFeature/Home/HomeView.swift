@@ -532,20 +532,26 @@ public struct HomeView: View {
         if !goalProgress.isEmpty {
             DashboardSection {
                 ForEach(goalProgress) { progress in
+                    // The ring sweeps and the figures roll up with the rest of the reveal.
+                    let saved = revealed ? progress.saved : 0
+                    let fraction = revealed ? progress.fraction : 0
+                    let code = progress.goal.currencyCode
                     HStack(spacing: WalletMetrics.medium) {
                         GoalRing(fraction: progress.fraction, isAchieved: progress.isAchieved)
                             .frame(width: 60)
                         VStack(alignment: .leading, spacing: WalletMetrics.hair) {
                             Text(progress.goal.name).font(.body.weight(.medium)).lineLimit(1)
-                            Text("\(progress.saved.walletFormatted(progress.goal.currencyCode)) of \(progress.goal.targetAmount.walletFormatted(progress.goal.currencyCode))")
+                            Text("\(saved.walletFormatted(code)) of \(progress.goal.targetAmount.walletFormatted(code))")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                                 .lineLimit(1)
+                                .contentTransition(.numericText(value: saved.doubleValue))
                         }
                         Spacer(minLength: WalletMetrics.small)
-                        Text(progress.fraction.formatted(.percent.precision(.fractionLength(0))))
+                        Text(fraction.formatted(.percent.precision(.fractionLength(0))))
                             .font(.subheadline.weight(.semibold))
                             .monospacedDigit()
+                            .contentTransition(.numericText(value: fraction))
                     }
                     .padding(.vertical, WalletMetrics.tight)
                     .accessibilityElement(children: .combine)

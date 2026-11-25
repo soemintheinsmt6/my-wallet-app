@@ -10,6 +10,9 @@ public struct GoalsView: View {
     /// The goal whose celebration is showing, so it plays once rather than on every redraw.
     @State private var celebrating: UUID?
     @Environment(\.mainCurrency) private var mainCurrency
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// False until there are goals to show, so the rings sweep round and the figures roll up once.
+    @State private var revealed = false
 
     public init(viewModel: DebtsViewModel) { self.viewModel = viewModel }
 
@@ -30,7 +33,11 @@ public struct GoalsView: View {
                     if !progress.contributions.isEmpty { history(progress) }
                 }
             }
+            .environment(\.walletChartsRevealed, revealed)
         }
+        .onAppear(perform: reveal)
+        .onChange(of: viewModel.isLoading) { _, _ in reveal() }
+        .onChange(of: viewModel.goals.isEmpty) { _, _ in reveal() }
         .overlay {
             if viewModel.goals.isEmpty && !viewModel.isLoading {
                 WalletEmptyState(title: "No savings goals", symbol: "target",
@@ -75,6 +82,17 @@ public struct GoalsView: View {
         }
     }
 
+    /// Sweeps the rings in once goals are loaded, as Statistics grows its charts; at once with
+    /// Reduce Motion.
+    private func reveal() {
+        guard !revealed, !viewModel.isLoading, !viewModel.goals.isEmpty else { return }
+        if reduceMotion {
+            revealed = true
+        } else {
+            withAnimation(WalletChartGrid.reveal) { revealed = true }
+        }
+    }
+
     private func row(_ progress: GoalProgress) -> some View {
         // The chevron sits beside the whole card, centered, so it reads as "this row opens".
         HStack(spacing: WalletMetrics.medium) {
@@ -107,18 +125,7 @@ public struct GoalsView: View {
 
             GoalRing(fraction: progress.fraction, isAchieved: progress.isAchieved)
 
-            HStack(alignment: .firstTextBaseline) {
-                Text("\(progress.saved.walletFormatted(progress.goal.currencyCode)) of \(progress.goal.targetAmount.walletFormatted(progress.goal.currencyCode))")
-                    .font(.subheadline)
-                    .monospacedDigit()
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.7)
-                Spacer(minLength: WalletMetrics.small)
-                Text(progress.fraction.formatted(.percent.precision(.fractionLength(0))))
-                    .font(.subheadline.weight(.semibold))
-                    .monospacedDigit()
-            }
+            GoalFigures(progress: progress, font: .subheadline)
 
             Text(projection(progress))
                 .font(.caption)
@@ -172,17 +179,49 @@ public struct GoalsView: View {
     }
 }
 
-/// A progress ring. Decorative: the row states saved, target and percentage in text.
+/// A goal's saved-of-target amount and percentage on one line. Both roll: up from zero when the
+/// screen reveals (see `walletChartsRevealed`), and to new figures after money is added.
+struct GoalFigures: View {
+    let progress: GoalProgress
+    let font: Font
+    @Environment(\.walletChartsRevealed) private var revealed
+
+    var body: some View {
+        let saved = revealed ? progress.saved : 0
+        let fraction = revealed ? progress.fraction : 0
+        let code = progress.goal.currencyCode
+        HStack(alignment: .firstTextBaseline) {
+            Text("\(saved.walletFormatted(code)) of \(progress.goal.targetAmount.walletFormatted(code))")
+                .font(font)
+                .monospacedDigit()
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+                .contentTransition(.numericText(value: saved.doubleValue))
+            Spacer(minLength: WalletMetrics.small)
+            Text(fraction.formatted(.percent.precision(.fractionLength(0))))
+                .font(.subheadline.weight(.semibold))
+                .monospacedDigit()
+                .contentTransition(.numericText(value: fraction))
+        }
+        // Matches the ring, so an added contribution moves both together.
+        .animation(.default, value: progress.fraction)
+    }
+}
+
+/// A progress ring. Decorative: the row states saved, target and percentage in text. Empty until
+/// the screen reveals its charts, then it sweeps round.
 struct GoalRing: View {
     let fraction: Double
     let isAchieved: Bool
+    @Environment(\.walletChartsRevealed) private var revealed
 
     var body: some View {
         ZStack {
             Circle()
                 .stroke(.quaternary, lineWidth: 8)
             Circle()
-                .trim(from: 0, to: max(0.001, fraction))
+                .trim(from: 0, to: max(0.001, revealed ? fraction : 0))
                 .stroke((isAchieved ? Color.green : Color.accentColor).gradient,
                         style: StrokeStyle(lineWidth: 8, lineCap: .round))
                 .rotationEffect(.degrees(-90))
