@@ -660,6 +660,12 @@ Implementation notes (2026-09-11): Phase 5 is implemented except `CKShare` walle
 
 Two roadmap items were implemented deliberately differently from their wording, both noted in their sections: the text-size preference layers on top of Dynamic Type rather than replacing it, because overriding it would ignore an accessibility choice made at the system level; and savings-goal progress comes from recorded contributions rather than an account balance, so ordinary spending cannot silently undo it.
 
+## Drinking Day Places (2026-11-26)
+
+A drinking day can list where the drinking happened (restaurants, bars, clubs), up to 10 places in the order added, since one night often moves between several. The note held this before, but free text can't be suggested or counted, and a place typed as "Blue Bar" one night and "blue bar" the next would count as two places. The Places screen therefore offers places from earlier days: the most recent with nothing typed, and while typing, places that start with the text, then places where a later word does, more visited ones first. These match like payee suggestions, ignoring case and accents. Adding a place uses the spelling seen before, so "blue bar" adds "Blue Bar". Places are names, not a separate list, so nothing needs to be deleted, and suggestions come from the saved days. They are stored one per line in a defaulted `placesValue` column, an additive CloudKit-compatible field like the workout exercises, so days saved before read as no places. Deploy the CloudKit development schema to production before release. Places are not yet counted anywhere: "most visited places" would read the same field.
+
+---
+
 ## Dependency Graph
 
 Features should generally be implemented in phase order. Key cross-phase dependencies:

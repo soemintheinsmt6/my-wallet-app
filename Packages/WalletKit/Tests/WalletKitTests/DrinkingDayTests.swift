@@ -56,6 +56,91 @@ struct DrinkingDayTests {
         #expect(try await useCases.load().isEmpty)
     }
 
+    @Test func placesAreSavedOnOneLineOnceEachInTheOrderAdded() async throws {
+        let repository = try await SwiftDataWalletRepository.make(configuration: .inMemory)
+        let useCases = DrinkingDayUseCases(repository: repository)
+        let saved = try await useCases.mark(today, drinks: 3,
+                                            places: ["  Blue\nBar ", "Club 9", "blue bar", "Café Rouge", "  "],
+                                            note: "", today: today)
+        #expect(saved.places == ["Blue Bar", "Club 9", "Café Rouge"])
+        #expect(try await useCases.load().first?.places == ["Blue Bar", "Club 9", "Café Rouge"])
+
+        try await useCases.mark(today, drinks: 3, places: [], note: "", today: today)
+        #expect(try await useCases.load().first?.places == [])
+    }
+
+    @Test func rejectsTooManyPlacesAndOverlongNamesWithoutSaving() async throws {
+        let repository = try await SwiftDataWalletRepository.make(configuration: .inMemory)
+        let useCases = DrinkingDayUseCases(repository: repository)
+        let eleven = (1...DrinkingDay.maximumPlaces + 1).map { "Bar \($0)" }
+        await #expect(throws: DrinkingDayError.tooManyPlaces) {
+            try await useCases.mark(today, drinks: nil, places: eleven, note: "", today: today)
+        }
+        let long = String(repeating: "a", count: DrinkingDay.maximumPlaceNameLength + 1)
+        await #expect(throws: DrinkingDayError.placeNameTooLong) {
+            try await useCases.mark(today, drinks: nil, places: [long], note: "", today: today)
+        }
+        #expect(try await useCases.load().isEmpty)
+    }
+
+    @Test func rowsSavedBeforePlacesExistedReadAsNoPlaces() async throws {
+        let container = try WalletPersistence.makeContainer(configuration: .inMemory)
+        let context = ModelContext(container)
+        let record = DrinkingDayRecord(day: DrinkingDay(day: today, drinks: 2))
+        record.placesValue = ""
+        context.insert(record)
+        try context.save()
+        let store = WalletStore(modelContainer: container)
+        #expect(try await store.fetchDrinkingDays().first?.places == [])
+
+        let current = try JSONEncoder().encode(DrinkingDay(day: today, drinks: 2, places: ["Blue Bar"]))
+        var object = try #require(try JSONSerialization.jsonObject(with: current) as? [String: Any])
+        #expect(object.removeValue(forKey: "places") != nil)
+        let legacy = try JSONSerialization.data(withJSONObject: object)
+        let decoded = try JSONDecoder().decode(DrinkingDay.self, from: legacy)
+        #expect(decoded.places == [])
+        #expect(decoded.drinks == 2)
+    }
+
+    @Test func placeSuggestionsOfferRecentWhenEmptyAndWordStartsWhenTyping() {
+        let days = [
+            DrinkingDay(day: DayKey(year: 2026, month: 10, day: 1), places: ["Blue Bar", "Club 9"]),
+            DrinkingDay(day: DayKey(year: 2026, month: 10, day: 2), places: ["Blue Bar"]),
+            DrinkingDay(day: DayKey(year: 2026, month: 10, day: 3), places: ["blue bar"]),
+            DrinkingDay(day: DayKey(year: 2026, month: 10, day: 4), places: ["The Rooftop"]),
+            DrinkingDay(day: DayKey(year: 2026, month: 9, day: 1), places: ["Bar Ç"]),
+        ]
+        let suggestions = DrinkingPlaceSuggestions(days: days)
+        // Most recent first; "blue bar" folds into the more used "Blue Bar".
+        #expect(suggestions.suggestions(for: "") == ["The Rooftop", "Blue Bar", "Club 9", "Bar Ç"])
+        // Places the text starts come before those where a later word starts with it.
+        #expect(suggestions.suggestions(for: "bar") == ["Bar Ç", "Blue Bar"])
+        #expect(suggestions.suggestions(for: "roof") == ["The Rooftop"])
+        #expect(suggestions.suggestions(for: "oof").isEmpty)
+        // Already on the day, or typed in full, is not offered again.
+        #expect(suggestions.suggestions(for: "", excluding: ["BLUE BAR"]) == ["The Rooftop", "Club 9", "Bar Ç"])
+        #expect(suggestions.suggestions(for: "Club 9").isEmpty)
+        #expect(suggestions.suggestions(for: "", limit: 2).count == 2)
+        // Typing an existing place reuses its spelling; a new one is kept as typed, on one line.
+        #expect(suggestions.spelling(of: " BLUE  bar ") == "Blue Bar")
+        #expect(suggestions.spelling(of: "bar c") == "Bar Ç")
+        #expect(suggestions.spelling(of: "New\nPlace") == "New Place")
+    }
+
+    @Test func viewModelSuggestsPlacesFromSavedDaysAndRefreshesAfterSaving() async throws {
+        let repository = try await SwiftDataWalletRepository.make(configuration: .inMemory)
+        let now = today.date(in: calendar).addingTimeInterval(3600)
+        let viewModel = DrinkingDaysViewModel(useCases: DrinkingDayUseCases(repository: repository),
+                                              calendar: calendar, now: { now })
+        await viewModel.observe()
+        #expect(viewModel.placeSuggestions(for: "", excluding: []).isEmpty)
+
+        try await viewModel.mark(today, drinks: 2, places: [" Blue  Bar "], note: "")
+        #expect(viewModel.days[today]?.places == ["Blue Bar"])
+        #expect(viewModel.placeSuggestions(for: "bl", excluding: []) == ["Blue Bar"])
+        #expect(viewModel.placeSpelling(of: "blue bar") == "Blue Bar")
+    }
+
     @Test func duplicateRowsFromAnotherDeviceReadAsTheNewestAndFoldOnSave() async throws {
         let container = try WalletPersistence.makeContainer(configuration: .inMemory)
         let context = ModelContext(container)

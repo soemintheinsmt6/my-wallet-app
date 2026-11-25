@@ -182,6 +182,11 @@ private struct DrinkingDayRow: View {
     let day: DrinkingDay
     let calendar: Calendar
 
+    /// The places, then the note: "Blue Bar, Club 9 · birthday".
+    private var detail: String {
+        [day.places.joined(separator: ", "), day.note].filter { !$0.isEmpty }.joined(separator: " · ")
+    }
+
     var body: some View {
         HStack(spacing: WalletMetrics.medium) {
             WalletIconTile(symbol: "wineglass", color: DrinkingDaysView.tint)
@@ -189,8 +194,8 @@ private struct DrinkingDayRow: View {
                 Text(day.day.date(in: calendar), format: .dateTime.weekday(.abbreviated).month(.abbreviated).day())
                     .font(.body.weight(.medium))
                     .foregroundStyle(.primary)
-                if !day.note.isEmpty {
-                    Text(day.note).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                if !detail.isEmpty {
+                    Text(detail).font(.caption).foregroundStyle(.secondary).lineLimit(1)
                 }
             }
             Spacer(minLength: WalletMetrics.small)

@@ -1117,3 +1117,16 @@ Manual checks:
 5. In Custom, scroll the dates and confirm nothing animates.
 6. Export a PDF and confirm it shows the real figures.
 7. Turn on Reduce Motion and confirm everything is instant.
+
+## Drinking Day Places (2026-11-26)
+
+Drinking days gained a Places list with suggestions from earlier days. **460 tests across 67 suites passed**, including new tests for saving places once each on one line, the place limits, rows saved before the field existed, suggestion ranking and spelling, and the view model's suggestions after saving. Unsigned iOS Simulator, macOS and watchOS builds passed, and SwiftLint reports no new warnings. A signed simulator build installed and launched, but the Places screen has not been seen in the app.
+
+Manual checks:
+
+1. Mark a drinking day, open Places, add "Blue Bar" and "Club 9" and confirm both stay ticked with the screen open; save and confirm the list row reads "Blue Bar, Club 9".
+2. Mark another day, open Places and confirm Recent offers both; type "bl" and confirm Blue Bar is suggested.
+3. Type "blue bar" and confirm the Add row reads "Add “Blue Bar”".
+4. Untick a place, save, and confirm it is gone from the row.
+5. Add 10 places and confirm no more can be added.
+6. On a second signed device, confirm the places sync.

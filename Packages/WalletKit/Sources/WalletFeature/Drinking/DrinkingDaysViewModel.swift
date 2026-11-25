@@ -5,8 +5,9 @@ import WalletDomain
 @MainActor
 public final class DrinkingDaysViewModel: ObservableObject {
     @Published public private(set) var days: [DayKey: DrinkingDay] = [:] {
-        didSet { cachedHeatmap = nil }
+        didSet { cachedHeatmap = nil; cachedPlaceSuggestions = nil }
     }
+    private var cachedPlaceSuggestions: DrinkingPlaceSuggestions?
     /// The first day of the month on screen.
     @Published public private(set) var month: DayKey
     @Published public private(set) var isLoading = true
@@ -128,15 +129,29 @@ public final class DrinkingDaysViewModel: ObservableObject {
         }
     }
 
-    public func mark(_ day: DayKey, drinks: Int?, note: String) async throws {
+    /// Places named on earlier days for what has been typed, leaving out those already added.
+    /// Built once per change to the days rather than on every keystroke.
+    public func placeSuggestions(for text: String, excluding added: [String]) -> [String] {
+        placeHistory.suggestions(for: text, excluding: added)
+    }
+
+    /// The spelling already used for a typed place, so "blue bar" adds the "Blue Bar" seen before.
+    public func placeSpelling(of name: String) -> String { placeHistory.spelling(of: name) }
+
+    private var placeHistory: DrinkingPlaceSuggestions {
+        let history = cachedPlaceSuggestions ?? DrinkingPlaceSuggestions(days: Array(days.values))
+        cachedPlaceSuggestions = history
+        return history
+    }
+
+    public func mark(_ day: DayKey, drinks: Int?, places: [String] = [], note: String) async throws {
         guard !isSaving else { throw DrinkingDayError.saveInProgress }
         isSaving = true
         defer { isSaving = false }
-        try await useCases.mark(day, drinks: drinks, note: note, today: today)
+        let saved = try await useCases.mark(day, drinks: drinks, places: places, note: note, today: today)
         // Shown at once: while observing, the change notification's reload may already be running,
         // and the `reload()` below then folds into it and returns before it has the saved day.
-        days[day] = DrinkingDay(day: day, drinks: drinks,
-                                note: note.trimmingCharacters(in: .whitespacesAndNewlines))
+        days[day] = saved
         await reload()
     }
 

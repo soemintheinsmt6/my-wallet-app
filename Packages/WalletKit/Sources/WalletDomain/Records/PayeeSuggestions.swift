@@ -98,13 +98,13 @@ public struct PayeeSuggestions: Sendable {
             .map(\.payee)
     }
 
-    private static func fold(_ text: String) -> String {
+    static func fold(_ text: String) -> String {
         text.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: nil)
     }
 
     /// Whether `query` occurs in `name` at its start or just after a space or punctuation, so
     /// "ele" finds "7-Eleven" and "cof" finds "Blue Bottle Coffee" but "ucks" finds nothing.
-    private static func startsWord(_ query: String, in name: String) -> Bool {
+    static func startsWord(_ query: String, in name: String) -> Bool {
         var searchStart = name.startIndex
         while let range = name.range(of: query, range: searchStart..<name.endIndex) {
             if range.lowerBound == name.startIndex { return true }

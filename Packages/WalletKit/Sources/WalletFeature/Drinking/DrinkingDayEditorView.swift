@@ -10,9 +10,11 @@ struct DrinkingDayEditorView: View {
     @Environment(\.dismiss) private var dismiss
     /// Zero means the count was not recorded.
     @State private var drinks: Int
+    @State private var places: [String]
     @State private var note: String
     @State private var errorMessage: String?
     @State private var editingNote = false
+    @State private var editingPlaces = false
     @ScaledMetric(relativeTo: .largeTitle) private var countFontSize = 60
 
     init(viewModel: DrinkingDaysViewModel, day: DayKey, existing: DrinkingDay?) {
@@ -20,6 +22,7 @@ struct DrinkingDayEditorView: View {
         self.day = day
         self.existing = existing
         _drinks = State(initialValue: existing?.drinks ?? 0)
+        _places = State(initialValue: existing?.places ?? [])
         _note = State(initialValue: existing?.note ?? "")
     }
 
@@ -46,12 +49,18 @@ struct DrinkingDayEditorView: View {
                             .lineLimit(1)
                     }
                     .accessibilityElement(children: .combine)
+                    RecordFormRow(symbol: "mappin.and.ellipse") {
+                        WalletEditorNavigationButton(title: "Places",
+                                                     value: places.isEmpty ? nil : places.joined(separator: ", ")) {
+                            editingPlaces = true
+                        }
+                    }
                     RecordFormRow(symbol: "square.and.pencil", showsDivider: false) {
                         WalletEditorNavigationButton(title: "Note", value: note.isEmpty ? nil : note) {
                             editingNote = true
                         }
                     }
-                    WalletEditorCaption("The number of drinks is optional. Leave it at Not recorded to just mark the day.")
+                    WalletEditorCaption("The number of drinks and places are optional. Leave them empty to just mark the day.")
                     if let errorMessage {
                         Text(errorMessage)
                             .foregroundStyle(.red)
@@ -71,6 +80,9 @@ struct DrinkingDayEditorView: View {
             #endif
             .navigationDestination(isPresented: $editingNote) {
                 RecordTextEntry(title: "Note", text: $note, caption: "Add note", multiline: true)
+            }
+            .navigationDestination(isPresented: $editingPlaces) {
+                DrinkingPlacesEntry(viewModel: viewModel, places: $places)
             }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -167,7 +179,7 @@ struct DrinkingDayEditorView: View {
     private func save() async {
         errorMessage = nil
         do {
-            try await viewModel.mark(day, drinks: drinks == 0 ? nil : drinks, note: note)
+            try await viewModel.mark(day, drinks: drinks == 0 ? nil : drinks, places: places, note: note)
             dismiss()
         } catch { errorMessage = error.localizedDescription }
     }
