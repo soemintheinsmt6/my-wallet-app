@@ -107,7 +107,7 @@ public struct DebtsView: View {
 /// One debt in the Debts list: the tile, then two lines that pair left with right (who owes whom
 /// with what is outstanding, the status with the total) and, once something is paid, a bar across
 /// the full width of both ending in the share paid, so it lines up with the figures it measures.
-/// A settled debt shows its whole amount, grayed, rather than the zero still outstanding.
+/// A settled debt shows its zero outstanding, grayed, over "of" its whole amount.
 struct DebtRow: View {
     let progress: DebtProgress
 
@@ -125,8 +125,7 @@ struct DebtRow: View {
                             .foregroundStyle(.primary)
                             .lineLimit(1)
                         Spacer(minLength: WalletMetrics.small)
-                        // Settled, the outstanding is always zero; the whole amount says more.
-                        Text((progress.isSettled ? progress.total : progress.outstanding).walletFormatted(currency))
+                        Text(progress.outstanding.walletFormatted(currency))
                             .font(.body.weight(.semibold))
                             .monospacedDigit()
                             .foregroundStyle(progress.isSettled ? Color.secondary : Color.primary)
@@ -136,7 +135,9 @@ struct DebtRow: View {
                         Text(progress.statusText)
                             .foregroundStyle(progress.isOverdue ? Color.red : Color.secondary)
                         Spacer(minLength: WalletMetrics.small)
-                        if partlyPaid {
+                        // Once anything is paid, settled included, so a settled row's zero keeps
+                        // the amount it settled.
+                        if progress.paid > 0 {
                             Text("of \(progress.total.walletFormatted(currency))")
                                 .foregroundStyle(.secondary)
                                 .monospacedDigit()

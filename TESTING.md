@@ -953,4 +953,4 @@ Manual checks:
 1. On a debt with more than 3 steps, tap Show All on the History header, then Show Less.
 2. In the Debts list, confirm a partly paid debt shows the full-width bar with its percentage, and a debt with nothing paid or settled shows no bar.
 3. Check both in dark mode.
-4. Settle a debt fully and confirm its row shows the whole amount in gray, not 0.
+4. Settle a debt fully and confirm its row shows "0 MMK" in gray with "of" the whole amount under it, and no bar.
