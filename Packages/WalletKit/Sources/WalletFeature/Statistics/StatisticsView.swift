@@ -158,7 +158,7 @@ public struct StatisticsView: View {
 
     @ViewBuilder private var periodSection: some View {
         Group {
-            Picker("Period", selection: $period) {
+            Picker("Period", selection: $period.animation(changeAnimation)) {
                 ForEach(Period.allCases) { Text($0.title).tag($0) }
             }
             .pickerStyle(.segmented)
@@ -167,11 +167,13 @@ public struct StatisticsView: View {
                                       bottom: WalletMetrics.small, trailing: WalletMetrics.large))
 
             if period == .custom {
+                // Not animated: the dates change while still being picked, and the charts would
+                // move with every turn of the wheel.
                 DatePicker("From", selection: $customStart, displayedComponents: .date)
                 DatePicker("Through", selection: $customEnd, in: customStart..., displayedComponents: .date)
             } else if let component = period.component {
                 WalletPeriodStepper(title: periodTitle, unit: period.title.lowercased(),
-                                    date: $anchor, component: component)
+                                    date: $anchor.animation(changeAnimation), component: component)
             }
         }
     }
@@ -191,10 +193,12 @@ public struct StatisticsView: View {
             StatisticsFilterSelection(currency: selectedCurrency, accountID: accountID,
                                       categoryID: categoryID, tagID: tagID)
         } set: { value in
-            currency = value.currency
-            accountID = value.accountID
-            categoryID = value.categoryID
-            tagID = value.tagID
+            withAnimation(changeAnimation) {
+                currency = value.currency
+                accountID = value.accountID
+                categoryID = value.categoryID
+                tagID = value.tagID
+            }
         }
     }
 
@@ -205,7 +209,7 @@ public struct StatisticsView: View {
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
             Spacer()
-            Button("Clear") { clearFilters() }
+            Button("Clear") { withAnimation(changeAnimation) { clearFilters() } }
                 .font(.footnote.weight(.semibold))
                 // Plain, so in a list row only the button takes the tap.
                 .buttonStyle(.borderless)
@@ -263,7 +267,9 @@ public struct StatisticsView: View {
 
     private var currencyMenu: some View {
         Menu {
-            Picker("Currency", selection: Binding(get: { selectedCurrency }, set: { currency = $0 })) {
+            Picker("Currency", selection: Binding(get: { selectedCurrency }, set: { code in
+                withAnimation(changeAnimation) { currency = code }
+            })) {
                 ForEach(currencies, id: \.self) { Text($0).tag($0) }
             }
         } label: {
@@ -349,7 +355,9 @@ public struct StatisticsView: View {
         Group {
             WalletListSectionHeader("Spending trend")
             if groupingOptions.count > 1 {
-                Picker("Group by", selection: Binding(get: { grouping }, set: { granularity = $0 })) {
+                Picker("Group by", selection: Binding(get: { grouping }, set: { value in
+                    withAnimation(changeAnimation) { granularity = value }
+                })) {
                     ForEach(groupingOptions, id: \.self) { Text($0.rawValue.capitalized).tag($0) }
                 }
                 .pickerStyle(.segmented)
@@ -467,6 +475,9 @@ extension StatisticsView {
                                                                    accountID: accountID, categoryID: categoryID,
                                                                    tagID: tagID, granularity: grouping))
     }
+
+    /// How the charts move when a control changes what they show; none with Reduce Motion.
+    private var changeAnimation: Animation? { reduceMotion ? nil : WalletChartGrid.change }
 
     /// Grows the charts in once the first load has finished; at once with Reduce Motion.
     private func reveal() {

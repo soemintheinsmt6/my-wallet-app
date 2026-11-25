@@ -27,7 +27,10 @@ struct WalletSummaryCard: View {
                 Text("Net")
                     .font(.subheadline.weight(.medium))
                     .foregroundStyle(.secondary)
+                // Figures roll to new values when a change is animated (Statistics' period and
+                // filters); without an animation they simply update.
                 WalletAmountText.net(net, currencyCode: currencyCode, font: .largeTitle.weight(.bold))
+                    .contentTransition(.numericText(value: net.doubleValue))
                 Text(context)
                     .font(.footnote)
                     .foregroundStyle(.secondary)
@@ -49,6 +52,7 @@ struct WalletSummaryCard: View {
                     if let dailyAverage {
                         detail("Spent per day") {
                             Text(dailyAverage.walletFormatted(currencyCode))
+                                .contentTransition(.numericText(value: dailyAverage.doubleValue))
                         }
                     }
                     if let comparison {
@@ -139,6 +143,7 @@ struct WalletSummaryCard: View {
             Text(amount.walletFormatted(currencyCode))
                 .font(.headline)
                 .monospacedDigit()
+                .contentTransition(.numericText(value: amount.doubleValue))
                 .lineLimit(1)
                 .minimumScaleFactor(0.6)
         }

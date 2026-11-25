@@ -10,6 +10,10 @@ enum WalletChartGrid {
     /// How charts grow in when Statistics first shows its data.
     static let reveal = Animation.smooth(duration: 0.7)
 
+    /// How charts move to new data when a control changes what they show: the period, its arrows,
+    /// the grouping, the currency, the filters or the nature picker.
+    static let change = Animation.smooth(duration: 0.45)
+
     /// The smallest round number at or above `value` (1, 1.5, 2, 2.5, 3, 4, 5, 6 or 8 times a
     /// power of ten). Bars that grow in from zero need a fixed scale, or the axis would rescale
     /// with them; rounding it up keeps the top on a round figure the way an automatic scale does.

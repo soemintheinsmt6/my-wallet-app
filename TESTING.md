@@ -1015,3 +1015,16 @@ Manual checks:
 3. Confirm the charts span the full width and their axis labels are not clipped at the edges.
 4. With a filter set, confirm Clear on the filter row clears it, and tapping elsewhere on the row does nothing.
 5. Confirm budget progress shows under its own band when budgets exist.
+
+## Statistics Change Animation (2026-11-25)
+
+The nature picker's animation now applies to every Statistics control that changes the data: period picker, period arrows, Day/Week grouping, currency menu and filters (applied or cleared), through a shared `WalletChartGrid.change`. `WalletSummaryCard`'s net, totals and daily average roll as numeric text. **452 tests across 66 suites passed**, unsigned iOS Simulator and macOS builds passed, and SwiftLint reports no new warnings. View-only, no new tests, not seen in the app.
+
+Manual checks:
+
+1. Step back and forward through months and confirm bars, donuts, the balance line and the category bars move to the new values and the summary figures roll.
+2. Switch Week, Month and Year, and Day and Week grouping, and confirm the charts animate rather than jump.
+3. Apply and clear a filter, and change currency, and confirm the charts animate.
+4. In Custom, scroll the From and Through pickers and confirm the charts update without animating.
+5. Turn on Reduce Motion and confirm every change is instant.
+6. On the Dashboard, confirm the summary card still updates correctly after adding a record.

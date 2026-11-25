@@ -27,7 +27,7 @@ struct NatureSpendingSection: View {
             WalletListSectionHeader("Nature of spending")
             // Switching nature animates everything that depends on it: the bars restack and rescale,
             // the total rolls to its new figure, and category rows slide in and out.
-            Picker("Nature", selection: $nature.animation(reduceMotion ? nil : .smooth(duration: 0.45))) {
+            Picker("Nature", selection: $nature.animation(reduceMotion ? nil : WalletChartGrid.change)) {
                 Text("All").tag(CategoryNature?.none)
                 ForEach(NatureSpending.natures) { Text($0.title).tag(Optional($0)) }
             }
