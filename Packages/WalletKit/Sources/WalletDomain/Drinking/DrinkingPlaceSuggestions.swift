@@ -3,8 +3,8 @@ import Foundation
 /// Places already named on drinking days, offered while one is added so each is spelled the same
 /// way every time.
 ///
-/// Spellings that differ only in case or accents ("Blue Bar", "blue bar") are one place, offered
-/// under the spelling used most often. Typed text matches the start of a place or of any word in
+/// Places are grouped as in `DrinkingPlaceVisit`, offered under the spelling used most often.
+/// Typed text matches the start of a place or of any word in
 /// it, like payees: places the text starts come first, then the most visited, then the most
 /// recent. With nothing typed, the most recently visited are offered.
 public struct DrinkingPlaceSuggestions: Sendable {
@@ -20,19 +20,8 @@ public struct DrinkingPlaceSuggestions: Sendable {
     public init() {}
 
     public init(days: [DrinkingDay]) {
-        var groups: [String: [String: (count: Int, last: DayKey)]] = [:]
-        for day in days {
-            for name in DrinkingDay.normalizedPlaces(day.places) {
-                let tally = groups[PayeeSuggestions.fold(name), default: [:]][name]
-                groups[PayeeSuggestions.fold(name), default: [:]][name] =
-                    (count: (tally?.count ?? 0) + 1, last: max(tally?.last ?? day.day, day.day))
-            }
-        }
-        places = groups.compactMap { folded, spellings in
-            guard let best = spellings.max(by: { ($0.value.count, $0.value.last) < ($1.value.count, $1.value.last) }),
-                  let lastVisited = spellings.values.map(\.last).max() else { return nil }
-            return Place(name: best.key, folded: folded,
-                         count: spellings.values.reduce(0) { $0 + $1.count }, lastVisited: lastVisited)
+        places = DrinkingPlaceVisit.tally(days).map {
+            Place(name: $0.visit.name, folded: $0.folded, count: $0.visit.visits, lastVisited: $0.visit.lastVisited)
         }
     }
 

@@ -24,6 +24,8 @@ public struct DrinkingHeatmap: Equatable, Sendable {
     public let alcoholFreeDays: Int
     public let totalDrinks: Int
     public let longestAlcoholFreeStreak: Int
+    /// The period's most visited places, up to five.
+    public let mostVisitedPlaces: [DrinkingPlaceVisit]
 
     public init(days: [DrinkingDay], period: Period, today: DayKey, calendar: Calendar = .current) {
         let grid = DayGrid(period: period, today: today, calendar: calendar)
@@ -39,6 +41,7 @@ public struct DrinkingHeatmap: Equatable, Sendable {
         alcoholFreeDays = grid.days.count - marked.count
         totalDrinks = marked.reduce(0) { $0 + ($1.drinks ?? 0) }
         longestAlcoholFreeStreak = grid.longestRun { byDay[$0] == nil }
+        mostVisitedPlaces = DrinkingPlaceVisit.mostVisited(in: marked)
     }
 
     /// A day marked without a count shows at the lightest shade, since some drinking is known.

@@ -127,6 +127,41 @@ struct DrinkingDayTests {
         #expect(suggestions.spelling(of: "New\nPlace") == "New Place")
     }
 
+    @Test func mostVisitedPlacesCountDaysGroupSpellingsAndBreakTiesByRecency() {
+        let days = [
+            DrinkingDay(day: DayKey(year: 2026, month: 10, day: 1), drinks: 9, places: ["Blue Bar", "Club 9"]),
+            DrinkingDay(day: DayKey(year: 2026, month: 10, day: 2), places: ["blue bar"]),
+            DrinkingDay(day: DayKey(year: 2026, month: 10, day: 3), places: ["Blue Bar"]),
+            DrinkingDay(day: DayKey(year: 2026, month: 10, day: 4), places: ["The Rooftop"]),
+            DrinkingDay(day: DayKey(year: 2026, month: 10, day: 5), drinks: 2),
+        ]
+        let top = DrinkingPlaceVisit.mostVisited(in: days)
+        #expect(top == [
+            DrinkingPlaceVisit(name: "Blue Bar", visits: 3, lastVisited: DayKey(year: 2026, month: 10, day: 3)),
+            // Both visited once; the more recent comes first.
+            DrinkingPlaceVisit(name: "The Rooftop", visits: 1, lastVisited: DayKey(year: 2026, month: 10, day: 4)),
+            DrinkingPlaceVisit(name: "Club 9", visits: 1, lastVisited: DayKey(year: 2026, month: 10, day: 1)),
+        ])
+        #expect(DrinkingPlaceVisit.mostVisited(in: days, limit: 1).map(\.name) == ["Blue Bar"])
+        #expect(DrinkingPlaceVisit.mostVisited(in: []).isEmpty)
+    }
+
+    @Test func monthAndYearFiguresListOnlyTheirOwnPeriodsPlaces() {
+        let days = [
+            DrinkingDay(day: DayKey(year: 2026, month: 10, day: 2), places: ["Blue Bar"]),
+            DrinkingDay(day: DayKey(year: 2026, month: 9, day: 20), places: ["Club 9"]),
+            DrinkingDay(day: DayKey(year: 2026, month: 9, day: 21), places: ["Club 9"]),
+            DrinkingDay(day: DayKey(year: 2024, month: 1, day: 1), places: ["Old Pub"]),
+        ]
+        let october = DrinkingSummary(days: days, month: DayKey(year: 2026, month: 10, day: 1), today: today, calendar: calendar)
+        #expect(october.mostVisitedPlaces.map(\.name) == ["Blue Bar"])
+        let pastYear = DrinkingHeatmap(days: days, period: .pastYear, today: today, calendar: calendar)
+        #expect(pastYear.mostVisitedPlaces.map(\.name) == ["Club 9", "Blue Bar"])
+        #expect(pastYear.mostVisitedPlaces.first?.visits == 2)
+        let year2024 = DrinkingHeatmap(days: days, period: .year(2024), today: today, calendar: calendar)
+        #expect(year2024.mostVisitedPlaces.map(\.name) == ["Old Pub"])
+    }
+
     @Test func viewModelSuggestsPlacesFromSavedDaysAndRefreshesAfterSaving() async throws {
         let repository = try await SwiftDataWalletRepository.make(configuration: .inMemory)
         let now = today.date(in: calendar).addingTimeInterval(3600)

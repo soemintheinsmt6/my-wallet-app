@@ -1130,3 +1130,15 @@ Manual checks:
 4. Untick a place, save, and confirm it is gone from the row.
 5. Add 10 places and confirm no more can be added.
 6. On a second signed device, confirm the places sync.
+
+## Most Visited Places (2026-11-26)
+
+The drinking days' Month and Year views now list the period's five most visited places. **462 tests across 67 suites passed**, including new tests for counting days, grouping spellings, recency tie-breaks and keeping each period to its own days. Unsigned iOS Simulator, macOS and watchOS builds passed, and SwiftLint reports no new warnings. Not yet seen in the app.
+
+Manual checks:
+
+1. With no places this month, confirm Month view shows no Most Visited section.
+2. Mark three days at "Blue Bar" (one typed "blue bar") and one at "Club 9"; confirm Most Visited lists Blue Bar with 3 days and a full bar, then Club 9 with 1 day and a shorter bar.
+3. Switch to Year and confirm the same places; page to an earlier year and confirm only that year's places show.
+4. Mark one day at two places and confirm both counts go up.
+5. With VoiceOver, confirm each row reads its name and day count.

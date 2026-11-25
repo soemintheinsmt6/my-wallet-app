@@ -8,10 +8,13 @@ public struct DrinkingSummary: Equatable, Sendable {
     public let totalDrinks: Int
     /// Whole days since the most recent drinking day, or `nil` when none is recorded yet.
     public let daysSinceLastDrink: Int?
+    /// The month's most visited places, up to five.
+    public let mostVisitedPlaces: [DrinkingPlaceVisit]
 
     public init(days: [DrinkingDay], month: DayKey, today: DayKey, calendar: Calendar = .current) {
         let inMonth = days.filter { $0.day.isInMonth(of: month) && $0.day <= today }
         drinkingDays = inMonth.count
+        mostVisitedPlaces = DrinkingPlaceVisit.mostVisited(in: inMonth)
         totalDrinks = inMonth.reduce(0) { $0 + ($1.drinks ?? 0) }
         alcoholFreeDays = max(0, DayKey.elapsedDays(in: month, today: today, calendar: calendar) - inMonth.count)
         daysSinceLastDrink = days.filter { $0.day <= today }.map(\.day).max().map {

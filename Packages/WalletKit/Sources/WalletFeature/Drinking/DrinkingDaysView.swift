@@ -93,6 +93,24 @@ public struct DrinkingDaysView: View {
                        WalletStatTile(title: "Longest alcohol-free", value: dayCountText(heatmap.longestAlcoholFreeStreak),
                                       symbol: "flame", tint: .blue))
         }
+
+        mostVisitedSection(heatmap.mostVisitedPlaces)
+    }
+
+    /// The period's top places, hidden until a day in it names one. Rows open nothing, so they
+    /// carry no chevron.
+    @ViewBuilder private func mostVisitedSection(_ places: [DrinkingPlaceVisit]) -> some View {
+        if !places.isEmpty {
+            Section {
+                ForEach(places, id: \.name) { place in
+                    MostVisitedPlaceRow(place: place, topVisits: places[0].visits)
+                }
+            } header: {
+                Text("Most Visited")
+            } footer: {
+                WalletListFooter("Days at each place. A night at two places counts for both.")
+            }
+        }
     }
 
     private var yearTitle: String {
@@ -135,8 +153,8 @@ public struct DrinkingDaysView: View {
                 .alignmentGuide(.listRowSeparatorLeading) { _ in 0 }
         }
 
+        let summary = viewModel.summary
         Section {
-            let summary = viewModel.summary
             DayStatRow(WalletStatTile(title: "Drinking", value: dayCountText(summary.drinkingDays),
                                       symbol: "wineglass", tint: Self.tint),
                        WalletStatTile(title: "Alcohol-free", value: dayCountText(summary.alcoholFreeDays),
@@ -148,6 +166,8 @@ public struct DrinkingDaysView: View {
         } footer: {
             WalletListFooter("Monthly counts include only days up to today. Days you don't mark count as alcohol-free.")
         }
+
+        mostVisitedSection(summary.mostVisitedPlaces)
 
         let marked = markedDaysInMonth
         if !marked.isEmpty {
@@ -175,6 +195,36 @@ public struct DrinkingDaysView: View {
             do { try await viewModel.unmark(day) }
             catch { viewModel.errorMessage = error.localizedDescription }
         }
+    }
+}
+
+/// A place, a bar showing its visits against the top place's, and its day count.
+private struct MostVisitedPlaceRow: View {
+    let place: DrinkingPlaceVisit
+    let topVisits: Int
+
+    var body: some View {
+        HStack(spacing: WalletMetrics.medium) {
+            WalletIconTile(symbol: "mappin.and.ellipse", color: DrinkingDaysView.tint)
+            VStack(alignment: .leading, spacing: WalletMetrics.tight) {
+                Text(place.name).font(.body.weight(.medium)).foregroundStyle(.primary).lineLimit(1)
+                GeometryReader { proxy in
+                    Capsule()
+                        .fill(DrinkingDaysView.tint)
+                        .frame(width: max(6, proxy.size.width * CGFloat(place.visits) / CGFloat(max(topVisits, 1))))
+                }
+                .frame(height: 4)
+                .accessibilityHidden(true)
+            }
+            Spacer(minLength: WalletMetrics.small)
+            Text(place.visits == 1 ? "1 day" : "\(place.visits) days")
+                .font(.subheadline)
+                .monospacedDigit()
+                .foregroundStyle(.secondary)
+        }
+        .frame(minHeight: WalletMetrics.touchTarget)
+        .walletListRowPadding(WalletMetrics.hair)
+        .accessibilityElement(children: .combine)
     }
 }
 
