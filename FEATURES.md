@@ -194,6 +194,7 @@ Track upcoming bills and due dates with push notification reminders.
 - [x] Mark as paid — optionally auto-create a record
 - [x] Overdue bill highlighting
 - [x] Calendar view of upcoming bills
+- [x] This month's progress — "3 of 5 paid" over a bar, with the amounts paid and due when every bill due this month is in one currency, at the top of Bills (list view) and in the Dashboard's Upcoming bills card. Every occurrence due in the month counts, so a weekly bill counts four or five times; occurrences are paid in order, so one is paid exactly when its index is below the bill's `nextIndex`, and no payment history needs storing (`BillPeriodProgress`). Hidden when nothing falls due this month. Unit-tested and built, not yet verified on device
 
 ---
 

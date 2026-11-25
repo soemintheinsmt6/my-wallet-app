@@ -39,6 +39,58 @@ public struct BillReminder: Identifiable, Codable, Sendable, Equatable {
     }
 }
 
+/// How many bills fall due in a period and how many of them are paid, such as "3 of 5 paid this
+/// month". Each occurrence due in the period counts once, so a weekly bill counts four or five times
+/// in a month. Occurrences are paid in order, so occurrence `n` is paid exactly when `n` is below
+/// the bill's `nextIndex`.
+public struct BillPeriodProgress: Equatable, Sendable {
+    public let dueCount: Int
+    public let paidCount: Int
+    /// Amounts due and paid, in `currencyCode`; `nil` when the period's bills span several
+    /// currencies, which are never added together.
+    public let dueAmount: Decimal?
+    public let paidAmount: Decimal?
+    public let currencyCode: String?
+
+    /// The share of occurrences paid, 0 when nothing falls due.
+    public var fraction: Double { dueCount > 0 ? Double(paidCount) / Double(dueCount) : 0 }
+
+    public init(bills: [BillReminder], in interval: DateInterval) {
+        var due = 0, paid = 0
+        var dueByCurrency: [String: Decimal] = [:], paidByCurrency: [String: Decimal] = [:]
+        for bill in bills {
+            for index in Self.occurrences(of: bill, in: interval) {
+                due += 1
+                dueByCurrency[bill.currencyCode, default: 0] += bill.amount
+                if index < bill.nextIndex {
+                    paid += 1
+                    paidByCurrency[bill.currencyCode, default: 0] += bill.amount
+                }
+            }
+        }
+        dueCount = due
+        paidCount = paid
+        let single = dueByCurrency.count == 1 ? dueByCurrency.keys.first : nil
+        currencyCode = single
+        dueAmount = single.flatMap { dueByCurrency[$0] }
+        paidAmount = single.map { paidByCurrency[$0] ?? 0 }
+    }
+
+    /// The indexes of `bill`'s occurrences dated inside `interval`.
+    static func occurrences(of bill: BillReminder, in interval: DateInterval) -> [Int] {
+        guard let recurrence = bill.recurrence else {
+            return interval.contains(bill.dueDate) && bill.dueDate < interval.end ? [0] : []
+        }
+        var result: [Int] = []
+        var index = 0
+        while let date = recurrence.date(start: bill.dueDate, index: index), date < interval.end {
+            if date >= interval.start { result.append(index) }
+            index += 1
+        }
+        return result
+    }
+}
+
 @MainActor
 public protocol BillReminderRepository: AnyObject {
     func fetchBillReminders() async throws -> [BillReminder]

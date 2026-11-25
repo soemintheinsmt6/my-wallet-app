@@ -565,6 +565,11 @@ public struct HomeView: View {
     @ViewBuilder private var billsSection: some View {
         if !upcomingBills.isEmpty {
             DashboardSection {
+                // Fills and rolls up with the rest of the Dashboard's reveal.
+                if let month = BillPeriodProgress.thisMonth(planning.bills) {
+                    BillMonthProgressView(progress: month)
+                        .padding(.vertical, WalletMetrics.tight)
+                }
                 ForEach(upcomingBills) { entry in
                     BillSummaryRow(bill: entry.bill, due: entry.due)
                 }

@@ -9,6 +9,11 @@ struct BillRemindersView: View {
     @State private var calendarMode = false
     @State private var selectedDate = Date()
     @Environment(\.mainCurrency) private var mainCurrency
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    /// How rows move when the view, the day or the bills change, as Statistics' controls move its
+    /// charts; none with Reduce Motion.
+    private var changeAnimation: Animation? { reduceMotion ? nil : WalletChartGrid.change }
 
     private var visibleBills: [BillReminder] {
         guard calendarMode else { return viewModel.bills }
@@ -32,7 +37,7 @@ struct BillRemindersView: View {
     var body: some View {
         List {
             Section {
-                Picker("View", selection: $calendarMode) {
+                Picker("View", selection: $calendarMode.animation(changeAnimation)) {
                     Text("List").tag(false)
                     Text("Calendar").tag(true)
                 }
@@ -42,8 +47,14 @@ struct BillRemindersView: View {
                                           bottom: WalletMetrics.small, trailing: WalletMetrics.large))
                 .listRowSeparator(.hidden)
                 if calendarMode {
-                    DatePicker("Select a day", selection: $selectedDate, displayedComponents: .date)
+                    DatePicker("Select a day", selection: $selectedDate.animation(changeAnimation),
+                               displayedComponents: .date)
                         .datePickerStyle(.graphical)
+                        .listRowSeparator(.hidden)
+                } else if let month = BillPeriodProgress.thisMonth(viewModel.bills) {
+                    // The month at a glance above the list; the calendar is about one day.
+                    BillMonthProgressView(progress: month)
+                        .padding(.vertical, WalletMetrics.small)
                         .listRowSeparator(.hidden)
                 }
             }
@@ -62,6 +73,10 @@ struct BillRemindersView: View {
             }
         }
         .listStyle(.plain)
+        // Marking a bill paid re-sorts it; rows slide to their new places rather than jumping.
+        .animation(changeAnimation, value: sortedBills.map(\.id))
+        // The month's bar fills and its figures roll up once bills are loaded.
+        .walletChartsReveal(when: !viewModel.isLoading && !viewModel.bills.isEmpty)
         .navigationTitle("Bills")
         .toolbar { Button("Add Bill", systemImage: "plus") { editing = BillReminder(currencyCode: mainCurrency) } }
         .sheet(item: $editing) { BillEditorView(viewModel: viewModel, bill: $0) }

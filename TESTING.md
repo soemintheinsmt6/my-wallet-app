@@ -1089,3 +1089,17 @@ Manual checks:
 2. Tap Show Less and confirm the extra rows slide away the same way.
 3. Confirm the collapsed list shows no rule between its last row and Show All.
 4. Repeat for Records.
+
+## Bills Progress and Animation (2026-11-25)
+
+Bills gain a month progress bar ("3 of 5 paid", with amounts in one currency) at the top of the Bills list and in the Dashboard's Upcoming bills card, computed by the new `BillPeriodProgress` from each bill's occurrences and `nextIndex`. It fills and rolls up on the reveal and after a payment; the List/Calendar picker, the chosen day and re-sorting after payment slide rows. Two new tests cover counting weekly, monthly and one-off occurrences, paid-in-order, the April exclusion, mixed currencies and an empty month. **455 tests across 67 suites passed**, unsigned iOS Simulator, macOS, WalletWatch and WalletWatchWidgets builds passed, and SwiftLint reports no new warnings. Not seen in the app.
+
+Manual checks:
+
+1. With bills due this month, open Bills and confirm "This month · N of M paid" with a bar and amounts that match the bills, and that the bar fills and the figures roll up.
+2. Mark a bill paid and confirm the count, amount and bar move up, and the bill's row slides to its new place.
+3. Pay every bill due this month and confirm "All M paid" in green.
+4. Switch to Calendar and pick days, and confirm the progress hides and rows slide in and out.
+5. With bills in two currencies, confirm only the count shows.
+6. On the Dashboard, confirm the Upcoming bills card leads with the same progress and it animates with the other cards.
+7. Turn on Reduce Motion and confirm everything appears and changes at once.
