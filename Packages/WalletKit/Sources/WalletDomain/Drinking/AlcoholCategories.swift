@@ -4,11 +4,11 @@ import Foundation
 /// suggest marking the day as a drinking day.
 ///
 /// Names are compared word by word, ignoring case and accents, so "Gin" matches but "Engine" does
-/// not. "Bar" alone is left out: the starter "Bar & Café" category is mostly coffee, and a
-/// suggestion on every coffee would soon be ignored.
+/// not. "Bar" counts, so the starter "Bar & Café" category offers the switch on coffee too; it
+/// stays off unless turned on, so a coffee costs only a glance.
 public enum AlcoholCategories {
     static let words: Set<String> = [
-        "alcohol", "alcoholic", "booze", "liquor", "liquors", "spirits",
+        "alcohol", "alcoholic", "booze", "liquor", "liquors", "spirits", "bar", "bars",
         "beer", "beers", "ale", "lager", "cider", "brewery", "pub", "pubs",
         "wine", "wines", "winery", "champagne", "prosecco", "sake", "soju", "makgeolli", "shochu",
         "whiskey", "whiskeys", "whisky", "whiskies", "bourbon", "scotch", "brandy", "cognac",

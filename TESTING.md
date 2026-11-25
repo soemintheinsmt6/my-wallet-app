@@ -1168,3 +1168,12 @@ Manual checks:
 3. Tap just outside each circle and confirm it still steps.
 4. Open a marked day in Drinking Days and confirm its large circles look unchanged.
 5. With VoiceOver, swipe up and down on Drinks and confirm it adjusts and reads the count.
+
+## Bar Counts as an Alcohol Category (2026-11-26)
+
+"Bar" and "Bars" now count as alcohol category names, so Bar & Café offers Mark as Drinking Day, overriding check 5 of Marking Drinking Days from Alcohol Expenses above. **464 tests across 67 suites passed**; the matching test now expects "Bar & Café" and "Bars" to match and "Barber" not to.
+
+Manual checks:
+
+1. Add an expense under Bar & Café and confirm Mark as Drinking Day appears, switched off.
+2. Add one under Groceries and confirm no switch.

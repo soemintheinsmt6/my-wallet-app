@@ -163,10 +163,11 @@ struct DrinkingDayTests {
     }
 
     @Test func alcoholCategoriesMatchWholeWordsOfTheCategoryOrItsParent() {
-        for name in ["Beer", "Wine & Spirits", "WHISKEY", "Whisky bar", "Gin", "Sake", "Night club", "Cocktails"] {
+        for name in ["Beer", "Wine & Spirits", "WHISKEY", "Whisky bar", "Gin", "Sake", "Night club", "Cocktails",
+                     "Bar & Café", "Bars"] {
             #expect(AlcoholCategories.isAlcohol(name), "\(name)")
         }
-        for name in ["Bar & Café", "Engine oil", "Rumah", "Food & Drinks", "Groceries", "Clubhouse", ""] {
+        for name in ["Barber", "Engine oil", "Rumah", "Food & Drinks", "Groceries", "Clubhouse", ""] {
             #expect(!AlcoholCategories.isAlcohol(name), "\(name)")
         }
         let alcohol = WalletCategory(name: "Alcohol")
