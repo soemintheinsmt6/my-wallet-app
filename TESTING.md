@@ -1039,3 +1039,18 @@ Manual checks:
 2. On an account, step periods and switch Day/Week/Month/Year, and confirm the summary figures roll and records slide in and out.
 3. Add a record and confirm a budget's bar still animates to its new length.
 4. Turn on Reduce Motion and confirm both screens change instantly.
+
+## Dashboard Animation (2026-11-25)
+
+The Dashboard reveals its cards once its first load finishes (0.5 seconds), and its currency menu and the expense donut's Categories/Labels picker animate like Statistics' controls. A new `walletChartsRevealed` environment value lets shared pieces (summary card, budget rows, Dashboard charts) start from zero; Statistics now sets it too, so its summary card and budget rows roll up with its charts. `WalletChartGrid.niceDomain` has a new test. **453 tests across 66 suites passed**, unsigned iOS Simulator and macOS builds passed, and SwiftLint reports no new warnings. Not seen in the app.
+
+Manual checks:
+
+1. Launch the app and confirm the balance and This Month figures roll up, the income/expense bar draws out, the Spending bars grow, the Balance Trend line rises, the donut swings in, and Top Expenses and budget bars fill, once.
+2. Switch tabs and back and confirm nothing replays; scroll down and confirm cards below the fold simply appear.
+3. With two currencies, switch currency and confirm the cards animate to the new figures.
+4. Switch the donut between Categories and Labels and confirm the slices resize and legend rows slide.
+5. With a negative balance in the trend, confirm the chart shows it below zero with round axis figures.
+6. Open Statistics and confirm its summary card and budget rows now roll up with the charts.
+7. Add a record from the Dashboard and confirm the balance rolls to the new total.
+8. Turn on Reduce Motion and confirm the Dashboard appears without animating.

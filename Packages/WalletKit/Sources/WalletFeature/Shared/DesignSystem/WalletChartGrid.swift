@@ -10,6 +10,9 @@ enum WalletChartGrid {
     /// How charts grow in when Statistics first shows its data.
     static let reveal = Animation.smooth(duration: 0.7)
 
+    /// The Dashboard's reveal: quicker than Statistics', since it plays on every launch.
+    static let dashboardReveal = Animation.smooth(duration: 0.5)
+
     /// How charts move to new data when a control changes what they show: the period, its arrows,
     /// the grouping, the currency, the filters or the nature picker. Budgets' month arrows and an
     /// account's period picker and arrows use it too, so every period change moves alike.
@@ -25,6 +28,15 @@ enum WalletChartGrid {
         return step * magnitude
     }
 
+    /// A fixed scale from the data's range, rounded out to round figures and always including zero,
+    /// for charts whose marks grow from zero.
+    static func niceDomain(_ values: [Double]) -> ClosedRange<Double> {
+        let low = values.min() ?? 0, high = values.max() ?? 0
+        let lower = low < 0 ? -niceCeiling(-low) : 0
+        let upper = high > 0 ? niceCeiling(high) : (low < 0 ? 0 : 1)
+        return lower...upper
+    }
+
     /// A dotted vertical gridline at each date mark, with the default tick and label.
     static func dottedDateAxis(desiredCount: Int) -> some AxisContent {
         AxisMarks(values: .automatic(desiredCount: desiredCount)) { _ in
@@ -32,5 +44,19 @@ enum WalletChartGrid {
             AxisTick()
             AxisValueLabel()
         }
+    }
+}
+
+private struct WalletChartsRevealedKey: EnvironmentKey {
+    static let defaultValue = true
+}
+
+extension EnvironmentValues {
+    /// False while a screen waits to grow its charts in (the Dashboard and Statistics on first
+    /// load): shared pieces such as `WalletSummaryCard`, `BudgetProgressRow` and the Dashboard's
+    /// charts show zero until it turns true inside the reveal animation. True everywhere else.
+    var walletChartsRevealed: Bool {
+        get { self[WalletChartsRevealedKey.self] }
+        set { self[WalletChartsRevealedKey.self] = newValue }
     }
 }

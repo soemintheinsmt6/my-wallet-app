@@ -126,6 +126,8 @@ public struct StatisticsView: View {
                     }
                 }
                 .listRowSeparator(.hidden)
+                // For shared pieces (the summary card and budget rows) that grow in with the charts.
+                .environment(\.walletChartsRevealed, revealed)
             }
             .listStyle(.plain)
             .navigationTitle("Statistics")

@@ -38,6 +38,13 @@ struct ShortAmountTests {
         #expect(abs(WalletChartGrid.niceCeiling(0.28) - 0.3) < 1e-12)
         #expect(WalletChartGrid.niceCeiling(0) == 1)
     }
+
+    @Test func fixedChartDomainsIncludeZeroAndRoundOutBothWays() {
+        #expect(WalletChartGrid.niceDomain([1_200_000, 2_800_000]) == 0...3_000_000)
+        #expect(WalletChartGrid.niceDomain([-450, 900]) == -500...1_000)
+        #expect(WalletChartGrid.niceDomain([-2_800, -100]) == -3_000...0)
+        #expect(WalletChartGrid.niceDomain([]) == 0...1)
+    }
 }
 
 struct DashboardConfigurationTests {

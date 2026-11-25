@@ -5,6 +5,8 @@ struct BudgetProgressRow: View {
     let progress: BudgetProgress
     /// A line under the name, such as the period being measured; the Budgets list sets it.
     var caption: String?
+    /// The bar starts empty until the screen reveals its charts, then fills.
+    @Environment(\.walletChartsRevealed) private var revealed
 
     /// Color reinforces the status text but never carries it alone — `progress.status` is always shown.
     private var tint: Color {
@@ -35,7 +37,7 @@ struct BudgetProgressRow: View {
                     .padding(.top, -WalletMetrics.tight)
             }
 
-            BudgetBar(fraction: fraction, tint: tint)
+            BudgetBar(fraction: revealed ? fraction : 0, tint: tint)
 
             HStack(alignment: .firstTextBaseline) {
                 Text("\(money(progress.spent)) of \(money(progress.limit))")

@@ -29,6 +29,9 @@ public struct HomeView: View {
     @State private var editingRecord: WalletRecord?
     @State private var creatingAccount = false
     @State private var openAccountID: UUID?
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// False until the first load lands, so the cards grow in once, on real data.
+    @State private var revealed = false
 
     private let recentLimit = 5
     private let previewLimit = 3
@@ -159,6 +162,9 @@ public struct HomeView: View {
                 }
                 .padding(.horizontal, WalletMetrics.large)
                 .padding(.vertical, WalletMetrics.small)
+                // Cards below the fold are built when scrolled to, after the reveal, so they
+                // simply appear; the reveal is for what is on screen at launch.
+                .environment(\.walletChartsRevealed, revealed)
             }
             .background(Color.walletGroupedBackground)
             .navigationTitle("Dashboard")
@@ -198,11 +204,24 @@ public struct HomeView: View {
         }
         .animation(.easeOut(duration: 0.25), value: records.isLoading && records.accounts.isEmpty)
         .task { await records.observe() }
+        .onAppear(perform: reveal)
+        .onChange(of: records.isLoading) { _, _ in reveal() }
         .task { await currency.refresh() }
         .task { insights.start() }
         .task { await debts.refresh() }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { Task { await records.reload() } }
+        }
+    }
+
+    /// Grows the cards in once the first load has finished, as Statistics does but quicker, since
+    /// this plays on every launch; at once with Reduce Motion.
+    private func reveal() {
+        guard !revealed, !records.isLoading else { return }
+        if reduceMotion {
+            revealed = true
+        } else {
+            withAnimation(WalletChartGrid.dashboardReveal) { revealed = true }
         }
     }
 
@@ -259,13 +278,15 @@ public struct HomeView: View {
                     .lineLimit(1)
                 }
                 VStack(alignment: .leading, spacing: WalletMetrics.small) {
-                    Text(totalBalance.walletFormatted(selectedCurrency))
+                    // Rolls up from zero on the reveal, and to a new total after a save.
+                    let shown = revealed ? totalBalance : 0
+                    Text(shown.walletFormatted(selectedCurrency))
                         .font(.system(size: 40, weight: .bold, design: .rounded))
                         .monospacedDigit()
                         .foregroundStyle(totalBalance < 0 ? .red : .primary)
                         .lineLimit(1)
                         .minimumScaleFactor(0.5)
-                        .contentTransition(.numericText())
+                        .contentTransition(.numericText(value: shown.doubleValue))
                         .animation(.default, value: totalBalance)
                     monthChange
                 }
@@ -317,7 +338,10 @@ public struct HomeView: View {
 
     private var currencyMenu: some View {
         Menu {
-            Picker("Currency", selection: Binding(get: { selectedCurrency }, set: { displayedCurrency = $0 })) {
+            Picker("Currency", selection: Binding(get: { selectedCurrency }, set: { code in
+                // Every card moves to the new currency's figures, as Statistics' controls do.
+                withAnimation(reduceMotion ? nil : WalletChartGrid.change) { displayedCurrency = code }
+            })) {
                 ForEach(currencies, id: \.self) { Text($0).tag($0) }
             }
         } label: {
@@ -466,12 +490,14 @@ public struct HomeView: View {
             } else {
                 Chart(trend) { point in
                     BarMark(x: .value("Date", point.date, unit: .day),
-                            y: .value("Spent", point.amount.doubleValue))
+                            y: .value("Spent", revealed ? point.amount.doubleValue : 0))
                         .foregroundStyle(Color.accentColor.gradient)
                         .cornerRadius(WalletMetrics.tight)
                         .accessibilityLabel(point.date.formatted(date: .abbreviated, time: .omitted))
                         .accessibilityValue(point.amount.walletFormatted(selectedCurrency))
                 }
+                // Fixed, so the axis holds still while the bars grow.
+                .chartYScale(domain: WalletChartGrid.niceDomain(trend.map(\.amount.doubleValue)))
                 .chartYAxis {
                     AxisMarks(position: .leading) { value in
                         AxisGridLine(stroke: WalletChartGrid.stroke)

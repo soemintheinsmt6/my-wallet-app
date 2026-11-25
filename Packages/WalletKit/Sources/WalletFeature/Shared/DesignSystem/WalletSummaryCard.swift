@@ -18,8 +18,13 @@ struct WalletSummaryCard: View {
     /// Optional detail shown under the totals; the dashboard leaves both out.
     var dailyAverage: Decimal?
     var comparison: Comparison?
+    @Environment(\.walletChartsRevealed) private var revealed
 
-    private var net: Decimal { income - expenses }
+    /// The figures as drawn: zero until the screen reveals its charts, then the real ones, so they
+    /// roll up. The sentence under the net always describes the real figures.
+    private var shownIncome: Decimal { revealed ? income : 0 }
+    private var shownExpenses: Decimal { revealed ? expenses : 0 }
+    private var net: Decimal { shownIncome - shownExpenses }
 
     var body: some View {
         VStack(alignment: .leading, spacing: WalletMetrics.large) {
@@ -40,9 +45,9 @@ struct WalletSummaryCard: View {
             ratioBar
 
             HStack(alignment: .top, spacing: WalletMetrics.medium) {
-                total("Income", amount: income, symbol: "arrow.down.left", tint: .green)
+                total("Income", amount: shownIncome, symbol: "arrow.down.left", tint: .green)
                 Divider()
-                total("Expenses", amount: expenses, symbol: "arrow.up.right", tint: .red)
+                total("Expenses", amount: shownExpenses, symbol: "arrow.up.right", tint: .red)
             }
             .fixedSize(horizontal: false, vertical: true)
 
@@ -50,9 +55,10 @@ struct WalletSummaryCard: View {
                 Divider()
                 HStack(alignment: .top, spacing: WalletMetrics.medium) {
                     if let dailyAverage {
+                        let shown = revealed ? dailyAverage : 0
                         detail("Spent per day") {
-                            Text(dailyAverage.walletFormatted(currencyCode))
-                                .contentTransition(.numericText(value: dailyAverage.doubleValue))
+                            Text(shown.walletFormatted(currencyCode))
+                                .contentTransition(.numericText(value: shown.doubleValue))
                         }
                     }
                     if let comparison {
@@ -110,6 +116,7 @@ struct WalletSummaryCard: View {
     }
 
     /// Income against expenses as one split bar; a neutral track when there is nothing to compare.
+    /// Real figures, not the rolling ones: zeroed, the bar would flash to the neutral track.
     private var ratioBar: some View {
         GeometryReader { proxy in
             let total = NSDecimalNumber(decimal: income + expenses).doubleValue
@@ -124,6 +131,8 @@ struct WalletSummaryCard: View {
             }
         }
         .frame(height: 8)
+        // Draws out from the leading edge as the figures roll up.
+        .scaleEffect(x: revealed ? 1 : 0.001, anchor: .leading)
         .accessibilityHidden(true)
     }
 

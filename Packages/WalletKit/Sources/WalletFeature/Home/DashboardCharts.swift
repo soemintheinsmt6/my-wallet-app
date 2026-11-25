@@ -67,6 +67,10 @@ struct BalanceTrendChart: View {
     let currencyCode: String
     @State private var selected: Date?
     @AppStorage(WalletPreferenceKeys.numberScale) private var numberScale = NumberScale.automatic.rawValue
+    /// The line rises from zero when the Dashboard reveals its charts.
+    @Environment(\.walletChartsRevealed) private var revealed
+
+    private func plotted(_ point: StatisticsPoint) -> Double { revealed ? point.amount.doubleValue : 0 }
 
     private var selectedPoint: StatisticsPoint? {
         guard let selected else { return nil }
@@ -77,11 +81,11 @@ struct BalanceTrendChart: View {
         Chart {
             ForEach(points) { point in
                 AreaMark(x: .value("Date", point.date, unit: .day),
-                         y: .value("Balance", point.amount.doubleValue))
+                         y: .value("Balance", plotted(point)))
                     .foregroundStyle(Color.accentColor.opacity(0.15))
                     .interpolationMethod(.monotone)
                 LineMark(x: .value("Date", point.date, unit: .day),
-                         y: .value("Balance", point.amount.doubleValue))
+                         y: .value("Balance", plotted(point)))
                     .foregroundStyle(Color.accentColor)
                     .lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
                     .interpolationMethod(.monotone)
@@ -120,6 +124,8 @@ struct BalanceTrendChart: View {
             }
         }
         .chartXSelection(value: $selected)
+        // Fixed, so the axis holds still while the line rises.
+        .chartYScale(domain: WalletChartGrid.niceDomain(points.map(\.amount.doubleValue)))
         .chartYAxis {
             AxisMarks(position: .leading, values: .automatic(desiredCount: 4)) { value in
                 // Dotted, like every chart's grid, so the lines recede behind the balance.
@@ -167,6 +173,8 @@ struct ExpenseBreakdownView: View {
     let currencyCode: String
     @State private var grouping = Grouping.categories
     @AppStorage(WalletPreferenceKeys.numberScale) private var numberScale = NumberScale.automatic.rawValue
+    @Environment(\.walletChartsRevealed) private var revealed
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var entries: [BreakdownEntry] {
         DashboardBreakdown.folded(grouping == .categories ? byCategory : byLabel)
@@ -174,7 +182,8 @@ struct ExpenseBreakdownView: View {
 
     var body: some View {
         VStack(spacing: WalletMetrics.large) {
-            Picker("Group by", selection: $grouping) {
+            // Slices resize and legend rows slide, as Statistics' controls move its charts.
+            Picker("Group by", selection: $grouping.animation(reduceMotion ? nil : WalletChartGrid.change)) {
                 ForEach(Grouping.allCases) { Text($0.rawValue).tag($0) }
             }
             .pickerStyle(.segmented)
@@ -210,6 +219,10 @@ struct ExpenseBreakdownView: View {
                     .frame(maxWidth: WalletMetrics.Chart.donutHeight * 0.64 - WalletMetrics.large)
                     .accessibilityHidden(true)
                 }
+                // Swings in a quarter turn as it grows, like Statistics' donuts.
+                .rotationEffect(.degrees(revealed ? 0 : -90))
+                .scaleEffect(revealed ? 1 : 0.7)
+                .opacity(revealed ? 1 : 0)
 
                 VStack(spacing: WalletMetrics.small) {
                     ForEach(entries) { entry in legendRow(entry) }
@@ -245,6 +258,8 @@ struct ExpenseBreakdownView: View {
 struct TopExpensesView: View {
     let entries: [BreakdownEntry]
     let currencyCode: String
+    /// Bars start empty and fill when the Dashboard reveals its charts.
+    @Environment(\.walletChartsRevealed) private var revealed
 
     private var largest: Decimal { entries.first?.amount ?? 0 }
 
@@ -266,7 +281,7 @@ struct TopExpensesView: View {
                             .lineLimit(1)
                     }
                     GeometryReader { proxy in
-                        let fraction = largest > 0 ? (entry.amount / largest).doubleValue : 0
+                        let fraction = revealed && largest > 0 ? (entry.amount / largest).doubleValue : 0
                         ZStack(alignment: .leading) {
                             RoundedRectangle(cornerRadius: 4).fill(.quaternary.opacity(0.5))
                             RoundedRectangle(cornerRadius: 4)
