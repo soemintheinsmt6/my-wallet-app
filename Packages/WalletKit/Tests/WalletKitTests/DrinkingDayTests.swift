@@ -162,6 +162,52 @@ struct DrinkingDayTests {
         #expect(year2024.mostVisitedPlaces.map(\.name) == ["Old Pub"])
     }
 
+    @Test func alcoholCategoriesMatchWholeWordsOfTheCategoryOrItsParent() {
+        for name in ["Beer", "Wine & Spirits", "WHISKEY", "Whisky bar", "Gin", "Sake", "Night club", "Cocktails"] {
+            #expect(AlcoholCategories.isAlcohol(name), "\(name)")
+        }
+        for name in ["Bar & Café", "Engine oil", "Rumah", "Food & Drinks", "Groceries", "Clubhouse", ""] {
+            #expect(!AlcoholCategories.isAlcohol(name), "\(name)")
+        }
+        let alcohol = WalletCategory(name: "Alcohol")
+        let nightOut = WalletCategory(parentID: alcohol.id, name: "Night out")
+        let food = WalletCategory(name: "Food & Drinks")
+        let snacks = WalletCategory(parentID: food.id, name: "Snacks")
+        let categories = [alcohol, nightOut, food, snacks]
+        #expect(AlcoholCategories.contains(nightOut, in: categories))
+        #expect(!AlcoholCategories.contains(snacks, in: categories))
+        #expect(!AlcoholCategories.contains(nil, in: categories))
+    }
+
+    @Test func markingFromAnExpenseAddsThePayeeAndNeverOverwritesAMarkedDay() async throws {
+        let repository = try await SwiftDataWalletRepository.make(configuration: .inMemory)
+        let useCases = DrinkingDayUseCases(repository: repository)
+        let now = today.date(in: calendar).addingTimeInterval(3600)
+        let viewModel = DrinkingDaysViewModel(useCases: useCases, calendar: calendar, now: { now })
+        await viewModel.observe()
+        try await viewModel.mark(today.adding(days: -2, calendar: calendar), drinks: nil, places: ["Blue Bar"], note: "")
+
+        let yesterday = today.adding(days: -1, calendar: calendar).date(in: calendar).addingTimeInterval(7200)
+        #expect(viewModel.canSuggestMarking(yesterday))
+        #expect(!viewModel.canSuggestMarking(now.addingTimeInterval(86_400 * 2)))
+        try await viewModel.markFromExpense(on: yesterday, payee: " blue  bar ")
+        let marked = try #require(viewModel.days[today.adding(days: -1, calendar: calendar)])
+        #expect(marked.places == ["Blue Bar"])
+        #expect(marked.drinks == nil)
+        #expect(!viewModel.canSuggestMarking(yesterday))
+
+        // A day marked elsewhere, unseen by this model, keeps its count and places.
+        try await useCases.mark(today, drinks: 4, places: ["Club 9"], note: "birthday", today: today)
+        try await viewModel.markFromExpense(on: now, payee: "Corner Shop")
+        let kept = try #require(try await useCases.load().first { $0.day == today })
+        #expect(kept.drinks == 4)
+        #expect(kept.places == ["Club 9"])
+        #expect(kept.note == "birthday")
+
+        try await viewModel.markFromExpense(on: today.adding(days: -3, calendar: calendar).date(in: calendar), payee: "")
+        #expect(viewModel.days[today.adding(days: -3, calendar: calendar)]?.places == [])
+    }
+
     @Test func viewModelSuggestsPlacesFromSavedDaysAndRefreshesAfterSaving() async throws {
         let repository = try await SwiftDataWalletRepository.make(configuration: .inMemory)
         let now = today.date(in: calendar).addingTimeInterval(3600)

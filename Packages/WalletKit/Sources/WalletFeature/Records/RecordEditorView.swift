@@ -22,6 +22,9 @@ struct RecordEditorView: View {
     @Environment(\.currencyViewModel) private var currencyModel
     @Environment(\.receiptUseCases) private var receiptUseCases
     @Environment(\.splitsViewModel) private var splitsViewModel
+    @Environment(\.drinkingDaysViewModel) private var drinkingDays
+    /// Whether saving also marks the record's day as a drinking day; offered for alcohol expenses.
+    @State private var marksDrinkingDay = false
     @State private var isSplitting = false
     @State private var photoItem: PhotosPickerItem?
     @State private var isLoadingPhoto = false
@@ -76,6 +79,13 @@ struct RecordEditorView: View {
         return (try? values.validate(allowUncategorized: record != nil)) != nil
     }
 
+    /// An expense filed under a category, or a subcategory of one, named after alcohol. Not for a
+    /// recurring series' preview, whose records are only planned.
+    private var isAlcoholExpense: Bool {
+        saveAction == nil && draft.kind == .expense && !draft.isAdjustment
+            && AlcoholCategories.contains(viewModel.category(draft.categoryID), in: viewModel.categories)
+    }
+
     private var currency: String { viewModel.account(draft.accountID)?.currencyCode ?? "" }
     private var destinationCurrency: String { viewModel.account(draft.destinationAccountID)?.currencyCode ?? "" }
     private var crossCurrency: Bool {
@@ -95,6 +105,10 @@ struct RecordEditorView: View {
                 VStack(spacing: 0) {
                     amountSection
                     generalSection
+                    if isAlcoholExpense, let drinkingDays {
+                        DrinkingDaySuggestionRow(viewModel: drinkingDays, date: draft.date, payee: draft.payee,
+                                                 isOn: $marksDrinkingDay)
+                    }
                     detailsSection
                     // An adjustment corrects one moment's balance; interest and fees differ each
                     // time, so repeating a fixed amount would only record the wrong figure.
@@ -181,6 +195,8 @@ struct RecordEditorView: View {
             .interactiveDismissDisabled(isBusy)
             // Ready long before the Payee screen opens, so it does not stall while sliding in.
             .task { await viewModel.preparePayeeData() }
+            // Loads the marked days, which are otherwise read only once Drinking Days is opened.
+            .task { await drinkingDays?.observe() }
             .task(id: photoItem) { await loadPhoto() }
             .onChange(of: draft.accountID) { _, id in
                 if draft.destinationAccountID == id { draft.destinationAccountID = nil }
@@ -645,6 +661,12 @@ struct RecordEditorView: View {
             // An empty rate field means "use the downloaded rate", stored as no override at all.
             values.manualRate = manualRate.trimmingCharacters(in: .whitespaces).isEmpty
                 ? nil : try AccountAmountInput.parse(manualRate)
+            // Marked before the record is saved, so a failure here leaves the editor open with the
+            // error and nothing saved; the switch can be turned off to save the record alone. A
+            // retry after the record fails is safe, since a marked day is never marked again.
+            if marksDrinkingDay, isAlcoholExpense, let drinkingDays {
+                try await drinkingDays.markFromExpense(on: values.date, payee: values.payee)
+            }
             if let saveAction { try await saveAction(recordID, values) }
             else { try await viewModel.save(id: recordID, draft: values, editing: record != nil) }
             didSave = true

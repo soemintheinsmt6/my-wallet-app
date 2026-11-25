@@ -155,6 +155,25 @@ public final class DrinkingDaysViewModel: ObservableObject {
         await reload()
     }
 
+    /// Whether the record editor should offer to mark the day of an alcohol expense: today or
+    /// earlier, and not marked yet. Only reliable once the days have loaded.
+    public func canSuggestMarking(_ date: Date) -> Bool {
+        let day = DayKey(date, calendar: calendar)
+        return !isLoading && day <= today && days[day] == nil
+    }
+
+    /// Marks the day of an alcohol expense with its payee as the place, under the spelling used
+    /// before. Reloads first, so a day marked on another device since is left exactly as it is
+    /// rather than overwritten.
+    public func markFromExpense(on date: Date, payee: String) async throws {
+        let day = DayKey(date, calendar: calendar)
+        await reload()
+        guard days[day] == nil else { return }
+        let place = placeSpelling(of: payee)
+        let places = place.isEmpty || place.count > DrinkingDay.maximumPlaceNameLength ? [] : [place]
+        try await mark(day, drinks: nil, places: places, note: "")
+    }
+
     public func unmark(_ day: DayKey) async throws {
         guard !isSaving else { throw DrinkingDayError.saveInProgress }
         isSaving = true

@@ -1142,3 +1142,16 @@ Manual checks:
 3. Switch to Year and confirm the same places; page to an earlier year and confirm only that year's places show.
 4. Mark one day at two places and confirm both counts go up.
 5. With VoiceOver, confirm each row reads its name and day count.
+
+## Marking Drinking Days from Alcohol Expenses (2026-11-26)
+
+The record editor now offers to mark the day of an alcohol expense as a drinking day. **464 tests across 67 suites passed**, including new tests for matching alcohol category names (whole words, parent categories, "Bar & Café" and "Engine oil" left out) and for marking from an expense (the payee added under its earlier spelling, future days not offered, and a day marked elsewhere left unchanged). Unsigned iOS Simulator, macOS and watchOS builds passed. SwiftLint reports no new warnings; `RecordEditorView.swift` already had its three length warnings on `main`. Not yet seen in the app.
+
+Manual checks:
+
+1. Create a "Beer" subcategory under Food & Drinks. Add an expense under it for today, payee "Blue Bar", and confirm Mark as Drinking Day appears, switched off, with a caption naming today and Blue Bar.
+2. Turn it on and save; open Drinking Days and confirm today is marked with Blue Bar as its place and no count.
+3. Add another Beer expense for today and confirm the switch no longer appears.
+4. Choose Groceries or Bar & Café and confirm no switch; choose Income and confirm none.
+5. Set the date to a day already marked and confirm the switch disappears.
+6. Without opening Drinking Days since launch, add a Beer expense and confirm the switch still appears once the days load.
