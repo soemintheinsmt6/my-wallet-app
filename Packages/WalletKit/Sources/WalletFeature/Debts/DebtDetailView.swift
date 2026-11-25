@@ -15,8 +15,9 @@ struct DebtDetailView: View {
     @State private var mutationError: String?
     @State private var photo: Data?
     @State private var viewingPhoto = false
-    /// Starts collapsed each time the screen opens.
+    /// Both start collapsed each time the screen opens.
     @State private var showsAllHistory = false
+    @State private var showsAllRecords = false
     @Environment(\.dismiss) private var dismiss
 
     private var progress: DebtProgress? { viewModel.debts.first { $0.debt.id == debtID } }
@@ -153,10 +154,12 @@ struct DebtDetailView: View {
     }
 
     /// The same rows as the Records list, so the debt's money reads as it does there; each opens
-    /// its record.
+    /// its record. Newest first and collapsed like History, with the same button to show the rest.
     @ViewBuilder private func records(_ progress: DebtProgress) -> some View {
-        let records = viewModel.records(for: progress)
-        if !records.isEmpty {
+        let all = Array(viewModel.records(for: progress).reversed())
+        if !all.isEmpty {
+            let collapsible = all.count > Self.collapsedCount
+            let records = collapsible && !showsAllRecords ? Array(all.prefix(Self.collapsedCount)) : all
             WalletListSectionHeader("Records")
             ForEach(records) { record in
                 Button { editingRecord = record } label: {
@@ -167,8 +170,28 @@ struct DebtDetailView: View {
                 .accessibilityHint("Edit record")
                 .listRowSeparator(record.id == records.last?.id ? .hidden : .automatic, edges: .bottom)
             }
+            if collapsible {
+                expandRow(isExpanded: $showsAllRecords, count: all.count, noun: "records")
+            }
         }
     }
+
+    /// The expand button at the trailing edge under a collapsed list's last row, so a long expanded
+    /// list collapses without scrolling back up.
+    private func expandRow(isExpanded: Binding<Bool>, count: Int, noun: String) -> some View {
+        HStack {
+            Spacer()
+            WalletExpandButton(isExpanded: isExpanded.wrappedValue, count: count) {
+                withAnimation { isExpanded.wrappedValue.toggle() }
+            }
+            .accessibilityHint(isExpanded.wrappedValue ? "Shows only the latest \(noun)" : "Shows every one of the \(noun)")
+        }
+        .frame(minHeight: WalletMetrics.touchTarget)
+        .listRowSeparator(.hidden)
+    }
+
+    /// How many of the latest entries a collapsed History or Records list shows.
+    private static let collapsedCount = 3
 
     /// Every step of the debt, newest first: what it started at, each time more was lent or borrowed,
     /// and each payment, with the balance after it. Money added reads with a plus, payments with a
@@ -180,8 +203,8 @@ struct DebtDetailView: View {
     @ViewBuilder private func history(_ progress: DebtProgress) -> some View {
         let currency = progress.debt.currencyCode
         let all = Array(progress.history.reversed())
-        let collapsible = all.count > Self.collapsedHistoryCount
-        let rows = collapsible && !showsAllHistory ? Array(all.prefix(Self.collapsedHistoryCount)) : all
+        let collapsible = all.count > Self.collapsedCount
+        let rows = collapsible && !showsAllHistory ? Array(all.prefix(Self.collapsedCount)) : all
         WalletListSectionHeader("History")
         ForEach(rows, id: \.entry.id) { row in
             historyRow(row, progress: progress, currency: currency)
@@ -192,22 +215,8 @@ struct DebtDetailView: View {
                     }
                 }
         }
-        // Under the last row, so a long expanded history collapses without scrolling back up.
-        if collapsible {
-            HStack {
-                Spacer()
-                WalletExpandButton(isExpanded: showsAllHistory, count: all.count) {
-                    withAnimation { showsAllHistory.toggle() }
-                }
-                .accessibilityHint(showsAllHistory ? "Shows only the latest steps" : "Shows every step")
-            }
-            .frame(minHeight: WalletMetrics.touchTarget)
-            .listRowSeparator(.hidden)
-        }
+        if collapsible { expandRow(isExpanded: $showsAllHistory, count: all.count, noun: "steps") }
     }
-
-    /// How many of the latest steps a collapsed history shows.
-    private static let collapsedHistoryCount = 3
 
     private func historyRow(_ row: DebtHistoryStep, progress: DebtProgress, currency: String) -> some View {
         let lending = progress.debt.direction == .owedToMe

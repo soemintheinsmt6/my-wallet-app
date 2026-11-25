@@ -960,3 +960,13 @@ Same day: Show All is repeated at the bottom trailing edge of History. Unsigned 
 Manual check: on a debt with more than 3 steps, tap Show All at the bottom right, scroll to the end, tap Show Less there, and confirm both buttons change together.
 
 Later the same day the header button was removed and the bottom one became `WalletExpandButton`, a tinted capsule with a turning chevron. A temporary `ImageRenderer` test drew it collapsed and expanded under sample rows for a visual check, then was deleted; both states sat trailing-aligned with even padding. Unused support for a trailing header accessory was removed. **449 tests across 66 suites passed**, unsigned iOS Simulator and macOS builds passed, and SwiftLint reports no new warnings. Not seen in the app or in dark mode.
+
+## Collapsed Debt Records (2026-11-25)
+
+The debt screen's Records list now collapses to its latest 3 with the same Show All button as History, and lists newest first. **449 tests across 66 suites passed**, unsigned iOS Simulator and macOS builds passed, and SwiftLint reports no new warnings. View-only, no new tests, not seen in the app.
+
+Manual checks:
+
+1. Open a debt with more than 3 records and confirm only the newest 3 show, with Show All at the bottom right.
+2. Expand Records and confirm History stays collapsed, and the other way round.
+3. Leave and reopen the screen and confirm both are collapsed again.

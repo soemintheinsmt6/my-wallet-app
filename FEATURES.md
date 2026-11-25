@@ -549,6 +549,8 @@ Same day, the Show All button moved from a row under the history to the trailing
 
 Same day, the Show All button was repeated at the bottom trailing edge of the history, under its last row, keeping the one on the header. With 30 steps expanded, Show Less is then in reach without scrolling back to the top. Later the header button was removed, leaving only the bottom one, and plain link text was found too plain there: it is now `WalletExpandButton`, a tinted capsule with a chevron that turns as the history expands and collapses.
 
+Collapsed records (2026-11-25): the debt screen's Records list, one row per step that touched a balance, grew as long as History. It now collapses the same way: the latest 3 records, then the same Show All button at the bottom trailing edge, each list expanding on its own and both starting collapsed when the screen opens. Records were listed oldest first, so they are now newest first, matching History; otherwise "the latest 3" would have been the oldest.
+
 ---
 
 ### 5.2 Savings Goals
