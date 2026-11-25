@@ -47,16 +47,55 @@ struct WalletEditorSectionHeader: View {
 /// than as a section header, because a plain list pads above every header: the gap under a group's
 /// last row would then be larger than the gap above its first. Full width and without rules; the
 /// row above it hides its bottom rule, since the band separates the groups.
-struct WalletListSectionHeader: View {
+///
+/// An optional trailing accessory, such as a Show All button, sits on the band's trailing edge,
+/// level with the title.
+struct WalletListSectionHeader<Trailing: View>: View {
     let title: String
+    @ViewBuilder let trailing: Trailing
 
-    init(_ title: String) { self.title = title }
+    init(_ title: String, @ViewBuilder trailing: () -> Trailing) {
+        self.title = title
+        self.trailing = trailing()
+    }
 
     var body: some View {
         WalletEditorSectionHeader(title: title)
+            .overlay(alignment: .bottomTrailing) {
+                trailing
+                    .font(.subheadline)
+                    .padding(.trailing, 20)
+                    .padding(.bottom, 16)
+            }
             .listRowInsets(EdgeInsets())
             .listRowSeparator(.hidden)
-            .accessibilityAddTraits(.isHeader)
+    }
+}
+
+extension WalletListSectionHeader where Trailing == EmptyView {
+    init(_ title: String) { self.init(title) { EmptyView() } }
+}
+
+/// A rounded progress track filled to `value` (0 to 1) in `tint`. Thicker and softer than the system
+/// bar, so it reads at a glance in list rows and headers. Decorative: the row it sits in says the
+/// same in words.
+struct WalletProgressBar: View {
+    let value: Double
+    let tint: Color
+    var height: CGFloat = 6
+
+    var body: some View {
+        GeometryReader { proxy in
+            ZStack(alignment: .leading) {
+                Capsule().fill(tint.opacity(0.18))
+                Capsule()
+                    .fill(tint.gradient)
+                    .frame(width: max(height, proxy.size.width * min(1, max(0, value))))
+            }
+        }
+        .frame(height: height)
+        .animation(.easeOut(duration: 0.3), value: value)
+        .accessibilityHidden(true)
     }
 }
 

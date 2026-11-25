@@ -130,9 +130,7 @@ struct DebtDetailView: View {
             }
             if progress.paid > 0, !progress.isSettled {
                 VStack(spacing: WalletMetrics.tight) {
-                    ProgressView(value: progress.fraction)
-                        .tint(progress.tileColor)
-                        .accessibilityHidden(true)
+                    WalletProgressBar(value: progress.fraction, tint: progress.tileColor, height: 8)
                     Text("\(progress.paid.walletFormatted(currency)) paid of \(progress.total.walletFormatted(currency))")
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -178,40 +176,29 @@ struct DebtDetailView: View {
     /// A record a step added is kept when the step is deleted, as deleting the debt keeps them.
     ///
     /// A long history opens collapsed to its latest few steps, so the records and actions below stay
-    /// in reach; a row under it expands the rest in place and collapses it again.
+    /// in reach; Show All on the header's trailing edge expands the rest in place, then Show Less.
     @ViewBuilder private func history(_ progress: DebtProgress) -> some View {
         let currency = progress.debt.currencyCode
         let all = Array(progress.history.reversed())
         let collapsible = all.count > Self.collapsedHistoryCount
         let rows = collapsible && !showsAllHistory ? Array(all.prefix(Self.collapsedHistoryCount)) : all
-        WalletListSectionHeader("History")
+        WalletListSectionHeader("History") {
+            if collapsible {
+                Button(showsAllHistory ? "Show Less" : "Show All \(all.count)") {
+                    withAnimation { showsAllHistory.toggle() }
+                }
+                .buttonStyle(.borderless)
+                .accessibilityHint(showsAllHistory ? "Shows only the latest steps" : "Shows every step")
+            }
+        }
         ForEach(rows, id: \.entry.id) { row in
             historyRow(row, progress: progress, currency: currency)
-                .listRowSeparator(!collapsible && row.entry.id == rows.last?.entry.id ? .hidden : .automatic,
-                                  edges: .bottom)
+                .listRowSeparator(row.entry.id == rows.last?.entry.id ? .hidden : .automatic, edges: .bottom)
                 .swipeActions {
                     if case .opening = row.entry {} else {
                         Button("Delete", role: .destructive) { delete(row.entry) }
                     }
                 }
-        }
-        if collapsible {
-            Button {
-                withAnimation { showsAllHistory.toggle() }
-            } label: {
-                HStack {
-                    Text(showsAllHistory ? "Show Less" : "Show All \(all.count)")
-                    Spacer()
-                    Image(systemName: showsAllHistory ? "chevron.up" : "chevron.down")
-                        .font(.caption.weight(.semibold))
-                }
-                .foregroundStyle(.tint)
-                .frame(maxWidth: .infinity, minHeight: WalletMetrics.touchTarget)
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .accessibilityHint(showsAllHistory ? "Shows only the latest steps" : "Shows every step")
-            .listRowSeparator(.hidden, edges: .bottom)
         }
     }
 

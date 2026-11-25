@@ -101,35 +101,60 @@ public struct DebtsView: View {
         return balance.net > 0 ? "Owes you \(amount)" : "You owe \(amount)"
     }
 
-    private func row(_ progress: DebtProgress) -> some View {
+    private func row(_ progress: DebtProgress) -> some View { DebtRow(progress: progress) }
+}
+
+/// One debt in the Debts list: the tile, then two lines that pair left with right (who owes whom
+/// with what is outstanding, the status with the total) and, once something is paid, a bar across
+/// the full width of both ending in the share paid, so it lines up with the figures it measures.
+struct DebtRow: View {
+    let progress: DebtProgress
+
+    var body: some View {
+        let currency = progress.debt.currencyCode
+        let partlyPaid = progress.paid > 0 && !progress.isSettled
+        let tint: Color = progress.debt.direction == .owedToMe ? .green : .orange
         HStack(spacing: WalletMetrics.medium) {
             WalletIconTile(symbol: progress.tileSymbol, color: progress.tileColor)
-            VStack(alignment: .leading, spacing: WalletMetrics.hair) {
-                Text(progress.debt.direction.title)
-                    .font(.body.weight(.medium))
-                    .foregroundStyle(.primary)
-                Text(progress.statusText)
+            VStack(alignment: .leading, spacing: WalletMetrics.tight) {
+                VStack(alignment: .leading, spacing: WalletMetrics.hair) {
+                    HStack(alignment: .firstTextBaseline, spacing: WalletMetrics.small) {
+                        Text(progress.debt.direction.title)
+                            .font(.body.weight(.medium))
+                            .foregroundStyle(.primary)
+                            .lineLimit(1)
+                        Spacer(minLength: WalletMetrics.small)
+                        Text(progress.outstanding.walletFormatted(currency))
+                            .font(.body.weight(.semibold))
+                            .monospacedDigit()
+                            .foregroundStyle(progress.isSettled ? Color.secondary : Color.primary)
+                            .lineLimit(1)
+                    }
+                    HStack(alignment: .firstTextBaseline, spacing: WalletMetrics.small) {
+                        Text(progress.statusText)
+                            .foregroundStyle(progress.isOverdue ? Color.red : Color.secondary)
+                        Spacer(minLength: WalletMetrics.small)
+                        if partlyPaid {
+                            Text("of \(progress.total.walletFormatted(currency))")
+                                .foregroundStyle(.secondary)
+                                .monospacedDigit()
+                        }
+                    }
                     .font(.caption)
-                    .foregroundStyle(progress.isOverdue ? Color.red : Color.secondary)
                     .lineLimit(1)
-                if !progress.isSettled, progress.paid > 0 {
-                    ProgressView(value: progress.fraction)
-                        .tint(progress.debt.direction == .owedToMe ? .green : .orange)
-                        .accessibilityHidden(true)
                 }
-            }
-            Spacer(minLength: WalletMetrics.small)
-            VStack(alignment: .trailing, spacing: WalletMetrics.hair) {
-                Text(progress.outstanding.walletFormatted(progress.debt.currencyCode))
-                    .font(.body.weight(.semibold))
-                    .monospacedDigit()
-                    .foregroundStyle(progress.isSettled ? Color.secondary : Color.primary)
-                    .lineLimit(1)
-                if progress.paid > 0, !progress.isSettled {
-                    Text("of \(progress.total.walletFormatted(progress.debt.currencyCode))")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
+                if partlyPaid {
+                    HStack(spacing: WalletMetrics.small) {
+                        WalletProgressBar(value: progress.fraction, tint: tint)
+                        // As wide as "100%" whatever the figure, so every row's bar ends at the same point.
+                        ZStack(alignment: .trailing) {
+                            Text("100%").hidden()
+                            Text(progress.fraction.formatted(.percent.precision(.fractionLength(0)).rounded(rule: .down)))
+                                .foregroundStyle(tint)
+                        }
+                        .font(.caption2.weight(.semibold))
+                        .monospacedDigit()
+                    }
                 }
             }
             // The navigation link draws the chevron.

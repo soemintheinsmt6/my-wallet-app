@@ -945,3 +945,11 @@ Manual checks:
 2. Tap it and confirm every step appears and the row reads "Show Less"; tap again to collapse.
 3. Leave the screen, come back and confirm it is collapsed again.
 4. Open a debt with 3 steps or fewer and confirm there is no Show All row.
+
+Same day: Show All moved to the History header's trailing edge, and the Debts list row was reworked around a full-width `WalletProgressBar` with the percentage paid. A temporary test rendered the row and header with `ImageRenderer` on macOS for a visual check, then was deleted: the bars ended at the same point for 71% and 8%, and Show All sat level with the HISTORY title. The renderer cannot draw buttons, so plain text stood in for the button. **449 tests across 66 suites passed**, unsigned iOS Simulator and macOS builds passed, and SwiftLint reports no new warnings. Not seen in the app or in dark mode.
+
+Manual checks:
+
+1. On a debt with more than 3 steps, tap Show All on the History header, then Show Less.
+2. In the Debts list, confirm a partly paid debt shows the full-width bar with its percentage, and a debt with nothing paid or settled shows no bar.
+3. Check both in dark mode.
