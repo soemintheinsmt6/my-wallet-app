@@ -26,16 +26,7 @@ struct DrinkingDaySuggestionRow: View {
                 }
                 if isOn {
                     RecordFormRow(symbol: "number", color: DrinkingDaysView.tint) {
-                        Stepper(value: $drinks, in: 0...DrinkingDay.maximumDrinks) {
-                            HStack {
-                                Text("Drinks")
-                                Spacer()
-                                Text(drinks == 0 ? "Not recorded" : "\(drinks)")
-                                    .monospacedDigit()
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                        .accessibilityValue(drinks == 0 ? "Not recorded" : "\(drinks)")
+                        drinksControl
                     }
                     RecordFormRow(symbol: "mappin.and.ellipse", color: DrinkingDaysView.tint, showsDivider: false) {
                         WalletEditorNavigationButton(title: "Places",
@@ -49,6 +40,45 @@ struct DrinkingDaySuggestionRow: View {
             .navigationDestination(isPresented: $editingPlaces) {
                 DrinkingPlacesEntry(viewModel: viewModel,
                                     places: Binding(get: { places }, set: { editedPlaces = $0 }))
+            }
+        }
+    }
+
+    /// The drinking day editor's orange circles, small: the count between them in orange, or
+    /// Not recorded at zero. VoiceOver reads and adjusts it as one value.
+    private var drinksControl: some View {
+        // Tight, since each circle already sits in a wider tap area.
+        HStack(spacing: 0) {
+            Text("Drinks").foregroundStyle(.primary)
+            Spacer()
+            DrinkStepButton(symbol: "minus", label: "Fewer drinks", size: 32, font: .subheadline.weight(.bold),
+                            isEnabled: drinks > 0) { drinks -= 1 }
+            Group {
+                if drinks == 0 {
+                    Text("Not recorded").font(.subheadline).foregroundStyle(.secondary)
+                } else {
+                    Text(drinks, format: .number)
+                        .font(.title3.weight(.semibold))
+                        .foregroundStyle(DrinkingDaysView.tint)
+                        .contentTransition(.numericText(value: Double(drinks)))
+                }
+            }
+            .monospacedDigit()
+            .lineLimit(1)
+            .frame(minWidth: 36)
+            DrinkStepButton(symbol: "plus", label: "More drinks", size: 32, font: .subheadline.weight(.bold),
+                            isEnabled: drinks < DrinkingDay.maximumDrinks) { drinks += 1 }
+        }
+        .animation(.snappy, value: drinks)
+        .frame(minHeight: WalletMetrics.touchTarget)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Drinks")
+        .accessibilityValue(drinks == 0 ? "Not recorded" : "\(drinks)")
+        .accessibilityAdjustableAction { direction in
+            switch direction {
+            case .increment: drinks = min(drinks + 1, DrinkingDay.maximumDrinks)
+            case .decrement: drinks = max(drinks - 1, 0)
+            @unknown default: break
             }
         }
     }

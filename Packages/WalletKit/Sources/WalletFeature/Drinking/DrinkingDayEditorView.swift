@@ -147,19 +147,8 @@ struct DrinkingDayEditorView: View {
 
     private func stepButton(symbol: String, label: String, isEnabled: Bool,
                             action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Image(systemName: symbol)
-                .font(.title2.weight(.semibold))
-                .frame(width: 52, height: 52)
-                .background(Circle().fill(DrinkingDaysView.tint.opacity(0.15)))
-                .foregroundStyle(DrinkingDaysView.tint)
-                .contentShape(Circle())
-        }
-        .buttonStyle(.plain)
-        .buttonRepeatBehavior(.enabled)
-        .disabled(!isEnabled)
-        .opacity(isEnabled ? 1 : 0.35)
-        .accessibilityLabel(label)
+        DrinkStepButton(symbol: symbol, label: label, size: 52, font: .title2.weight(.semibold),
+                        isEnabled: isEnabled, action: action)
     }
 
     /// The last row, where a saved item's delete sits in the other editors: clearing the mark.
@@ -190,5 +179,34 @@ struct DrinkingDayEditorView: View {
             try await viewModel.unmark(day)
             dismiss()
         } catch { errorMessage = error.localizedDescription }
+    }
+}
+
+/// A minus or plus in an orange-tinted circle, held to repeat, faded when it cannot step further.
+/// Large in the drinking day editor, small in the record editor's Drinks row.
+struct DrinkStepButton: View {
+    let symbol: String
+    let label: String
+    let size: CGFloat
+    let font: Font
+    let isEnabled: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: symbol)
+                .font(font)
+                .frame(width: size, height: size)
+                .background(Circle().fill(DrinkingDaysView.tint.opacity(0.15)))
+                .foregroundStyle(DrinkingDaysView.tint)
+                // A small circle still gets a full-size tap area around it.
+                .frame(minWidth: WalletMetrics.touchTarget, minHeight: WalletMetrics.touchTarget)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .buttonRepeatBehavior(.enabled)
+        .disabled(!isEnabled)
+        .opacity(isEnabled ? 1 : 0.35)
+        .accessibilityLabel(label)
     }
 }

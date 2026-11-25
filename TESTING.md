@@ -1156,3 +1156,15 @@ Manual checks:
 5. Choose Groceries or Bar & Café and confirm no switch; choose Income and confirm none.
 6. Set the date to a day already marked and confirm the switch disappears.
 7. Without opening Drinking Days since launch, add a Beer expense and confirm the switch still appears once the days load.
+
+## Drinks Stepper Style (2026-11-26)
+
+The record editor's Drinks row replaces the grey system stepper with the drinking day editor's orange circles, small, with the count in orange between them. **464 tests across 67 suites passed**, unsigned iOS Simulator and macOS builds passed, and SwiftLint reports no new warnings. View-only, no new tests, not seen in the app.
+
+Manual checks:
+
+1. Turn on Mark as Drinking Day and confirm Drinks reads Not recorded with a faded minus.
+2. Tap plus and confirm the count appears in orange and rolls; hold plus and confirm it repeats.
+3. Tap just outside each circle and confirm it still steps.
+4. Open a marked day in Drinking Days and confirm its large circles look unchanged.
+5. With VoiceOver, swipe up and down on Drinks and confirm it adjusts and reads the count.
